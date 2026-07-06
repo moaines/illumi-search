@@ -1,0 +1,652 @@
+<?php
+
+namespace Moaines\LaravelFts\Engines;
+
+use Illuminate\Database\Eloquent\Model;
+use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\LaravelFts\Exceptions\FtsException;
+use Moaines\LaravelFts\FtsResult;
+use SQLite3;
+
+class SqliteFtsEngine implements FtsEngine
+{
+    private const META_TABLE = '_fts_meta';
+
+    private ?SQLite3 $db = null;
+
+    private ?TextProcessor $textProcessor = null;
+
+    public function __construct(
+        private readonly string $databasePath,
+    ) {}
+
+    public function setTextProcessor(TextProcessor $processor): void
+    {
+        $this->textProcessor = $processor;
+    }
+
+    public function getDatabasePath(): string
+    {
+        return $this->databasePath;
+    }
+
+    public function getDatabaseSize(): int
+    {
+        if (file_exists($this->databasePath)) {
+            return filesize($this->databasePath);
+        }
+
+        return 0;
+    }
+
+    protected function db(): SQLite3
+    {
+        if ($this->db === null) {
+            $this->db = new SQLite3($this->databasePath);
+            $this->db->exec('PRAGMA journal_mode=WAL');
+            $this->db->exec('PRAGMA synchronous=NORMAL');
+            $this->db->exec('PRAGMA cache_size=-64000');
+
+            $this->ensureMetaTable();
+        }
+
+        return $this->db;
+    }
+
+    public function __destruct()
+    {
+        if ($this->db !== null) {
+            $this->db->close();
+            $this->db = null;
+        }
+    }
+
+    protected function ensureMetaTable(): void
+    {
+        $this->db()->exec(sprintf(
+            'CREATE TABLE IF NOT EXISTS %s (
+                model_class TEXT PRIMARY KEY,
+                schema_version INTEGER NOT NULL DEFAULT 1,
+                columns TEXT NOT NULL,
+                last_synced_at TEXT
+            )',
+            self::META_TABLE
+        ));
+    }
+
+    public function tableName(string $modelClass): string
+    {
+        $name = str_replace('\\', '_', $modelClass);
+        $name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
+        $name = 'idx_'.strtolower(ltrim($name, '_'));
+
+        return $name;
+    }
+
+    public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
+    {
+        $table = $this->tableName($modelClass);
+
+        $contentColumns = [];
+        $columnDefinitions = [];
+
+        foreach ($columns as $key => $config) {
+            $colName = is_string($key) ? $key : $config;
+            $contentColumns[] = $colName;
+            $columnDefinitions[] = $colName;
+        }
+
+        $columnDefinitions[] = 'model_id';
+
+        $columnList = implode(', ', $columnDefinitions);
+
+        $options = [];
+
+        $tokenizerDef = config('fts.fts5.tokenizer', 'unicode61');
+        $options[] = "tokenize='{$tokenizerDef}'";
+
+        if (! empty($prefixLengths)) {
+            $options[] = "prefix='" . implode(' ', $prefixLengths) . "'";
+        }
+
+        $optionString = implode(', ', $options);
+        $sql = "CREATE VIRTUAL TABLE IF NOT EXISTS {$table} USING fts5({$columnList}, {$optionString})";
+
+        $this->db()->exec($sql);
+
+        // Create vocab table for spellcheck suggestions
+        $vocabTable = $table . '_vocab';
+        $this->db()->exec(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS {$vocabTable} USING fts5vocab({$table}, 'row')"
+        );
+
+        $this->updateMeta($modelClass, 1, $contentColumns);
+    }
+
+    public function dropTable(string $modelClass): void
+    {
+        $table = $this->tableName($modelClass);
+        $vocabTable = $table . '_vocab';
+        $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
+        $this->db()->exec("DROP TABLE IF EXISTS {$table}");
+
+        $stmt = $this->db()->prepare('DELETE FROM '.self::META_TABLE.' WHERE model_class = :model');
+        $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
+    public function upsert(string $modelClass, int|string $modelId, array $document): void
+    {
+        $table = $this->tableName($modelClass);
+
+        // Delete existing
+        $delStmt = $this->db()->prepare("DELETE FROM {$table} WHERE model_id = :id");
+        $delStmt->bindValue(':id', (string) $modelId, SQLITE3_TEXT);
+        $delStmt->execute();
+
+        // Insert new
+        $columns = array_keys($document);
+        $placeholders = [];
+        $values = [];
+
+        foreach ($columns as $col) {
+            $placeholders[] = ":{$col}";
+            $values[":{$col}"] = $document[$col];
+        }
+
+        $placeholders[] = ':model_id';
+        $values[':model_id'] = (string) $modelId;
+
+        $columnList = implode(', ', array_merge($columns, ['model_id']));
+        $placeholderList = implode(', ', $placeholders);
+
+        $stmt = $this->db()->prepare(
+            "INSERT INTO {$table} ({$columnList}) VALUES ({$placeholderList})"
+        );
+
+        foreach ($values as $param => $value) {
+            $stmt->bindValue($param, $value, SQLITE3_TEXT);
+        }
+
+        $stmt->execute();
+    }
+
+    public function delete(string $modelClass, int|string $modelId): void
+    {
+        $table = $this->tableName($modelClass);
+
+        if (! $this->tableExists($modelClass)) {
+            return;
+        }
+
+        $stmt = $this->db()->prepare("DELETE FROM {$table} WHERE model_id = :id");
+        $stmt->bindValue(':id', (string) $modelId, SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
+    public function insertBatch(string $modelClass, array $documents): void
+    {
+        $this->db()->exec('BEGIN TRANSACTION');
+
+        try {
+            foreach ($documents as $doc) {
+                $this->upsert($modelClass, $doc['model_id'], $doc['document']);
+            }
+            $this->db()->exec('COMMIT');
+        } catch (\Exception $e) {
+            $this->db()->exec('ROLLBACK');
+            throw $e;
+        }
+    }
+
+    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced'): array
+    {
+        if (empty(trim($query))) {
+            return [];
+        }
+
+        $safeQuery = $this->escapeQuery($query, $mode);
+        $results = [];
+        $seenIds = [];
+
+        foreach ($modelClasses as $modelClass) {
+            if (! $this->tableExists($modelClass)) {
+                continue;
+            }
+
+            $table = $this->tableName($modelClass);
+
+            try {
+                $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank LIMIT :limit OFFSET :offset";
+                $stmt = $this->db()->prepare($sql);
+                $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
+                $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+                $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+
+                $result = $stmt->execute();
+
+                while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                    $modelId = $row['model_id'];
+                    $uniqueId = "{$modelClass}:{$modelId}";
+
+                    if (isset($seenIds[$uniqueId])) {
+                        continue;
+                    }
+                    $seenIds[$uniqueId] = true;
+
+                    $titleColumn = $this->getTitleColumn($row);
+
+                    $results[] = [
+                        'modelClass' => $modelClass,
+                        'modelId' => $modelId,
+                        'rank' => $row['rank'] ?? 0.0,
+                        'title' => $row[$titleColumn] ?? $modelId,
+                        'row' => $row,
+                    ];
+                }
+            } catch (\Exception $e) {
+                throw FtsException::queryParseError($query, $e->getMessage());
+            }
+        }
+
+        // Sort by rank across all model classes
+        usort($results, fn ($a, $b) => $a['rank'] <=> $b['rank']);
+
+        $results = array_slice($results, 0, $limit);
+
+        // Enrich with snippets from original models
+        $results = $this->enrichWithSnippets($results, $query);
+
+        return array_map(
+            fn ($r) => FtsResult::make(
+                modelClass: $r['modelClass'],
+                modelId: $r['modelId'],
+                rank: $r['rank'],
+                title: $r['title'],
+                summary: $r['summary'] ?? null,
+                raw: $r['row'],
+            ),
+            $results,
+        );
+    }
+
+    protected function enrichWithSnippets(array $results, string $query): array
+    {
+        $grouped = [];
+        $order = [];
+
+        foreach ($results as $i => $r) {
+            $grouped[$r['modelClass']][] = $r;
+            $order[] = ['modelClass' => $r['modelClass'], 'index' => count($grouped[$r['modelClass']]) - 1];
+        }
+
+        $searchTerms = $this->extractSearchTerms($query);
+
+        foreach ($grouped as $modelClass => &$entries) {
+            $ids = array_column($entries, 'modelId');
+
+            if (!class_exists($modelClass) || empty($ids)) {
+                continue;
+            }
+
+            $models = $modelClass::whereIn((new $modelClass)->getKeyName(), $ids)->get()->keyBy->getKey();
+
+            foreach ($entries as &$entry) {
+                $model = $models[$entry['modelId']] ?? null;
+                if ($model === null) {
+                    continue;
+                }
+
+                // Restore original title from model (FTS5 stores processed version)
+                $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
+
+                $entry['summary'] = $this->extractSnippet($model, $searchTerms);
+            }
+        }
+
+        // Rebuild results in original order with enriched data
+        $enriched = [];
+        foreach ($results as $i => $r) {
+            $mc = $r['modelClass'];
+            $gi = $order[$i]['index'];
+            $enriched[] = $grouped[$mc][$gi];
+        }
+
+        return $enriched;
+    }
+
+    protected function extractSearchTerms(string $query): array
+    {
+        // Remove FTS5 operators and split into terms
+        $cleaned = preg_replace('/[":()^*\-]/', ' ', $query);
+        $terms = array_filter(explode(' ', $cleaned));
+        $terms = array_map(fn ($t) => trim($t), $terms);
+
+        // Normalize terms for matching
+        return array_values(array_unique(array_filter($terms)));
+    }
+
+    protected function extractSnippet(Model $model, array $searchTerms): ?string
+    {
+        // Find the best text column for snippet extraction
+        $textColumns = ['body', 'content', 'description', 'text', 'excerpt'];
+        $sourceText = null;
+
+        foreach ($textColumns as $col) {
+            if (isset($model->{$col}) && is_string($model->{$col}) && strlen($model->{$col}) > 50) {
+                $sourceText = $model->{$col};
+                break;
+            }
+        }
+
+        if ($sourceText === null) {
+            return null;
+        }
+
+        // Find first occurrence of any search term
+        $sourceLower = mb_strtolower(strip_tags($sourceText));
+        $bestPos = null;
+        $bestTerm = '';
+
+        foreach ($searchTerms as $term) {
+            $termLower = mb_strtolower($term);
+            $pos = mb_strpos($sourceLower, $termLower);
+            if ($pos !== false && ($bestPos === null || $pos < $bestPos)) {
+                $bestPos = $pos;
+                $bestTerm = $term;
+            }
+        }
+
+        if ($bestPos === null) {
+            // No match in plain text columns, return start of body
+            $bestPos = 0;
+        }
+
+        // Extract window around match
+        $windowSize = 120;
+        $snippetStart = max(0, $bestPos - 60);
+        $snippetLen = min(mb_strlen($sourceText), $windowSize);
+        $snippet = mb_substr(strip_tags($sourceText), $snippetStart, $snippetLen);
+
+        // Add ellipsis if truncated
+        if ($snippetStart > 0) {
+            $snippet = '…' . $snippet;
+        }
+        if ($snippetStart + $snippetLen < mb_strlen(strip_tags($sourceText)) - 1) {
+            $snippet .= '…';
+        }
+
+        // Highlight matching terms
+        foreach ($searchTerms as $term) {
+            if (empty(trim($term))) {
+                continue;
+            }
+            $snippet = preg_replace(
+                '/' . preg_quote($term, '/') . '/iu',
+                '<mark>$0</mark>',
+                $snippet,
+            );
+        }
+
+        return $snippet;
+    }
+
+    public function count(string $query, array $modelClasses): int
+    {
+        if (empty(trim($query))) {
+            return 0;
+        }
+
+        $safeQuery = $this->escapeQuery($query, 'advanced');
+        $total = 0;
+
+        foreach ($modelClasses as $modelClass) {
+            if (! $this->tableExists($modelClass)) {
+                continue;
+            }
+
+            $table = $this->tableName($modelClass);
+
+            try {
+                $stmt = $this->db()->prepare(
+                    "SELECT COUNT(*) as cnt FROM {$table} WHERE {$table} MATCH :query"
+                );
+                $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
+                $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+                $total += (int) ($row['cnt'] ?? 0);
+            } catch (\Exception) {
+                // Skip if query fails for this table
+            }
+        }
+
+        return $total;
+    }
+
+    public function tableExists(string $modelClass): bool
+    {
+        $table = $this->tableName($modelClass);
+
+        $result = $this->db()->query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='".SQLite3::escapeString($table)."'"
+        );
+
+        return $result->fetchArray() !== false;
+    }
+
+    public function getIndexedModelClasses(): array
+    {
+        $result = $this->db()->query('SELECT model_class FROM '.self::META_TABLE);
+        $classes = [];
+
+        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            $classes[] = $row['model_class'];
+        }
+
+        return $classes;
+    }
+
+    public function getIndexStats(): array
+    {
+        $models = $this->getIndexedModelClasses();
+        $stats = [];
+
+        foreach ($models as $modelClass) {
+            $table = $this->tableName($modelClass);
+            $row = $this->db()->query(
+                "SELECT COUNT(*) as cnt FROM {$table}"
+            )->fetchArray(SQLITE3_ASSOC);
+
+            $metaResult = $this->db()->query(
+                'SELECT last_synced_at, columns FROM '.self::META_TABLE." WHERE model_class = '".SQLite3::escapeString($modelClass)."'"
+            );
+            $meta = $metaResult->fetchArray(SQLITE3_ASSOC);
+
+            $stats[] = [
+                'model_class' => $modelClass,
+                'record_count' => (int) ($row['cnt'] ?? 0),
+                'last_synced_at' => $meta['last_synced_at'] ?? null,
+                'columns' => $meta['columns'] ?? null,
+            ];
+        }
+
+        return $stats;
+    }
+
+    public function vacuum(): void
+    {
+        $this->db()->exec('VACUUM');
+    }
+
+    public function optimize(): array
+    {
+
+        $results = [];
+
+        // 1. VACUUM the database
+        $beforeSize = $this->getDatabaseSize();
+        $this->vacuum();
+        $afterSize = $this->getDatabaseSize();
+        $results['vacuum'] = ['before' => $beforeSize, 'after' => $afterSize];
+
+        // 2. FTS5 merge optimization on each table
+        $tables = $this->getIndexedModelClasses();
+        $optimizedCount = 0;
+
+        foreach ($tables as $modelClass) {
+            $table = $this->tableName($modelClass);
+            try {
+                $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('optimize')");
+                $optimizedCount++;
+            } catch (\Exception) {
+                // Skip if table doesn't support optimize
+            }
+        }
+        $results['tables_optimized'] = $optimizedCount;
+
+        return $results;
+    }
+
+    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
+    {
+        if (! $this->tableExists($modelClass)) {
+            return [];
+        }
+
+        $table = $this->tableName($modelClass);
+        $vocabTable = $table . '_vocab';
+        $suggestions = [];
+
+        try {
+            $vocabLimit = config('fts.spellcheck.vocab_limit', 1000);
+            $stmt = $this->db()->prepare(
+                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL ORDER BY cnt DESC LIMIT {$vocabLimit}"
+            );
+
+            if ($stmt === false) {
+                return [];
+            }
+
+            $result = $stmt->execute();
+
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                $vocabTerm = $row['term'];
+                $distance = levenshtein($term, $vocabTerm);
+
+                if ($distance > 0 && $distance <= $maxDistance) {
+                    $suggestions[] = [
+                        'term' => $vocabTerm,
+                        'distance' => $distance,
+                        'frequency' => (int) ($row['cnt'] ?? 0),
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            report($e);
+            return [];
+        }
+
+        usort($suggestions, function ($a, $b) {
+            if ($a['distance'] !== $b['distance']) {
+                return $a['distance'] <=> $b['distance'];
+            }
+            return $b['frequency'] <=> $a['frequency'];
+        });
+
+        return array_slice(array_map(fn ($s) => $s['term'], $suggestions), 0, $limit);
+    }
+
+    protected function updateMeta(string $modelClass, int $version, array $columns): void
+    {
+        $stmt = $this->db()->prepare(sprintf(
+            'INSERT OR REPLACE INTO %s (model_class, schema_version, columns, last_synced_at) VALUES (:model, :version, :columns, :synced)',
+            self::META_TABLE
+        ));
+
+        $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
+        $stmt->bindValue(':version', $version, SQLITE3_INTEGER);
+        $stmt->bindValue(':columns', json_encode($columns), SQLITE3_TEXT);
+        $stmt->bindValue(':synced', now()->toDateTimeString(), SQLITE3_TEXT);
+        $stmt->execute();
+    }
+
+    protected function escapeQuery(string $query, string $mode): string
+    {
+        // Normalize query: lowercase + remove diacritics to match indexed content
+        $query = $this->normalizeQuery($query);
+
+        if ($mode === 'basic') {
+            $escaped = preg_replace('/[^\p{L}\p{N}\s\-\*]/u', ' ', $query);
+            $terms = array_filter(explode(' ', $escaped));
+            $terms = array_map(fn ($t) => trim($t).'*', $terms);
+
+            return implode(' ', $terms);
+        }
+
+        if ($mode === 'raw') {
+            // No wildcards, no escaping — bare normalized query
+            return $query;
+        }
+
+        // For advanced mode, split into terms and quote those with special chars
+        $terms = preg_split('/\s+/', trim($query));
+        $escaped = [];
+
+        foreach ($terms as $term) {
+            if (empty($term)) {
+                continue;
+            }
+
+            // Keep existing quoted phrases intact
+            if (str_starts_with($term, '"') && str_ends_with($term, '"')) {
+                $escaped[] = $term;
+                continue;
+            }
+
+            // Keep column:value syntax intact
+            if (preg_match('/^[\p{L}_]+:.*$/u', $term)) {
+                $escaped[] = $term;
+                continue;
+            }
+
+            // Quote terms with special FTS5 characters (hyphens, parens, etc.)
+            if (preg_match('/[:\-\(\)\^]/', $term)) {
+                $escaped[] = '"' . $term . '"';
+            } else {
+                // Add prefix wildcard for search-as-you-type
+                $escaped[] = $term . '*';
+            }
+        }
+
+        return implode(' ', $escaped);
+    }
+
+    protected function normalizeQuery(string $query): string
+    {
+        if ($this->textProcessor === null) {
+            $this->textProcessor = app(TextProcessor::class);
+        }
+
+        return $this->textProcessor->process($query);
+    }
+
+    protected function getTitleColumn(array $row): string
+    {
+        $priority = ['title', 'name', 'label', 'titre', 'nom'];
+
+        foreach ($priority as $col) {
+            if (isset($row[$col]) && ! empty($row[$col])) {
+                return $col;
+            }
+        }
+
+        // Return first non-model_id, non-rank column
+        foreach ($row as $col => $value) {
+            if ($col !== 'model_id' && $col !== 'rank' && ! empty($value)) {
+                return $col;
+            }
+        }
+
+        return 'model_id';
+    }
+}

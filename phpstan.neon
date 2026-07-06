@@ -1,0 +1,10 @@
+parameters:
+    level: 5
+    paths:
+        - src
+    ignoreErrors:
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::getFtsSearchableColumns\(\)#'
+        - '#Trait .+ is used zero times and is not analysed#'
+    excludePaths:
+        - tests
+        - vendor

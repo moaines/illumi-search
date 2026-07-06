@@ -1,0 +1,7 @@
+/vendor/
+/node_modules/
+/.phpunit.cache/
+/coverage/
+/.phpstan.result/
+.phpunit.result.cache
+composer.lock

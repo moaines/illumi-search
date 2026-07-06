@@ -1,0 +1,55 @@
+{
+    "name": "moaines/laravel-fts",
+    "description": "Full-text search using SQLite FTS5 + PHP-intl for Laravel",
+    "type": "library",
+    "keywords": ["laravel", "fts", "fulltext", "search", "sqlite", "fts5", "intl"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "moaines",
+            "homepage": "https://github.com/moaines"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "ext-sqlite3": "*",
+        "ext-intl": "*",
+        "ext-mbstring": "*",
+        "illuminate/support": "^11.0|^12.0|^13.0",
+        "illuminate/database": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "orchestra/testbench": "^9.0",
+        "phpstan/phpstan": "^2.0",
+        "laravel/pint": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Moaines\\LaravelFts\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Moaines\\LaravelFts\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test-coverage": "phpunit --coverage-html coverage",
+        "analyse": "phpstan analyse --memory-limit=2G",
+        "format": "pint"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Moaines\\LaravelFts\\LaravelFtsServiceProvider"
+            ],
+            "aliases": {
+                "Fts": "Moaines\\LaravelFts\\Facades\\Fts"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
