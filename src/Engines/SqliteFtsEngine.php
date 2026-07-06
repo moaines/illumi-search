@@ -301,7 +301,8 @@ class SqliteFtsEngine implements FtsEngine
                 // Restore original title from model (FTS5 stores processed version)
                 $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
 
-                $entry['summary'] = $this->extractSnippet($model, $searchTerms);
+                $snippetCols = $this->resolveSnippetColumns($model);
+                $entry['summary'] = $this->extractSnippet($model, $searchTerms, $snippetCols);
             }
         }
 
@@ -316,6 +317,34 @@ class SqliteFtsEngine implements FtsEngine
         return $enriched;
     }
 
+    /**
+     * Determine which columns are allowed for snippet extraction.
+     * Checks the model's $ftsSearchable for 'snippet' config.
+     */
+    protected function resolveSnippetColumns(Model $model): ?array
+    {
+        if (! method_exists($model, 'getFtsSearchableColumns')) {
+            return null;
+        }
+
+        $raw = $model->getFtsSearchableColumns();
+        if (empty($raw)) {
+            return null;
+        }
+
+        $searchable = \Moaines\LaravelFts\Searchable::normalizeFtsSearchable($model);
+        $allowed = [];
+
+        foreach ($searchable as $column => $config) {
+            $snippetEnabled = $config['snippet'] ?? true;
+            if ($snippetEnabled) {
+                $allowed[] = $column;
+            }
+        }
+
+        return ! empty($allowed) ? $allowed : null;
+    }
+
     protected function extractSearchTerms(string $query): array
     {
         // Remove FTS5 operators and split into terms
@@ -327,10 +356,11 @@ class SqliteFtsEngine implements FtsEngine
         return array_values(array_unique(array_filter($terms)));
     }
 
-    protected function extractSnippet(Model $model, array $searchTerms): ?string
+    protected function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
     {
-        // Find the best text column for snippet extraction
-        $textColumns = ['body', 'content', 'description', 'text', 'excerpt'];
+        // Default: common text columns
+        $defaultColumns = ['body', 'content', 'description', 'text', 'excerpt'];
+        $textColumns = $snippetColumns ?? $defaultColumns;
         $sourceText = null;
 
         foreach ($textColumns as $col) {

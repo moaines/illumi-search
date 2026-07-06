@@ -4,5 +4,5 @@ namespace Moaines\LaravelFts\Contracts;
 
 interface TextProcessor
 {
-    public function process(string $text, string $locale = 'fr'): string;
+    public function process(string $text, string $locale = 'en'): string;
 }

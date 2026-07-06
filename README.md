@@ -27,6 +27,8 @@ composer require moaines/laravel-fts
 
 ### 1. Configure your model
 
+Add the `Searchable` trait and list the columns to index:
+
 ```php
 use Moaines\LaravelFts\Searchable;
 
@@ -34,16 +36,7 @@ class Post extends Model
 {
     use Searchable;
 
-    protected array $ftsSearchable = [
-        'title' => ['weight' => 3],
-        'body'  => ['weight' => 1],
-        'author' => true,
-    ];
-
-    public function ftsUrl(): string
-    {
-        return '/posts/' . $this->id;
-    }
+    protected array $ftsSearchable = ['title', 'body'];
 }
 ```
 
@@ -58,43 +51,7 @@ php artisan fts:rebuild
 ```php
 use Moaines\LaravelFts\Facades\Fts;
 
-// Simple search
 $results = Fts::query('laravel')->model(Post::class)->get();
-
-// Scoped
-$results = Fts::query('base de données')
-    ->models([Post::class, Comment::class])
-    ->mode('advanced')
-    ->limit(20)
-    ->get();
-
-// With highlighting and context snippets
-foreach ($results as $result) {
-    echo $result->title;        // Original title from model
-    echo $result->summary;      // Context snippet with <mark> tags
-    echo $result->rank;         // BM25 relevance score
-}
-
-// Full-featured search with authorization, spelling suggestions, and pagination
-public function search(Request $request)
-{
-    $query = $request->input('q', '');
-    $user = $request->user();
-
-    $results = Fts::query($query)
-        ->model(Post::class)
-        ->mode('advanced')
-        ->limit(20)
-        ->when($user, fn ($b) => $b->withAuthorization($user))
-        ->get();
-
-    // Spelling suggestions when no results
-    $suggestions = $results->isEmpty()
-        ? Fts::didYouMean($query, [Post::class])
-        : collect();
-
-    return view('search', compact('results', 'suggestions', 'query'));
-}
 ```
 
 ---
@@ -179,7 +136,9 @@ return [
 
 ## Model Setup
 
-### Trait: `Searchable`
+### 1. Minimal
+
+Add the trait and list your columns:
 
 ```php
 use Moaines\LaravelFts\Searchable;
@@ -187,21 +146,53 @@ use Moaines\LaravelFts\Searchable;
 class Post extends Model
 {
     use Searchable;
+
+    protected array $ftsSearchable = ['title', 'body'];
+}
 ```
 
-### Searchable columns and weights
+### 2. With weights
+
+Assign BM25 relevance multipliers to prioritize columns:
 
 ```php
 protected array $ftsSearchable = [
-    'title'   => ['weight' => 3],  // 3× importance in ranking
-    'body'    => ['weight' => 1],
-    'excerpt' => true,              // default weight = 1
+    'title' => ['weight' => 3],  // 3× importance in ranking
+    'body'  => ['weight' => 1],
 ];
 ```
 
-### Custom document mapping
+Three syntaxes are accepted:
 
-By default, values are read directly from model attributes. Override for computed fields:
+| Syntax | Example | Description |
+|---|---|---|
+| **Explicit** | `'title' => ['weight' => 3]` | Full configuration with options |
+| **Minimal** | `'author'` | Default weight, no options |
+| **Shorthand** | `'excerpt' => true` | Same as minimal |
+
+### 3. With locale and snippet
+
+Control the text language and which columns provide context previews:
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `locale` | `string` | `app()->getLocale()` | Language passed to `TextProcessor::process()` |
+| `snippet` | `bool` | `true` | If `false`, excluded from result `<mark>` preview |
+
+```php
+protected array $ftsSearchable = [
+    'title' => ['weight' => 3, 'locale' => 'fr', 'snippet' => false],
+    'body'  => ['weight' => 1, 'locale' => 'fr', 'snippet' => true],
+    'tags'  => ['snippet' => false],
+    'author',
+];
+```
+
+> Short columns like `title` and `tags` use `snippet: false` to avoid noise in search results.
+
+### 4. Custom document mapping
+
+By default, values are read from model attributes. Override `toFtsDocument()` for computed or relational data:
 
 ```php
 public function toFtsDocument(): array
@@ -209,12 +200,12 @@ public function toFtsDocument(): array
     return [
         'title'  => $this->title,
         'body'   => strip_tags($this->body),
-        'author' => $this->author->name,     // from relationship
+        'author' => $this->author->name,
     ];
 }
 ```
 
-### Search URL
+### 5. Search URL
 
 ```php
 public function ftsUrl(): string
@@ -223,17 +214,17 @@ public function ftsUrl(): string
 }
 ```
 
-### Per-model options
+### 6. Category label
+
+Used by the Filament plugin to group results. Defaults to the plural of the model name (`Post` → `Posts`):
 
 ```php
-protected bool $ftsSyncOnSave = true;    // disable auto-indexing
-protected string $ftsCategory = 'Posts'; // group label in UI
-protected string $ftsIcon = 'heroicon-o-document-text';
+protected string $ftsCategory = 'Articles';
 ```
 
-### Custom TextProcessor
+### 7. Custom TextProcessor
 
-Override the global text processing pipeline for a specific model:
+Override the text processing pipeline for this model:
 
 ```php
 use Moaines\LaravelFts\Contracts\TextProcessor;
@@ -242,7 +233,6 @@ class MyCustomProcessor implements TextProcessor
 {
     public function process(string $text, string $locale = 'en'): string
     {
-        // Your custom normalization here
         return mb_strtolower(trim($text));
     }
 }
@@ -258,7 +248,11 @@ class Post extends Model
 }
 ```
 
-When set, the model's custom processor is used during indexing (`IndexModelJob`, `IndexBatchJob`, `sync`) and during sync operations. Search queries always use the global processor.
+### Other options
+
+```php
+protected bool $ftsSyncOnSave = true;  // disable auto-indexing for this model
+```
 
 ---
 

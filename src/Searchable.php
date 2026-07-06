@@ -45,7 +45,7 @@ trait Searchable
 
     public function toFtsDocument(): array
     {
-        $columns = $this->getFtsSearchableColumns();
+        $columns = static::normalizeFtsSearchable($this);
         $document = [];
 
         foreach ($columns as $column => $config) {
@@ -61,14 +61,13 @@ trait Searchable
         return null;
     }
 
-    public function ftsIcon(): ?string
-    {
-        return $this->ftsIcon ?? null;
-    }
-
     public function ftsCategory(): ?string
     {
-        return $this->ftsCategory ?? null;
+        if (isset($this->ftsCategory)) {
+            return $this->ftsCategory;
+        }
+
+        return \Illuminate\Support\Str::plural(class_basename(static::class));
     }
 
     public function getFtsSearchableColumns(): array
@@ -76,18 +75,11 @@ trait Searchable
         return $this->ftsSearchable ?? [];
     }
 
-    /**
-     * Override to use a custom TextProcessor for this model.
-     * Return a class name implementing TextProcessor, or null for the global one.
-     */
     public function ftsTextProcessor(): ?string
     {
         return null;
     }
 
-    /**
-     * Resolve the TextProcessor for a given model (supports custom per-model).
-     */
     public static function resolveProcessorFor(Model $model, TextProcessor $global): TextProcessor
     {
         $customClass = $model->ftsTextProcessor();
@@ -100,19 +92,46 @@ trait Searchable
     }
 
     /**
+     * Normalize $ftsSearchable to a consistent ['column' => [...config...]] format.
+     * Accepts:
+     *   ['title' => ['weight' => 3]]   → explicit config
+     *   ['author' => true]             → shorthand (default weight)
+     *   ['author']                     → minimal (no weight, no config)
+     */
+    public static function normalizeFtsSearchable(Model $model): array
+    {
+        $raw = $model->getFtsSearchableColumns();
+        $normalized = [];
+
+        foreach ($raw as $key => $value) {
+            if (is_string($key)) {
+                $column = $key;
+                $config = is_array($value) ? $value : [];
+            } else {
+                $column = $value;
+                $config = [];
+            }
+            $normalized[$column] = $config;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Process a model's FTS document through the appropriate TextProcessor.
-     * Shared between sync, rebuild, batch jobs, and model jobs.
-     *
-     * @return array<string, string>
+     * Respects per-column locale configuration.
      */
     public static function processDocument(Model $model, TextProcessor $global): array
     {
+        $columns = static::normalizeFtsSearchable($model);
         $doc = $model->toFtsDocument();
         $processor = static::resolveProcessorFor($model, $global);
         $processed = [];
 
-        foreach ($doc as $key => $value) {
-            $processed[$key] = $processor->process((string) $value);
+        foreach ($columns as $column => $config) {
+            $value = $doc[$column] ?? '';
+            $locale = $config['locale'] ?? app()->getLocale() ?? 'en';
+            $processed[$column] = $processor->process((string) $value, $locale);
         }
 
         return $processed;

@@ -91,7 +91,20 @@ return [
     |
     | Fine-tune the FTS5 virtual table creation.
     |
-    */
+     */
+    'fts5' => [
+        /*
+        | Tokenizer: 'unicode61', 'porter', or 'unicode61 remove_diacritics 2'.
+        */
+        'tokenizer' => 'unicode61',
+
+        /*
+        | Prefix lengths for search-as-you-type (advanced mode only).
+        | Generates additional index entries for prefix queries.
+        */
+        'prefix_lengths' => [2, 3, 4],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Authorization
@@ -133,18 +146,5 @@ return [
     */
     'spellcheck' => [
         'vocab_limit' => env('FTS_SPELLCHECK_VOCAB_LIMIT', 1000),
-    ],
-
-    'fts5' => [
-        /*
-        | Tokenizer: 'unicode61', 'porter', or 'unicode61 remove_diacritics 2'.
-        */
-        'tokenizer' => 'unicode61',
-
-        /*
-        | Prefix lengths for search-as-you-type (advanced mode only).
-        | Generates additional index entries for prefix queries.
-        */
-        'prefix_lengths' => [2, 3, 4],
     ],
 ];

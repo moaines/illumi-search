@@ -11,7 +11,7 @@ class UnicodeTextProcessor implements TextProcessor
 
     private ?\Transliterator $diacriticsTransliterator = null;
 
-    public function process(string $text, string $locale = 'fr'): string
+    public function process(string $text, string $locale = 'en'): string
     {
         $text = $this->stripHtml($text);
 
