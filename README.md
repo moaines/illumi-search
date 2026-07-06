@@ -489,6 +489,40 @@ Each `FtsResult` has an `authorized` boolean (default `true`). When authorizatio
 
 ---
 
+## Security
+
+### SQLite file protection
+
+The FTS5 index is stored in `storage/app/fts/fts-index.sqlite` by default. Laravel's `storage/` directory is already protected from web access, but ensure:
+
+- The file is **not** committed to version control (it's in `.gitignore` by default)
+- File permissions restrict access to the web server user only (`chmod 600`)
+- No route or controller exposes the file for download
+
+### Data exposure via snippets
+
+All searchable columns are eligible for context snippets by default. If a column contains sensitive data (PII, internal notes, secrets), disable snippets:
+
+```php
+protected array $ftsSearchable = [
+    'email'         => ['snippet' => false],
+    'internal_note' => ['snippet' => false],
+];
+```
+
+### Authorization
+
+Results can be filtered through Laravel Policies or Spatie/Shield permissions. See the [Authorization section](#authorization) for details.
+
+### Input handling
+
+- Search queries are normalized (lowercased, diacritics removed) before reaching FTS5
+- FTS5 special characters are properly escaped
+- Prepared statements prevent SQL injection
+- The `$summary` field is sanitized with `strip_tags($summary, '<mark>')` to prevent XSS in result snippets
+
+---
+
 ### `php artisan fts:rebuild`
 
 Drop and recreate all FTS5 tables, then repopulate from Eloquent models.
