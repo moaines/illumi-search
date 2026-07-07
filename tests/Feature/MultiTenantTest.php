@@ -70,4 +70,15 @@ class MultiTenantTest extends TestCase
         $this->assertStringContainsString('tenants/tenant_a/', $pathA);
         $this->assertStringContainsString('tenants/tenant_b/', $pathB);
     }
+
+    public function test_tenant_path_does_not_duplicate_app_fts(): void
+    {
+        $manager = $this->app->make(TenantManager::class);
+        $manager->setResolver(fn () => 'acme');
+        $basePath = storage_path('app/fts/fts-index.sqlite');
+        $tenantPath = $manager->tenantDatabasePath($basePath);
+
+        $this->assertStringNotContainsString('app/fts/app/fts', $tenantPath);
+        $this->assertStringContainsString('tenants/acme/', $tenantPath);
+    }
 }
