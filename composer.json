@@ -1,6 +1,6 @@
 {
     "name": "moaines/laravel-fts",
-    "description": "Full-text search using SQLite FTS5 + PHP-intl for Laravel",
+    "description": "SQLite FTS5 full-text search for Laravel with PHP-intl. BM25 ranking, search-as-you-type, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, spellcheck, multi-tenant, authorization. Searchable trait with queue/sync/lazy batch indexing. No external services.",
     "type": "library",
     "keywords": ["laravel", "fts", "fulltext", "search", "sqlite", "fts5", "intl"],
     "license": "MIT",
