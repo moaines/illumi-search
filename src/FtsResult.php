@@ -3,6 +3,7 @@
 namespace Moaines\LaravelFts;
 
 use Illuminate\Contracts\Support\Arrayable;
+use Illuminate\Database\Eloquent\Model;
 
 class FtsResult implements Arrayable
 {
@@ -18,6 +19,7 @@ class FtsResult implements Arrayable
         public readonly ?string $category = null,
         public readonly array $raw = [],
         public readonly bool $authorized = true,
+        public readonly ?Model $model = null,
     ) {}
 
     public static function make(
@@ -31,7 +33,14 @@ class FtsResult implements Arrayable
         ?string $category = null,
         array $raw = [],
         bool $authorized = true,
+        ?Model $model = null,
     ): self {
+        // Hydrate url and category from model if not provided
+        if ($model !== null) {
+            $url ??= (method_exists($model, 'ftsUrl') ? $model->ftsUrl() : null);
+            $category ??= (method_exists($model, 'ftsCategory') ? $model->ftsCategory() : null);
+        }
+
         return new self(
             id: "{$modelClass}:{$modelId}",
             modelClass: $modelClass,
@@ -44,6 +53,7 @@ class FtsResult implements Arrayable
             category: $category,
             raw: $raw,
             authorized: $authorized,
+            model: $model,
         );
     }
 
@@ -61,6 +71,14 @@ class FtsResult implements Arrayable
             'category' => $this->category,
             'authorized' => $this->authorized,
             'raw' => $this->raw,
+        ];
+    }
+
+    public function __sleep(): array
+    {
+        return [
+            'id', 'modelClass', 'modelId', 'rank', 'title', 'summary',
+            'url', 'icon', 'category', 'raw', 'authorized',
         ];
     }
 }

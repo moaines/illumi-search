@@ -262,6 +262,7 @@ class SqliteFtsEngine implements FtsEngine
                 title: $r['title'],
                 summary: $r['summary'] ?? null,
                 raw: $r['row'],
+                model: $r['eloquentModel'] ?? null,
             ),
             $results,
         );
@@ -293,6 +294,9 @@ class SqliteFtsEngine implements FtsEngine
                 if ($model === null) {
                     continue;
                 }
+
+                // Stash the Eloquent model for reuse (avoids double queries)
+                $entry['eloquentModel'] = $model;
 
                 // Restore original title from model (FTS5 stores processed version)
                 $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
