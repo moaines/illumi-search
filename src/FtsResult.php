@@ -14,9 +14,6 @@ class FtsResult implements Arrayable
         public readonly float $rank,
         public readonly string $title,
         public readonly ?string $summary = null,
-        public readonly ?string $url = null,
-        public readonly ?string $icon = null,
-        public readonly ?string $category = null,
         public readonly array $raw = [],
         public readonly bool $authorized = true,
         public readonly ?Model $model = null,
@@ -28,19 +25,10 @@ class FtsResult implements Arrayable
         float $rank,
         string $title,
         ?string $summary = null,
-        ?string $url = null,
-        ?string $icon = null,
-        ?string $category = null,
         array $raw = [],
         bool $authorized = true,
         ?Model $model = null,
     ): self {
-        // Hydrate url and category from model if not provided
-        if ($model !== null) {
-            $url ??= (method_exists($model, 'ftsUrl') ? $model->ftsUrl() : null);
-            $category ??= (method_exists($model, 'ftsCategory') ? $model->ftsCategory() : null);
-        }
-
         return new self(
             id: "{$modelClass}:{$modelId}",
             modelClass: $modelClass,
@@ -48,9 +36,6 @@ class FtsResult implements Arrayable
             rank: $rank,
             title: $title,
             summary: $summary,
-            url: $url,
-            icon: $icon,
-            category: $category,
             raw: $raw,
             authorized: $authorized,
             model: $model,
@@ -66,9 +51,6 @@ class FtsResult implements Arrayable
             'rank' => $this->rank,
             'title' => $this->title,
             'summary' => $this->summary,
-            'url' => $this->url,
-            'icon' => $this->icon,
-            'category' => $this->category,
             'authorized' => $this->authorized,
             'raw' => $this->raw,
         ];
@@ -78,7 +60,7 @@ class FtsResult implements Arrayable
     {
         return [
             'id', 'modelClass', 'modelId', 'rank', 'title', 'summary',
-            'url', 'icon', 'category', 'raw', 'authorized',
+            'raw', 'authorized',
         ];
     }
 }

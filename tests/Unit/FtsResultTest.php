@@ -2,6 +2,7 @@
 
 namespace Moaines\LaravelFts\Tests\Unit;
 
+use Illuminate\Database\Eloquent\Model;
 use Moaines\LaravelFts\FtsResult;
 use Moaines\LaravelFts\Tests\TestCase;
 
@@ -15,9 +16,6 @@ class FtsResultTest extends TestCase
             rank: 0.5,
             title: 'Hello World',
             summary: 'A test post',
-            url: '/posts/42',
-            icon: 'heroicon-o-document',
-            category: 'Blog Posts',
             raw: ['title' => 'Hello World', 'body' => 'Content'],
         );
 
@@ -27,9 +25,6 @@ class FtsResultTest extends TestCase
         $this->assertEquals(0.5, $result->rank);
         $this->assertEquals('Hello World', $result->title);
         $this->assertEquals('A test post', $result->summary);
-        $this->assertEquals('/posts/42', $result->url);
-        $this->assertEquals('heroicon-o-document', $result->icon);
-        $this->assertEquals('Blog Posts', $result->category);
         $this->assertTrue($result->authorized);
     }
 
@@ -76,11 +71,12 @@ class FtsResultTest extends TestCase
         $this->assertEquals(0.8, $array['rank']);
         $this->assertEquals('Test', $array['title']);
         $this->assertArrayHasKey('summary', $array);
-        $this->assertArrayHasKey('url', $array);
-        $this->assertArrayHasKey('icon', $array);
-        $this->assertArrayHasKey('category', $array);
         $this->assertArrayHasKey('authorized', $array);
         $this->assertArrayHasKey('raw', $array);
+        $this->assertArrayNotHasKey('model', $array);
+        $this->assertArrayNotHasKey('url', $array);
+        $this->assertArrayNotHasKey('icon', $array);
+        $this->assertArrayNotHasKey('category', $array);
     }
 
     public function test_constructor_sets_correct_id(): void
@@ -94,5 +90,80 @@ class FtsResultTest extends TestCase
         );
 
         $this->assertEquals('App\Models\Post:42', $result->id);
+    }
+
+    public function test_model_attached_via_make(): void
+    {
+        $model = new class extends Model {
+            protected $table = 'test';
+        };
+
+        $result = FtsResult::make(
+            modelClass: 'App\Models\Post',
+            modelId: 1,
+            rank: 0.0,
+            title: 'Test',
+            model: $model,
+        );
+
+        $this->assertNotNull($result->model);
+        $this->assertSame($model, $result->model);
+    }
+
+    public function test_model_provides_fts_url(): void
+    {
+        $model = new class extends Model {
+            protected $table = 'test';
+            public function ftsUrl(): string { return '/custom-url'; }
+        };
+
+        $result = FtsResult::make(
+            modelClass: get_class($model),
+            modelId: 1,
+            rank: 0.0,
+            title: 'Test',
+            model: $model,
+        );
+
+        $this->assertEquals('/custom-url', $result->model->ftsUrl());
+    }
+
+    public function test_model_provides_fts_category(): void
+    {
+        $model = new class extends Model {
+            protected $table = 'test';
+            public function ftsCategory(): ?string { return 'CustomCategory'; }
+        };
+
+        $result = FtsResult::make(
+            modelClass: get_class($model),
+            modelId: 1,
+            rank: 0.0,
+            title: 'Test',
+            model: $model,
+        );
+
+        $this->assertEquals('CustomCategory', $result->model->ftsCategory());
+    }
+
+    public function test_model_excluded_from_sleep(): void
+    {
+        $model = new class extends Model {
+            protected $table = 'test';
+        };
+
+        $result = FtsResult::make(
+            modelClass: 'App\Models\Post',
+            modelId: 1,
+            rank: 0.0,
+            title: 'Test',
+            model: $model,
+        );
+
+        $serialized = serialize($result);
+        $unserialized = unserialize($serialized);
+
+        $this->assertInstanceOf(FtsResult::class, $unserialized);
+        $this->assertEquals('App\Models\Post', $unserialized->modelClass);
     }
 }

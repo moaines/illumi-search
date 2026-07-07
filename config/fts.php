@@ -147,4 +147,19 @@ return [
     'spellcheck' => [
         'vocab_limit' => env('FTS_SPELLCHECK_VOCAB_LIMIT', 1000),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | FTS5 Operators
+    |--------------------------------------------------------------------------
+    |
+    | Restrict which FTS5 operators are allowed in advanced mode queries.
+    | Unsupported operators are automatically detected and excluded.
+    | Set to null to allow all operators supported by the SQLite build.
+    | Example: ['AND', 'OR', 'NOT'] to disable NEAR.
+    |
+    */
+    'operators' => [
+        'enabled' => env('FTS_OPERATORS'),
+    ],
 ];

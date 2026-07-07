@@ -114,4 +114,92 @@ class SqliteFtsEngineTest extends TestCase
         $results = $this->engine->search('test', ['App\Models\Post'], 2);
         $this->assertCount(2, $results);
     }
+
+    public function test_escape_query_preserves_operators_in_advanced_mode(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'php AND laravel', 'advanced');
+
+        $this->assertStringContainsString('php*', $result);
+        $this->assertStringContainsString('laravel*', $result);
+        $this->assertDoesNotMatchRegularExpression('/\band\*/', $result);
+        $this->assertDoesNotMatchRegularExpression('/\bAND\*/', $result);
+    }
+
+    public function test_escape_query_preserves_boolean_operators(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'laravel AND vuejs NOT react', 'advanced');
+
+        $this->assertDoesNotMatchRegularExpression('/\bAND\*/', $result);
+        $this->assertDoesNotMatchRegularExpression('/\bNOT\*/', $result);
+        $this->assertStringContainsString('laravel*', $result);
+    }
+
+    public function test_and_search_returns_results(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php and laravel framework', 'body' => 'learning php and laravel together']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'python language', 'body' => 'Python is different']);
+
+        $results = $this->engine->search('php AND laravel', ['App\Models\Post'], 10, 0, 'raw');
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(1, $results[0]->modelId);
+    }
+
+    public function test_and_search_in_advanced_mode(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php and laravel framework', 'body' => 'learning php and laravel together']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'python language', 'body' => 'Python is different']);
+
+        $results = $this->engine->search('php AND laravel', ['App\Models\Post'], 10, 0, 'advanced');
+
+        $this->assertCount(1, $results);
+    }
+
+    public function test_near_operator_has_no_wildcard_when_detected_as_operator(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'php NEAR laravel', 'advanced');
+
+        $this->assertStringContainsString('php*', $result);
+        $this->assertStringContainsString('laravel*', $result);
+        // NEAR operators should never get a wildcard appended
+        $this->assertDoesNotMatchRegularExpression('/\bnear\*/', $result);
+        $this->assertDoesNotMatchRegularExpression('/\bNEAR\*/', $result);
+    }
+
+    public function test_operators_config_restricts_supported_ops(): void
+    {
+        $this->app['config']->set('fts.operators.enabled', ['AND']);
+
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        // OR should NOT be recognized as operator when restricted to AND only
+        $result = $method->invoke($this->engine, 'php OR laravel', 'advanced');
+
+        $this->assertStringContainsString('php*', $result);
+        $this->assertStringContainsString('or*', $result);
+        $this->assertStringContainsString('laravel*', $result);
+    }
+
+    public function test_get_index_stats_returns_correct_structure(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'test', 'body' => 'content']);
+
+        $stats = $this->engine->getIndexStats();
+
+        $this->assertNotEmpty($stats);
+        $this->assertArrayHasKey('model_class', $stats[0]);
+        $this->assertArrayHasKey('record_count', $stats[0]);
+        $this->assertEquals('App\Models\Post', $stats[0]['model_class']);
+        $this->assertEquals(1, $stats[0]['record_count']);
+    }
 }

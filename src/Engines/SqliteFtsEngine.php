@@ -17,6 +17,12 @@ class SqliteFtsEngine implements FtsEngine
 
     private ?TextProcessor $textProcessor = null;
 
+    private static array $supportedOperators = ['AND', 'OR', 'NOT'];
+
+    private static array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
+
+    private static bool $operatorsProbed = false;
+
     public function __construct(
         private readonly string $databasePath,
     ) {}
@@ -627,9 +633,27 @@ class SqliteFtsEngine implements FtsEngine
         // For advanced mode, split into terms and quote those with special chars
         $terms = preg_split('/\s+/', trim($query));
         $escaped = [];
+        $this->ensureOperatorsProbed();
+        $this->applyOperatorConfig();
+        $operatorsConfig = config('fts.operators.enabled');
 
         foreach ($terms as $term) {
             if (empty($term)) {
+                continue;
+            }
+
+            // Preserve FTS5 operators without wildcards
+            $termUpper = strtoupper($term);
+            $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
+
+            if (in_array($baseOp, static::$supportedOperators, true)) {
+                $escaped[] = $term;
+                continue;
+            }
+
+            // Fallback: unsupported NEAR → AND (only if config doesn't restrict operators)
+            if ($baseOp === 'NEAR' && $operatorsConfig === null) {
+                $escaped[] = 'AND';
                 continue;
             }
 
@@ -664,6 +688,91 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         return $this->textProcessor->process($query);
+    }
+
+    protected function ensureOperatorsProbed(): void
+    {
+        if (static::$operatorsProbed) {
+            return;
+        }
+        static::$operatorsProbed = true;
+
+        try {
+            $db = new \SQLite3(':memory:');
+            $db->exec("CREATE VIRTUAL TABLE _fts_probe USING fts5(content)");
+            $db->exec("INSERT INTO _fts_probe VALUES('test aaa bbb')");
+
+            foreach (['NEAR', 'NEAR/10'] as $op) {
+                try {
+                    $db->exec("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa " . $op . " bbb'");
+                    $baseOp = explode('/', $op)[0];
+                    if (! in_array($baseOp, static::$supportedOperators, true)) {
+                        static::$supportedOperators[] = $baseOp;
+                    }
+                } catch (\Exception) {
+                    // operator not supported — skip
+                }
+            }
+
+            $db->close();
+        } catch (\Exception) {
+            // Can't probe — fallback to basics
+        }
+
+        // Save raw list before config filtering (for fts:doctor)
+        static::$rawSupportedOperators = static::$supportedOperators;
+    }
+
+    /**
+     * Apply config restrictions to the probed operators.
+     * Called separately from the probe so it can re-apply when config changes.
+     */
+    protected function applyOperatorConfig(): void
+    {
+        $allowed = config('fts.operators.enabled');
+
+        // Reset to raw probed list before applying config
+        static::$supportedOperators = static::$rawSupportedOperators;
+
+        if ($allowed === null) {
+            return;
+        }
+
+        if (is_string($allowed)) {
+            $allowed = array_map('trim', explode(',', $allowed));
+        }
+
+        if (is_array($allowed) && ! empty($allowed)) {
+            static::$supportedOperators = array_intersect(
+                static::$supportedOperators,
+                $allowed
+            );
+        } elseif (is_array($allowed) && empty($allowed)) {
+            static::$supportedOperators = [];
+        }
+    }
+
+    public static function getSupportedOperators(): array
+    {
+        return static::$supportedOperators;
+    }
+
+    public static function getRawSupportedOperators(): array
+    {
+        return static::$rawSupportedOperators;
+    }
+
+    /** @return array<string, bool> operator → supported or not */
+    public static function getOperatorsWithSupportStatus(): array
+    {
+        $all = ['AND', 'OR', 'NOT', 'NEAR'];
+        $result = [];
+
+        foreach ($all as $op) {
+            $result[$op] = in_array($op, static::$supportedOperators, true);
+        }
+
+        return $result;
     }
 
     protected function getTitleColumn(array $row): string

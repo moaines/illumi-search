@@ -67,4 +67,22 @@ class TextProcessorTest extends TestCase
         $this->assertStringContainsString('hello', $result);
         $this->assertStringContainsString('world', $result);
     }
+
+    public function test_separates_cjk_characters(): void
+    {
+        $result = $this->processor->process('开发入门');
+        $this->assertEquals('开 发 入 门', $result);
+    }
+
+    public function test_separates_cjk_mixed_with_latin(): void
+    {
+        $result = $this->processor->process('使用 Laravel 进行 PHP 开发');
+        $this->assertEquals('使 用 laravel 进 行 php 开 发', $result);
+    }
+
+    public function test_separates_korean(): void
+    {
+        $result = $this->processor->process('안녕하세요');
+        $this->assertEquals('안 녕 하 세 요', $result);
+    }
 }

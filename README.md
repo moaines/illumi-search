@@ -5,6 +5,12 @@
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Flaravel--fts-28a745?logo=composer)](https://packagist.org/packages/moaines/laravel-fts)
 
 **Full-text search for Laravel using SQLite FTS5 + PHP-intl.**
+BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
+(Latin, CJK, Arabic, Cyrillic), per-column weights, boolean operators,
+auto-detected operator support with NEAR→AND fallback, spellcheck,
+multi-tenant isolation, authorization.
+Drop-in `Searchable` trait with queue/sync/lazy batch indexing.
+No external services.
 
 No external services (Elasticsearch, Meilisearch, Algolia). Just SQLite and PHP.
 
@@ -130,11 +136,28 @@ return [
     // Indexing: 'queue', 'sync', or 'manual'
     'indexing' => env('FTS_INDEXING', 'queue'),
 
+    'operators' => [
+        'enabled' => null,  // null = auto-detect, or ['AND', 'OR', 'NOT']
+    ],
+
     'fts5' => [
         'prefix_lengths' => [2, 3, 4],  // search-as-you-type
     ],
 ];
 ```
+
+### Operators
+
+Control which FTS5 query operators are allowed in advanced mode.
+
+| Config | Behavior |
+|---|---|
+| `null` (default) | All operators supported by the SQLite build are available |
+| `['AND', 'OR', 'NOT']` | Disable `NEAR` even if SQLite supports it |
+| `['AND']` | Only `AND` is allowed; `OR`, `NOT`, `NEAR` treated as regular terms |
+| `[]` | All operators disabled — every term is treated as a search keyword |
+
+Operators are auto-detected at runtime. Run `php artisan fts:doctor` to see which operators your SQLite build supports vs. which are enabled by config.
 
 ---
 
@@ -356,12 +379,11 @@ class FtsResult {
     public float $rank;         // BM25 score (lower = more relevant)
     public string $title;       // Original title from model
     public ?string $summary;    // Context snippet with <mark> highlighting
-    public ?string $url;        // From ftsUrl()
-    public ?string $icon;
-    public ?string $category;
     public array $raw;          // All indexed columns
 }
 ```
+
+> The `$model` property gives access to the original Eloquent model attached during search. Use `$result->model->ftsUrl()` and `$result->model->ftsCategory()` to get the record URL and category. The model is excluded from `toArray()` and `__sleep()` — it's a transient runtime reference to avoid double queries.
 
 ---
 
@@ -620,6 +642,12 @@ Diagnose the FTS5 environment — extensions, FTS5 support, database health, and
  fts.mode = advanced
  ...
 
+5. FTS5 Operators
+ ✓ AND
+ ✓ OR
+ ✓ NOT
+ ✗ NEAR
+
 ✅ All checks passed
 ```
 
@@ -796,7 +824,9 @@ Full FTS5 query syntax:
 | Exact phrase | `"base de données"` | exact phrase match |
 | Prefix (auto) | `lar` | "laravel", "lar" (thanks to prefix indexing) |
 | Boolean | `laravel AND vuejs NOT react` | AND/OR/NOT operators |
-| Proximity | `laravel NEAR/5 vuejs` | terms within 5 words |
+| Proximity | `laravel NEAR/5 vuejs` | terms within 5 words¹ |
+
+> ¹ Available operators are auto-detected at runtime. Run `php artisan fts:doctor` to see which are available. Restrict with `config('fts.operators.enabled')` (see [Configuration](#configuration)). NEAR is unsupported in some SQLite builds — when unsupported, it's automatically converted to AND.
 
 ---
 

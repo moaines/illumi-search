@@ -98,6 +98,31 @@ class FtsQueryBuilderTest extends TestCase
         $this->assertEquals(2, $count);
     }
 
+    public function test_paginate_page_2(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->indexPost($i, "test post {$i}", 'body');
+        }
+
+        $page1 = Fts::query('test')->model('App\Models\Post')->paginate(2, page: 1);
+        $page2 = Fts::query('test')->model('App\Models\Post')->paginate(2, page: 2);
+
+        $this->assertCount(2, $page1->items());
+        $this->assertCount(2, $page2->items());
+        $this->assertEquals(1, $page1->firstItem());
+        $this->assertEquals(3, $page2->firstItem());
+    }
+
+    public function test_engine_explicit_setter(): void
+    {
+        $this->indexPost(1, 'hello world', 'body');
+
+        $builder = Fts::query('hello')->model('App\Models\Post');
+
+        // engine is resolved lazily — setting it via the setter should work
+        $this->assertInstanceOf(\Moaines\LaravelFts\FtsQueryBuilder::class, $builder->engine($this->engine));
+    }
+
     private function indexPost(int $id, string $title, string $body): void
     {
         if (! $this->engine->tableExists('App\Models\Post')) {

@@ -5,6 +5,7 @@ namespace Moaines\LaravelFts\Console\Commands;
 use Illuminate\Console\Command;
 use Moaines\LaravelFts\Console\Commands\Concerns\HasFtsFormatBytes;
 use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\LaravelFts\Engines\SqliteFtsEngine;
 
 class FtsDoctorCommand extends Command
 {
@@ -97,6 +98,25 @@ class FtsDoctorCommand extends Command
         foreach ($configKeys as $key => $value) {
             $this->line("   <info>{$key}</info> = {$value}");
         }
+        $this->newLine();
+
+        // 5. FTS5 Operators
+        $this->line('5. FTS5 Operators');
+        $rawOps = SqliteFtsEngine::getRawSupportedOperators();
+        $allowedOps = SqliteFtsEngine::getSupportedOperators();
+
+        foreach (['AND', 'OR', 'NOT', 'NEAR'] as $op) {
+            $sqlite = in_array($op, $rawOps, true);
+            $configOk = in_array($op, $allowedOps, true);
+            $icon = $configOk ? '<fg=green>✓</>' : '<fg=red>✗</>';
+            $note = match (true) {
+                $configOk => 'SQLite: ✓, Config: allowed',
+                $sqlite && ! $configOk => 'SQLite: ✓, Config: restricted',
+                default => 'SQLite: ✗, Config: —',
+            };
+            $this->line("   {$icon} {$op} ({$note})");
+        }
+
         $this->newLine();
 
         // Summary
