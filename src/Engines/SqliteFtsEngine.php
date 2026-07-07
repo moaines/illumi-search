@@ -328,6 +328,10 @@ class SqliteFtsEngine implements FtsEngine
             return null;
         }
 
+        if (! method_exists($model, 'normalizeFtsSearchable')) {
+            return null;
+        }
+
         $searchable = $model->normalizeFtsSearchable();
         $allowed = [];
 
