@@ -647,7 +647,7 @@ class SqliteFtsEngine implements FtsEngine
             $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
 
             if (in_array($baseOp, static::$supportedOperators, true)) {
-                $escaped[] = $term;
+                $escaped[] = $baseOp; // uppercase — FTS5 requires uppercase operators
                 continue;
             }
 
@@ -704,7 +704,10 @@ class SqliteFtsEngine implements FtsEngine
 
             foreach (['NEAR', 'NEAR/10'] as $op) {
                 try {
-                    $db->exec("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa " . $op . " bbb'");
+                    $result = @$db->query("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa " . $op . " bbb'");
+                    if ($result === false) {
+                        throw new \Exception('probe failed');
+                    }
                     $baseOp = explode('/', $op)[0];
                     if (! in_array($baseOp, static::$supportedOperators, true)) {
                         static::$supportedOperators[] = $baseOp;
