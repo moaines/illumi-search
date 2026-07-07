@@ -39,6 +39,6 @@ class IndexModelJob implements ShouldQueue
 
     public function failed(?Throwable $e): void
     {
-        report(FtsException::databaseLocked($e->getMessage()));
+        report($e);
     }
 }

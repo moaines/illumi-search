@@ -45,7 +45,7 @@ class FtsIndexManager
         return $models->unique();
     }
 
-    public function rebuild(?array $modelClasses = null, ?string $mode = null, ?int $batchSize = null): array
+    public function rebuild(?array $modelClasses = null, ?int $batchSize = null): array
     {
         $models = $modelClasses !== null
             ? collect($modelClasses)
