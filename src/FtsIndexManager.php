@@ -121,10 +121,9 @@ class FtsIndexManager
                 } else {
                     // Sync all
                     $modelClass::query()
-                        ->orderBy($keyName)
-                        ->chunk(100, function ($records) use ($modelClass, &$syncCount) {
+                        ->chunkById(100, function ($records) use ($modelClass, &$syncCount) {
                             $syncCount += $this->indexRecords($records, $modelClass);
-                        });
+                        }, $keyName);
                 }
 
                 $results[] = [
@@ -178,6 +177,7 @@ class FtsIndexManager
             }
 
             try {
+                $keyName = (new $modelClass)->getKeyName();
                 $query = $modelClass::query();
 
                 if ($since !== null) {
@@ -185,7 +185,7 @@ class FtsIndexManager
                 }
 
                 $count = 0;
-                $query->chunk(100, function ($records) use ($modelClass, &$count) {
+                $query->chunkById(100, function ($records) use ($modelClass, &$count) {
                     foreach ($records as $record) {
                         $processed = $record->processDocument($record, $this->processor);
                         $this->engine->upsert($modelClass, $record->getKey(), $processed);

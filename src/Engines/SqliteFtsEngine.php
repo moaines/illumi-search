@@ -140,12 +140,6 @@ class SqliteFtsEngine implements FtsEngine
     {
         $table = $this->tableName($modelClass);
 
-        // Delete existing
-        $delStmt = $this->db()->prepare("DELETE FROM {$table} WHERE model_id = :id");
-        $delStmt->bindValue(':id', (string) $modelId, SQLITE3_TEXT);
-        $delStmt->execute();
-
-        // Insert new
         $columns = array_keys($document);
         $placeholders = [];
         $values = [];
@@ -162,7 +156,7 @@ class SqliteFtsEngine implements FtsEngine
         $placeholderList = implode(', ', $placeholders);
 
         $stmt = $this->db()->prepare(
-            "INSERT INTO {$table} ({$columnList}) VALUES ({$placeholderList})"
+            "INSERT OR REPLACE INTO {$table} ({$columnList}) VALUES ({$placeholderList})"
         );
 
         foreach ($values as $param => $value) {
@@ -210,6 +204,8 @@ class SqliteFtsEngine implements FtsEngine
         $results = [];
         $seenIds = [];
 
+        $perModel = ! empty($modelClasses) ? max(1, (int) ceil($limit / count($modelClasses))) : $limit;
+
         foreach ($modelClasses as $modelClass) {
             if (! $this->tableExists($modelClass)) {
                 continue;
@@ -221,7 +217,7 @@ class SqliteFtsEngine implements FtsEngine
                 $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank LIMIT :limit OFFSET :offset";
                 $stmt = $this->db()->prepare($sql);
                 $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
-                $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+                $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
                 $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
 
                 $result = $stmt->execute();
@@ -549,9 +545,11 @@ class SqliteFtsEngine implements FtsEngine
 
         try {
             $vocabLimit = config('fts.spellcheck.vocab_limit', 1000);
+            $prefix = mb_substr($term, 0, 2);
             $stmt = $this->db()->prepare(
-                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL ORDER BY cnt DESC LIMIT {$vocabLimit}"
+                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}"
             );
+            $stmt->bindValue(':prefix', $prefix . '%', SQLITE3_TEXT);
 
             if ($stmt === false) {
                 return [];
