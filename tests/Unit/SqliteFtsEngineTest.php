@@ -202,4 +202,49 @@ class SqliteFtsEngineTest extends TestCase
         $this->assertEquals('App\Models\Post', $stats[0]['model_class']);
         $this->assertEquals(1, $stats[0]['record_count']);
     }
+
+    public function test_not_at_start_returns_empty_no_exception(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'test laravel', 'body' => 'content']);
+
+        $results = $this->engine->search('NOT laravel', ['App\Models\Post'], 10);
+
+        $this->assertCount(0, $results);
+    }
+
+    public function test_and_at_start_returns_empty_no_exception(): void
+    {
+        $results = $this->engine->search('AND laravel', ['App\Models\Post'], 10);
+        $this->assertCount(0, $results);
+    }
+
+    public function test_or_at_start_returns_empty_no_exception(): void
+    {
+        $results = $this->engine->search('OR laravel', ['App\Models\Post'], 10);
+        $this->assertCount(0, $results);
+    }
+
+    public function test_unclosed_quote_returns_empty_no_exception(): void
+    {
+        $results = $this->engine->search('"unclosed', ['App\Models\Post'], 10);
+        $this->assertCount(0, $results);
+    }
+
+    public function test_invalid_near_syntax_returns_empty_no_exception(): void
+    {
+        $results = $this->engine->search('NEAR/', ['App\Models\Post'], 10);
+        $this->assertCount(0, $results);
+    }
+
+    public function test_normal_search_still_works_after_bad_query(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'valid query', 'body' => 'content']);
+
+        // Bad query first (should not break engine state)
+        $this->engine->search('NOT laravel', ['App\Models\Post'], 10);
+
+        // Good query after (must still work)
+        $results = $this->engine->search('valid', ['App\Models\Post'], 10);
+        $this->assertCount(1, $results);
+    }
 }

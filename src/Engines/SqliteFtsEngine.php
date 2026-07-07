@@ -248,7 +248,8 @@ class SqliteFtsEngine implements FtsEngine
                     ];
                 }
             } catch (\Exception $e) {
-                throw FtsException::queryParseError($query, $e->getMessage());
+                report($e);
+                continue;
             }
         }
 
@@ -293,7 +294,11 @@ class SqliteFtsEngine implements FtsEngine
                 continue;
             }
 
-            $models = $modelClass::whereIn((new $modelClass)->getKeyName(), $ids)->get()->keyBy->getKey();
+            try {
+                $models = $modelClass::whereIn((new $modelClass)->getKeyName(), $ids)->get()->keyBy->getKey();
+            } catch (\Exception) {
+                continue;
+            }
 
             foreach ($entries as &$entry) {
                 $model = $models[$entry['modelId']] ?? null;

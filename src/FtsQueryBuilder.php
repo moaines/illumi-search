@@ -145,13 +145,17 @@ class FtsQueryBuilder
                 return false;
             }
 
-            $model = $modelClass::find($result->modelId);
+            try {
+                $model = $result->model ?? $modelClass::find($result->modelId);
+            } catch (\Exception) {
+                return false;
+            }
 
             if ($model === null) {
                 return false;
             }
 
-            if (method_exists($user, 'can') && $model !== null) {
+            if (method_exists($user, 'can')) {
                 return $user->can('view', $model);
             }
 
@@ -184,7 +188,7 @@ class FtsQueryBuilder
 
         $page = $page ?: Paginator::resolveCurrentPage($pageName);
         $this->limit = $perPage;
-        $this->offset = ($page - 1) * $perPage;
+        $this->offset = max(0, ($page - 1) * $perPage);
 
         $results = $this->get();
         $total = $this->count();
