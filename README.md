@@ -1,5 +1,9 @@
 # Laravel FTS
 
+[![Tests](https://github.com/moaines/laravel-fts/actions/workflows/tests.yml/badge.svg)](https://github.com/moaines/laravel-fts/actions)
+[![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
+[![Packagist](https://img.shields.io/badge/Packagist-moaines%2Flaravel--fts-28a745?logo=composer)](https://packagist.org/packages/moaines/laravel-fts)
+
 **Full-text search for Laravel using SQLite FTS5 + PHP-intl.**
 
 No external services (Elasticsearch, Meilisearch, Algolia). Just SQLite and PHP.
