@@ -226,7 +226,11 @@ class SqliteFtsEngine implements FtsEngine
                 $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
                 $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
 
-                $result = $stmt->execute();
+                $result = @$stmt->execute();
+
+                if ($result === false) {
+                    continue;
+                }
 
                 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                     $modelId = $row['model_id'];
