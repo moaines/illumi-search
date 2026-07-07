@@ -32,9 +32,14 @@ jobs:
       - name: Validate composer.json
         run: composer validate
 
-      - name: Install dependencies
+      - name: Install dependencies (Laravel ${{ matrix.laravel }})
         run: |
-          composer require "laravel/framework:${{ matrix.laravel }}.*" --no-interaction --no-progress --dev
+          composer install --no-interaction --no-progress
+          if [ "${{ matrix.laravel }}" = "12" ]; then
+            composer require "orchestra/testbench:^10.0" --no-interaction --no-progress --dev --with-all-dependencies
+          elif [ "${{ matrix.laravel }}" = "13" ]; then
+            composer require "orchestra/testbench:^11.0" --no-interaction --no-progress --dev --with-all-dependencies
+          fi
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
