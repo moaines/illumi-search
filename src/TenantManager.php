@@ -42,11 +42,9 @@ class TenantManager
         }
 
         $dir = config('fts.tenancy.directory', 'app/fts/tenants');
+        $dirname = dirname($basePath);
+        $basename = basename($basePath);
 
-        return str_replace(
-            ['app/fts/', 'app/fts/fts-index'],
-            ["{$dir}/{$tenantId}/", "{$dir}/{$tenantId}/fts-index"],
-            $basePath,
-        );
+        return $dirname . '/' . $dir . '/' . $tenantId . '/' . $basename;
     }
 }

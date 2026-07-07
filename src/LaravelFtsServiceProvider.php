@@ -13,6 +13,7 @@ use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
 use Moaines\LaravelFts\Engines\SqliteFtsEngine;
 use Moaines\LaravelFts\Exceptions\FtsException;
+use Moaines\LaravelFts\Exceptions\FtsExtensionMissingException;
 use Moaines\LaravelFts\FtsSpellcheck;
 use Moaines\LaravelFts\Text\UnicodeTextProcessor;
 
@@ -78,15 +79,15 @@ class LaravelFtsServiceProvider extends ServiceProvider
     protected function validateRequirements(): void
     {
         if (! extension_loaded('sqlite3')) {
-            throw FtsException::extensionMissing('sqlite3');
+            throw new FtsExtensionMissingException('sqlite3');
         }
 
         if (! extension_loaded('intl')) {
-            throw FtsException::extensionMissing('intl');
+            throw new FtsExtensionMissingException('intl');
         }
 
         if (! extension_loaded('mbstring')) {
-            throw FtsException::extensionMissing('mbstring');
+            throw new FtsExtensionMissingException('mbstring');
         }
 
         try {

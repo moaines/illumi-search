@@ -45,7 +45,7 @@ trait Searchable
 
     public function toFtsDocument(): array
     {
-        $columns = static::normalizeFtsSearchable($this);
+        $columns = $this->normalizeFtsSearchable();
         $document = [];
 
         foreach ($columns as $column => $config) {
@@ -98,9 +98,14 @@ trait Searchable
      *   ['author' => true]             → shorthand (default weight)
      *   ['author']                     → minimal (no weight, no config)
      */
-    public static function normalizeFtsSearchable(Model $model): array
+    public function normalizeFtsSearchable(): array
     {
-        $raw = $model->getFtsSearchableColumns();
+        $raw = $this->getFtsSearchableColumns();
+
+        if (empty($raw)) {
+            return [];
+        }
+
         $normalized = [];
 
         foreach ($raw as $key => $value) {
@@ -123,7 +128,7 @@ trait Searchable
      */
     public static function processDocument(Model $model, TextProcessor $global): array
     {
-        $columns = static::normalizeFtsSearchable($model);
+        $columns = $model->normalizeFtsSearchable();
         $doc = $model->toFtsDocument();
         $processor = static::resolveProcessorFor($model, $global);
         $processed = [];

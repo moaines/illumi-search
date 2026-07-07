@@ -41,6 +41,7 @@ class FtsRebuildCommand extends Command
         $results = $manager->rebuild(
             modelClasses: ! empty($models) ? $models : null,
             batchSize: $batchSize,
+            mode: $this->option('mode'),
         );
 
         foreach ($results as $result) {

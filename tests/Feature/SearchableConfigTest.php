@@ -35,7 +35,7 @@ class SearchableConfigTest extends TestCase
             ];
         };
 
-        $normalized = Searchable::normalizeFtsSearchable($model);
+        $normalized = $model->normalizeFtsSearchable();
 
         $this->assertArrayHasKey('title', $normalized);
         $this->assertArrayHasKey('body', $normalized);
@@ -55,7 +55,7 @@ class SearchableConfigTest extends TestCase
             ];
         };
 
-        $normalized = Searchable::normalizeFtsSearchable($model);
+        $normalized = $model->normalizeFtsSearchable();
 
         $this->assertArrayHasKey('body', $normalized);
         $this->assertEquals([], $normalized['body']);
@@ -73,7 +73,7 @@ class SearchableConfigTest extends TestCase
             ];
         };
 
-        $normalized = Searchable::normalizeFtsSearchable($model);
+        $normalized = $model->normalizeFtsSearchable();
 
         $this->assertArrayHasKey('title', $normalized);
         $this->assertArrayHasKey('author', $normalized);

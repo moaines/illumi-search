@@ -332,7 +332,7 @@ class SqliteFtsEngine implements FtsEngine
             return null;
         }
 
-        $searchable = \Moaines\LaravelFts\Searchable::normalizeFtsSearchable($model);
+        $searchable = $model->normalizeFtsSearchable();
         $allowed = [];
 
         foreach ($searchable as $column => $config) {

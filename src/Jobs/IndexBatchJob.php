@@ -32,8 +32,8 @@ class IndexBatchJob implements ShouldQueue
 
         $records = $this->modelClass::query()
             ->orderBy($keyName)
-            ->skip($this->offset)
-            ->take($this->limit)
+            ->offset($this->offset)
+            ->limit($this->limit)
             ->get();
 
         if ($records->isEmpty()) {
