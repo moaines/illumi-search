@@ -711,19 +711,13 @@ class SqliteFtsEngine implements FtsEngine
             $db->exec("CREATE VIRTUAL TABLE _fts_probe USING fts5(content)");
             $db->exec("INSERT INTO _fts_probe VALUES('test aaa bbb')");
 
-            foreach (['NEAR', 'NEAR/10'] as $op) {
-                try {
-                    $result = @$db->query("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa " . $op . " bbb'");
-                    if ($result === false) {
-                        throw new \Exception('probe failed');
-                    }
-                    $baseOp = explode('/', $op)[0];
-                    if (! in_array($baseOp, static::$supportedOperators, true)) {
-                        static::$supportedOperators[] = $baseOp;
-                    }
-                } catch (\Exception) {
-                    // operator not supported — skip
+            try {
+                $result = @$db->query("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa NEAR/10 bbb'");
+                if ($result !== false && $result->fetchArray()) {
+                    static::$supportedOperators[] = 'NEAR';
                 }
+            } catch (\Exception) {
+                // operator not supported — skip
             }
 
             $db->close();
