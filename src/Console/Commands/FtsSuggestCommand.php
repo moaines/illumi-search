@@ -98,7 +98,31 @@ class FtsSuggestCommand extends Command
 
         if ($missingCount > 0) {
             $this->newLine();
-            $this->warn("{$missingCount} columns not yet in \$ftsSearchable. Add them to your model's \$ftsSearchable array or run fts:rebuild after.");
+            $this->warn("{$missingCount} columns not yet in \$ftsSearchable.");
+            $this->newLine();
+
+            $missingByModel = collect($rows)->filter(fn ($r) => $r['exists'] === '❌')->groupBy('model');
+
+            foreach ($missingByModel as $modelClass => $missing) {
+                $short = class_basename($modelClass);
+                $this->line("<fg=yellow>Suggested code for {$modelClass}:</>");
+                $this->line('');
+                $this->line("  use Moaines\\LaravelFts\\Searchable;");
+                $this->line('');
+                $this->line("  class {$short} extends Model");
+                $this->line("  {");
+                $this->line("      use Searchable;");
+                $this->line('');
+                $this->line("      protected array \$ftsSearchable = [");
+
+                foreach ($missing as $row) {
+                    $this->line("          '{$row['column']}' => ['weight' => {$row['weight']}],");
+                }
+
+                $this->line("      ];");
+                $this->line("  }");
+                $this->newLine();
+            }
         }
 
         return Command::SUCCESS;

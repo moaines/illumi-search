@@ -278,4 +278,34 @@ class SuggestCommandTest extends TestCase
         $this->artisan('fts:suggest --format=json')
             ->assertSuccessful();
     }
+
+    public function test_shows_code_block_for_missing_columns(): void
+    {
+        $resource = new class extends Resource
+        {
+            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $recordTitleAttribute = 'title';
+
+            public static function getGloballySearchableAttributes(): array
+            {
+                return ['title', 'extra'];
+            }
+
+            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
+            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
+            public static function getPages(): array { return []; }
+
+            public static function getEloquentQuery(): Builder
+            {
+                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+            }
+        };
+
+        $this->mockFilamentWithResource($resource::class);
+
+        $this->artisan('fts:suggest')
+            ->expectsOutputToContain('$ftsSearchable')
+            ->expectsOutputToContain("'extra' => ['weight' => 1]")
+            ->assertSuccessful();
+    }
 }
