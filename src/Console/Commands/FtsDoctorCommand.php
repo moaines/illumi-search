@@ -56,14 +56,21 @@ class FtsDoctorCommand extends Command
         // 3. Database
         $this->line('3. FTS Database');
         $dbPath = $engine->getDatabasePath();
+        $dbDir = dirname($dbPath);
 
         if (file_exists($dbPath)) {
             $size = $engine->getDatabaseSize();
             $sizeHuman = $this->formatBytes($size);
             $isWritable = is_writable($dbPath);
             $isReadable = is_readable($dbPath);
+            $isAbsolute = str_starts_with($dbPath, '/');
+            $freeSpace = @disk_free_space($dbDir);
+            $freeHuman = $freeSpace !== false ? $this->formatBytes((int) $freeSpace) : 'unknown';
+
             $this->line("   <fg=green>✓</> Path: {$dbPath}");
+            $this->line("   <fg=green>✓</> Path type: " . ($isAbsolute ? 'absolute' : 'relative (via storage_path())'));
             $this->line("   <fg=green>✓</> Size: {$sizeHuman}");
+            $this->line("   <fg=green>✓</> Free space on volume: {$freeHuman}");
             $this->line("   " . ($isReadable ? '<fg=green>✓</> Readable' : '<fg=red>✗</> Not readable'));
             $this->line("   " . ($isWritable ? '<fg=green>✓</> Writable' : '<fg=red>✗</> Not writable'));
 

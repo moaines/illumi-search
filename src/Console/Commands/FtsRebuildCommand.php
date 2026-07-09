@@ -10,7 +10,7 @@ class FtsRebuildCommand extends Command
     protected $signature = 'fts:rebuild
         {--model=* : Specific model classes to rebuild (multiple allowed)}
         {--force : Skip confirmation prompt}
-        {--mode= : Override search mode}
+        {--vacuum : Run VACUUM after rebuilding (slower but reclaims disk space)}
         {--batch-size= : Records to sync before switching to queue (default: config)}';
 
     protected $description = 'Rebuild the FTS5 search index from scratch';
@@ -32,6 +32,8 @@ class FtsRebuildCommand extends Command
             $batchSize = (int) $batchSize;
         }
 
+        $vacuum = (bool) $this->option('vacuum');
+
         if (! empty($models)) {
             $this->info('Rebuilding specific models: '.implode(', ', $models));
         } else {
@@ -41,6 +43,7 @@ class FtsRebuildCommand extends Command
         $results = $manager->rebuild(
             modelClasses: ! empty($models) ? $models : null,
             batchSize: $batchSize,
+            vacuum: $vacuum,
         );
 
         foreach ($results as $result) {

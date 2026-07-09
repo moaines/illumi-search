@@ -10,9 +10,7 @@ BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
 auto-detected operator support with NEAR→AND fallback, spellcheck,
 multi-tenant isolation, authorization.
 Drop-in `Searchable` trait with queue/sync/lazy batch indexing.
-No external services.
-
-No external services (Elasticsearch, Meilisearch, Algolia). Just SQLite and PHP.
+No external services. Just SQLite and PHP.
 
 ```bash
 composer require moaines/laravel-fts
@@ -32,6 +30,14 @@ composer require moaines/laravel-fts
 | Performance (10k+ rows) | Table scan | Inverted index |
 
 ---
+
+## Requirements
+
+- **PHP** 8.2+
+- **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
+- **intl** extension (accent folding, CJK, Arabic, Cyrillic)
+- **mbstring** extension (multibyte string operations)
+- **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/fts/fts-index.sqlite')` and must point to a writable local directory.
 
 ## Quick Start
 
@@ -127,7 +133,10 @@ php artisan vendor:publish --tag=fts-config
 // config/fts.php
 
 return [
-    // SQLite index file (relative to storage_path())
+    // SQLite index file.
+    // - Relative path (default): resolved via storage_path()
+    // - Absolute path (starts with /): used as-is for persistent volumes
+    // - Cloud storage (S3, GCS) is NOT supported
     'database_path' => env('FTS_DATABASE_PATH', 'app/fts/fts-index.sqlite'),
 
     // Search mode: 'basic' or 'advanced'
@@ -232,24 +241,7 @@ public function toFtsDocument(): array
 }
 ```
 
-### 5. Search URL
-
-```php
-public function ftsUrl(): string
-{
-    return route('posts.show', $this);
-}
-```
-
-### 6. Category label
-
-Used by the Filament plugin to group results. Defaults to the plural of the model name (`Post` → `Posts`):
-
-```php
-protected string $ftsCategory = 'Articles';
-```
-
-### 7. Custom TextProcessor
+### 5. Custom TextProcessor
 
 Override the text processing pipeline for this model:
 
@@ -383,7 +375,9 @@ class FtsResult {
 }
 ```
 
-> The `$model` property gives access to the original Eloquent model attached during search. Use `$result->model->ftsUrl()` and `$result->model->ftsCategory()` to get the record URL and category. The model is excluded from `toArray()` and `__sleep()` — it's a transient runtime reference to avoid double queries.
+> The `$model` property gives access to the original Eloquent model attached during search. The model is excluded from `toArray()` and `__sleep()` — it's a transient runtime reference to avoid double queries.
+> 
+> When using Filament, the Resource's Global Search methods (`getGlobalSearchResultUrl()`, `getGlobalSearchResultDetails()`) take priority over `ftsUrl()` and `ftsCategory()` on the model.
 
 ---
 
@@ -861,6 +855,35 @@ laravel-fts/
 │   └── Exceptions/
 └── tests/
 ```
+
+---
+
+## Limitations
+
+- **Cloud object storage not supported.** The FTS5 index is a SQLite database file and must reside on a local filesystem. S3, GCS, or any HTTP-based storage driver cannot be used — `database_path` always resolves to a local path. See [Requirements](#requirements).
+- **Ephemeral environments.** On serverless platforms (Laravel Vapor, Kubernetes without persistent volumes), the index file is lost on redeploy. Use an absolute `FTS_DATABASE_PATH` pointing to a mounted persistent volume, or re-run `php artisan fts:rebuild` after each deploy.
+- **Multi-server setups.** SQLite handles concurrent reads well but does not support concurrent writes from multiple processes over NFS. Use a single-writer strategy or consider an external search service for horizontal scaling.
+
+---
+
+## Changelog
+
+### Unreleased
+
+- **Absolute database path.** `FTS_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
+- **`--vacuum` flag.** `php artisan fts:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.
+- **`fts:doctor` improvements.** Displays path type (absolute/relative) and free disk space.
+- **Optional snippets.** `search()` accepts `$withSnippets` parameter. Set to `false` to skip Eloquent model loading when snippets are not needed.
+- **Model discovery cache.** `discoverModels()` caches results in memory within the same request — no redundant filesystem scans.
+- **Events.** `RebuildComplete` and `ModelIndexed` events are dispatched during rebuild.
+- **Batch jobs use `where(>)` instead of `offset()`.** No more shift on record deletion between queue jobs.
+- **`sync()` respects custom timestamps.** Uses `$model->getUpdatedAtColumn()` instead of hardcoded `updated_at`.
+- **Operator reset.** `SqliteFtsEngine::resetOperators()` allows resetting operator state between tests (avoids static state leakage).
+- **`FtsSpellcheck` per-instance.** Changed from `singleton` to `bind` — `maxDistance`/`maxSuggestions` no longer leak between callers.
+- **Removed unused `--mode` option** from `fts:rebuild` command.
+- **`escapeQuery()` with cache.** Repeated calls with the same query + mode reuse the cached result.
+- **Deduplicated `extractTerms()`** — now shared via `HasQueryTerms` trait.
+- **Fixed `normalize()` dead branch.** `Normalizer::normalize()` failure now returns the original text instead of an empty string.
 
 ---
 
