@@ -30,13 +30,9 @@ class UnicodeTextProcessor implements TextProcessor
 
     public function normalize(string $text): string
     {
-        $text = Normalizer::normalize($text, Normalizer::FORM_C);
+        $normalized = Normalizer::normalize($text, Normalizer::FORM_C);
 
-        if ($text === false) {
-            $text = (string) $text;
-        }
-
-        return $text;
+        return $normalized !== false ? $normalized : $text;
     }
 
     public function removeDiacritics(string $text): string

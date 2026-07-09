@@ -3,10 +3,12 @@
 namespace Moaines\LaravelFts;
 
 use Illuminate\Support\Collection;
+use Moaines\LaravelFts\Concerns\HasQueryTerms;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 
 class FtsSpellcheck
 {
+    use HasQueryTerms;
     private int $maxDistance = 2;
 
     private int $maxSuggestions = 5;
@@ -54,10 +56,7 @@ class FtsSpellcheck
      */
     protected function extractTerms(string $query): array
     {
-        $cleaned = preg_replace('/[":()^*\-]/', ' ', $query);
-        $terms = array_filter(explode(' ', $cleaned ?? $query));
-
-        return array_values(array_unique(array_map('trim', $terms)));
+        return $this->extractQueryTerms($query);
     }
 
     protected function findSimilar(string $term, array $modelClasses): array

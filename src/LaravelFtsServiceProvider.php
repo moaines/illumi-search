@@ -29,7 +29,7 @@ class LaravelFtsServiceProvider extends ServiceProvider
 
         $this->app->singleton(FtsEngine::class, function ($app) {
             $path = $app['config']->get('fts.database_path', 'app/fts/fts-index.sqlite');
-            $fullPath = $app->storagePath($path);
+            $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
 
             // Apply tenant isolation if enabled
             $tenantManager = $app->make(TenantManager::class);
@@ -48,7 +48,7 @@ class LaravelFtsServiceProvider extends ServiceProvider
 
         $this->app->singleton(TextProcessor::class, UnicodeTextProcessor::class);
 
-        $this->app->singleton(FtsSpellcheck::class, function ($app) {
+        $this->app->bind(FtsSpellcheck::class, function ($app) {
             return new FtsSpellcheck($app->make(FtsEngine::class));
         });
 

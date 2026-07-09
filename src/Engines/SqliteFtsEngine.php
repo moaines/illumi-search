@@ -3,6 +3,7 @@
 namespace Moaines\LaravelFts\Engines;
 
 use Illuminate\Database\Eloquent\Model;
+use Moaines\LaravelFts\Concerns\HasQueryTerms;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
 use Moaines\LaravelFts\Exceptions\FtsException;
@@ -11,6 +12,7 @@ use SQLite3;
 
 class SqliteFtsEngine implements FtsEngine
 {
+    use HasQueryTerms;
     private const META_TABLE = '_fts_meta';
 
     private ?SQLite3 $db = null;
@@ -22,6 +24,15 @@ class SqliteFtsEngine implements FtsEngine
     private static array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
 
     private static bool $operatorsProbed = false;
+
+    private array $cachedSafeQueries = [];
+
+    public static function resetOperators(): void
+    {
+        static::$operatorsProbed = false;
+        static::$supportedOperators = ['AND', 'OR', 'NOT'];
+        static::$rawSupportedOperators = ['AND', 'OR', 'NOT'];
+    }
 
     public function __construct(
         private readonly string $databasePath,
@@ -200,7 +211,7 @@ class SqliteFtsEngine implements FtsEngine
         }
     }
 
-    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced'): array
+    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array
     {
         if (empty(trim($query))) {
             return [];
@@ -263,7 +274,7 @@ class SqliteFtsEngine implements FtsEngine
         $results = array_slice($results, 0, $limit);
 
         // Enrich with snippets from original models
-        $results = $this->enrichWithSnippets($results, $query);
+        $results = $withSnippets ? $this->enrichWithSnippets($results, $query) : $results;
 
         return array_map(
             fn ($r) => FtsResult::make(
@@ -366,13 +377,7 @@ class SqliteFtsEngine implements FtsEngine
 
     protected function extractSearchTerms(string $query): array
     {
-        // Remove FTS5 operators and split into terms
-        $cleaned = preg_replace('/[":()^*\-]/', ' ', $query);
-        $terms = array_filter(explode(' ', $cleaned));
-        $terms = array_map(fn ($t) => trim($t), $terms);
-
-        // Normalize terms for matching
-        return array_values(array_unique(array_filter($terms)));
+        return $this->extractQueryTerms($query);
     }
 
     protected function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
@@ -623,6 +628,11 @@ class SqliteFtsEngine implements FtsEngine
 
     protected function escapeQuery(string $query, string $mode): string
     {
+        $cacheKey = md5($query . $mode);
+        if (isset($this->cachedSafeQueries[$cacheKey])) {
+            return $this->cachedSafeQueries[$cacheKey];
+        }
+
         // Normalize query: lowercase + remove diacritics to match indexed content
         $query = $this->normalizeQuery($query);
 
@@ -631,12 +641,12 @@ class SqliteFtsEngine implements FtsEngine
             $terms = array_filter(explode(' ', $escaped));
             $terms = array_map(fn ($t) => trim($t).'*', $terms);
 
-            return implode(' ', $terms);
+            return $this->cachedSafeQueries[$cacheKey] = implode(' ', $terms);
         }
 
         if ($mode === 'raw') {
             // No wildcards, no escaping — bare normalized query
-            return $query;
+            return $this->cachedSafeQueries[$cacheKey] = $query;
         }
 
         // For advanced mode, split into terms and quote those with special chars
@@ -687,7 +697,7 @@ class SqliteFtsEngine implements FtsEngine
             }
         }
 
-        return implode(' ', $escaped);
+        return $this->cachedSafeQueries[$cacheKey] = implode(' ', $escaped);
     }
 
     protected function normalizeQuery(string $query): string

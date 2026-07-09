@@ -17,7 +17,7 @@ interface FtsEngine
     public function insertBatch(string $modelClass, array $documents): void;
 
     /** @return FtsResult[] */
-    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced'): array;
+    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array;
 
     public function count(string $query, array $modelClasses): int;
 

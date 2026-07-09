@@ -85,4 +85,12 @@ class TextProcessorTest extends TestCase
         $result = $this->processor->process('안녕하세요');
         $this->assertEquals('안 녕 하 세 요', $result);
     }
+
+    public function test_handles_invalid_utf8_gracefully(): void
+    {
+        $invalid = "\x80\x81\x82";
+        $result = $this->processor->normalize($invalid);
+
+        $this->assertIsString($result);
+    }
 }
