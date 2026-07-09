@@ -54,6 +54,8 @@ interface FtsEngine
 
     public function tableExists(string $modelClass): bool;
 
+    public function integrityCheck(string $modelClass): bool;
+
     public function tableName(string $modelClass): string;
 
     /** @return array<string> */

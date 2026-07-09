@@ -89,6 +89,18 @@ class FtsDoctorCommand extends Command
             $this->line('   <fg=yellow>⚠</> Database does not exist yet');
             $this->line('   Path would be: ' . $dbPath);
             $this->line('   Run <comment>php artisan fts:rebuild</comment> to create it');
+            $stats = [];
+        }
+
+        // 3b. Integrity check
+        if (! empty($stats)) {
+            $this->newLine();
+            $this->line('   Integrity:');
+            foreach ($stats as $stat) {
+                $ok = $engine->integrityCheck($stat['model_class']);
+                $icon = $ok ? '<fg=green>✓</>' : '<fg=red>✗</>';
+                $this->line("     {$icon} {$stat['model_class']}");
+            }
         }
         $this->newLine();
 

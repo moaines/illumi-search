@@ -150,7 +150,11 @@ return [
     ],
 
     'fts5' => [
-        'prefix_lengths' => [2, 3, 4],  // search-as-you-type
+        'prefix_lengths'  => [2, 3, 4],          // search-as-you-type
+        'detail'          => 'full',              // 'full', 'column', 'none'
+        'automerge'       => 4,                   // segments before auto merge
+        'crisismerge'     => 16,                  // segments before forced merge
+        'pgsz'            => 1000,                // index page size (bytes)
     ],
 ];
 ```
@@ -640,7 +644,9 @@ Tables optimized: 2
 
 ### `php artisan fts:doctor`
 
-Diagnose the FTS5 environment — extensions, FTS5 support, database health, and configuration.
+Diagnose the FTS5 environment — extensions, FTS5 support, database health, configuration, and per-table integrity checks.
+
+The doctor command also runs FTS5's built-in `integrity-check` on each indexed table to detect corruption.
 
 ```
 🔍 FTS Environment Diagnostics
@@ -659,8 +665,11 @@ Diagnose the FTS5 environment — extensions, FTS5 support, database health, and
  ✓ Size: 12.4 MB
  ✓ Readable / Writable
 
- Indexes:
- - App\Models\Post: 1,234 records
+  Indexes:
+  - App\Models\Post: 1,234 records
+
+  Integrity:
+  ✓ App\Models\Post
 
 4. Configuration
  fts.indexing = queue
@@ -917,6 +926,16 @@ laravel-fts/
 ---
 
 ## Changelog
+
+### Unreleased
+
+### v1.9.0
+
+- **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` saves ~30% index space if NEAR/phrase queries are not needed.
+- **Merge tuning.** New `fts.fts5.automerge`, `fts.fts5.crisismerge`, and `fts.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
+- **`integrityCheck()`.** New method on `FtsEngine` interface. Performs FTS5 integrity-check on each indexed table.
+- **`fts:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).
+- **Optimized `enrichWithSnippets()`.** Snippet loading now uses `SELECT` only for columns declared in `$ftsSearchable`, eager-loads relations for dot-notation columns, and detects virtual attributes via `Schema::hasColumn()`.
 
 ### v1.8.0
 

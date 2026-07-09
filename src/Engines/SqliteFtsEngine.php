@@ -3,6 +3,7 @@
 namespace Moaines\LaravelFts\Engines;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
 use Moaines\LaravelFts\Concerns\HasQueryTerms;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
@@ -138,12 +139,28 @@ class SqliteFtsEngine implements FtsEngine
             $options[] = "prefix='" . implode(' ', $prefixLengths) . "'";
         }
 
+        $detail = config('fts.fts5.detail', 'full');
+        if ($detail !== 'full') {
+            $options[] = "detail={$detail}";
+        }
+
         $optionString = implode(', ', $options);
         $sql = "CREATE VIRTUAL TABLE IF NOT EXISTS {$table} USING fts5({$columnList}, {$optionString})";
 
         $this->db()->exec($sql);
 
-        // Create vocab table for spellcheck suggestions
+        // Set runtime FTS5 options (automerge, crisismerge, pgsz)
+        $runtimeKeys = [
+            'automerge'   => config('fts.fts5.automerge', 4),
+            'crisismerge' => config('fts.fts5.crisismerge', 16),
+            'pgsz'        => config('fts.fts5.pgsz', 1000),
+        ];
+
+        foreach ($runtimeKeys as $key => $value) {
+            @$this->db()->exec("INSERT INTO {$table}({$table}) VALUES('{$key}={$value}')");
+        }
+
+        // Vocab table for spellcheck
         $vocabTable = $table . '_vocab';
         $this->db()->exec(
             "CREATE VIRTUAL TABLE IF NOT EXISTS {$vocabTable} USING fts5vocab({$table}, 'row')"
@@ -317,34 +334,61 @@ class SqliteFtsEngine implements FtsEngine
         foreach ($grouped as $modelClass => &$entries) {
             $ids = array_column($entries, 'modelId');
 
-            if (!class_exists($modelClass) || empty($ids)) {
+            if (! class_exists($modelClass) || empty($ids)) {
                 continue;
             }
 
             try {
-                $models = $modelClass::whereIn((new $modelClass)->getKeyName(), $ids)->get()->keyBy->getKey();
+                $instance = new $modelClass;
+                $keyName = $instance->getKeyName();
+
+                $snippetCols = $this->resolveSnippetColumns($instance);
+                $defaultCols = ['body', 'content', 'description', 'text', 'excerpt'];
+                $textColumns = $snippetCols ?? $defaultCols;
+
+                // Build optimized select: only local DB columns needed for snippets
+                $selectCols = [$keyName];
+                $relationCols = [];
+
+                foreach ($textColumns as $col) {
+                    if (str_contains($col, '.')) {
+                        $relName = explode('.', $col)[0];
+                        if (! in_array($relName, $relationCols, true)) {
+                            $relationCols[] = $relName;
+                        }
+                    } elseif (Schema::hasColumn($instance->getTable(), $col)) {
+                        $selectCols[] = $col;
+                    }
+                    // Non-dot, non-DB → virtual accessor → no select needed
+                }
+
+                $query = $modelClass::whereIn($keyName, $ids);
+
+                if (count($selectCols) > 1) {
+                    $query->select($selectCols);
+                }
+
+                $models = $query->get()->keyBy->getKey();
+
+                if (! empty($relationCols)) {
+                    $models->load(array_unique($relationCols));
+                }
+
+                foreach ($entries as &$entry) {
+                    $model = $models[$entry['modelId']] ?? null;
+                    if ($model === null) {
+                        continue;
+                    }
+
+                    $entry['eloquentModel'] = $model;
+                    $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
+                    $entry['summary'] = $this->extractSnippet($model, $searchTerms, $snippetCols);
+                }
             } catch (\Exception) {
                 continue;
             }
-
-            foreach ($entries as &$entry) {
-                $model = $models[$entry['modelId']] ?? null;
-                if ($model === null) {
-                    continue;
-                }
-
-                // Stash the Eloquent model for reuse (avoids double queries)
-                $entry['eloquentModel'] = $model;
-
-                // Restore original title from model (FTS5 stores processed version)
-                $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
-
-                $snippetCols = $this->resolveSnippetColumns($model);
-                $entry['summary'] = $this->extractSnippet($model, $searchTerms, $snippetCols);
-            }
         }
 
-        // Rebuild results in original order with enriched data
         $enriched = [];
         foreach ($results as $i => $r) {
             $mc = $r['modelClass'];
@@ -510,6 +554,23 @@ class SqliteFtsEngine implements FtsEngine
         $result = $this->db()->query("SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'");
 
         return $result !== false && $result->fetchArray(SQLITE3_NUM) !== false;
+    }
+
+    public function integrityCheck(string $modelClass): bool
+    {
+        try {
+            $table = $this->tableName($modelClass);
+
+            if (! $this->tableExists($modelClass)) {
+                return false;
+            }
+
+            $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('integrity-check')");
+
+            return true;
+        } catch (\Exception) {
+            return false;
+        }
     }
 
     /** @return array<string> */

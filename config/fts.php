@@ -103,6 +103,35 @@ return [
         | Generates additional index entries for prefix queries.
         */
         'prefix_lengths' => [2, 3, 4],
+
+        /*
+        | Detail: 'full', 'column', or 'none'.
+        | - full: stores term + position + column (supports NEAR/phrase)
+        | - column: stores term + column only (saves ~30% space)
+        | - none: stores term only (saves ~50% space, no column-based ranking)
+        */
+        'detail' => 'full',
+
+        /*
+        | Automerge: segment count threshold for automatic merging.
+        | Higher values reduce CPU during inserts, lower values improve query speed.
+        | Default: 4
+        */
+        'automerge' => 4,
+
+        /*
+        | Crisismerge: emergency merge threshold.
+        | When segments exceed this count, FTS5 forces a merge immediately.
+        | Default: 16 (4x automerge)
+        */
+        'crisismerge' => 16,
+
+        /*
+        | Pgsz: maximum bytes per index page.
+        | Larger pages = faster bulk insert, slower queries. Smaller = reverse.
+        | Default: 1000
+        */
+        'pgsz' => 1000,
     ],
 
     /*
