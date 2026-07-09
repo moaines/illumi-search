@@ -4,16 +4,11 @@ namespace Moaines\LaravelFts\Tests\TestSupport\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Comment extends Model
+class Author extends Model
 {
-    protected $table = 'comments';
+    protected $table = 'authors';
 
     protected $guarded = [];
 
     public $timestamps = false;
-
-    public function book()
-    {
-        return $this->belongsTo(Book::class);
-    }
 }

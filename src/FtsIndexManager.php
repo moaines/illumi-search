@@ -88,6 +88,11 @@ class FtsIndexManager
                     continue;
                 }
 
+                $warnings = $instance->validateFtsSearchable();
+                foreach ($warnings as $w) {
+                    $results[] = ['model' => $modelClass, 'status' => 'warning', 'message' => $w];
+                }
+
                 $this->engine->dropTable($modelClass);
 
                 $prefixLengths = config('fts.fts5.prefix_lengths', [2, 3, 4]);

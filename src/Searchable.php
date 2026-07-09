@@ -61,11 +61,62 @@ trait Searchable
         $document = [];
 
         foreach ($columns as $column => $config) {
-            $value = $this->{$column} ?? '';
-            $document[$column] = $value;
+            $document[$column] = $this->resolveFtsValue($column);
         }
 
         return $document;
+    }
+
+    protected function resolveFtsValue(string $column): string
+    {
+        try {
+            if (! str_contains($column, '.')) {
+                return (string) ($this->$column ?? $this->getAttribute($column) ?? '');
+            }
+
+            $segments = explode('.', $column);
+            $last = array_pop($segments);
+            $related = $this;
+
+            foreach ($segments as $segment) {
+                $related = $related?->$segment;
+                if ($related === null) {
+                    return '';
+                }
+            }
+
+            if ($related instanceof \Illuminate\Support\Collection || $related instanceof \Illuminate\Database\Eloquent\Collection) {
+                $max = config('fts.max_related_values', 100);
+
+                return $related->pluck($last)->filter()->take($max)->implode(' ');
+            }
+
+            return (string) ($related->$last ?? $related->getAttribute($last) ?? '');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    public function validateFtsSearchable(): array
+    {
+        $warnings = [];
+
+        foreach ($this->getFtsSearchableColumns() as $key => $config) {
+            $colName = is_string($config) ? $config : $key;
+
+            if (! str_contains($colName, '.')) {
+                continue;
+            }
+
+            $relName = explode('.', $colName)[0];
+
+            if (! method_exists($this, $relName)) {
+                $warnings[] = class_basename(static::class)
+                    . "::ftsSearchable: relation '{$relName}' introuvable pour '{$colName}'";
+            }
+        }
+
+        return $warnings;
     }
 
     public function ftsUrl(): ?string

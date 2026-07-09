@@ -206,6 +206,33 @@ Three syntaxes are accepted:
 | **Minimal** | `'author'` | Default weight, no options |
 | **Shorthand** | `'excerpt' => true` | Same as minimal |
 
+### 3. With dot notation
+
+Search across related model attributes without custom `toFtsDocument()` logic.
+Supports `belongsTo`, `hasMany`, and Eloquent accessors:
+
+```php
+protected array $ftsSearchable = [
+    'title'         => ['weight' => 3],
+    'body'          => ['weight' => 1],
+    'writer.name'   => ['weight' => 1],   // belongsTo → Writer.name
+    'comments.body' => ['weight' => 1],   // hasMany → Comment.body (concatenated)
+    'fullname'      => ['weight' => 2],   // accessor → getFullnameAttribute()
+];
+```
+
+How each dot-notation variant resolves:
+
+| Notation | Resolution | Example value |
+|---|---|---|
+| `'writer.name'` | `$book->writer->name` | `'Jean Dupont'` |
+| `'comments.body'` | `$book->comments->pluck('body')->implode(' ')` | `'Great! Loved it.'` |
+| `'fullname'` | `$book->fullname` (accessor) | `'Les Misérables by Jean Dupont'` |
+
+When the relation returns a collection (`hasMany`, `belongsToMany`), values are concatenated with a space. The maximum number of related values is controlled by `max_related_values` in config (default: 100). Null relations return an empty string silently.
+
+Relations are eager-loaded during `fts:rebuild` to avoid N+1 queries. Validation warnings are emitted during rebuild for dot-notation columns pointing to non-existent relation methods.
+
 ### 3. With locale and snippet
 
 Control the text language and which columns provide context previews:
@@ -869,6 +896,9 @@ laravel-fts/
 ## Changelog
 
 ### Unreleased
+
+- **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports `belongsTo`, `hasMany`, `belongsToMany`, and Eloquent accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
+- **`validateFtsSearchable()`.** Emits warnings during `fts:rebuild` for dot-notation columns referencing non-existent relations.
 
 - **Absolute database path.** `FTS_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
 - **`--vacuum` flag.** `php artisan fts:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.

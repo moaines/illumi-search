@@ -162,4 +162,16 @@ return [
     'operators' => [
         'enabled' => env('FTS_OPERATORS'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Max Related Values
+    |--------------------------------------------------------------------------
+    |
+    | Maximum number of related model values to collect for dot-notation columns
+    | in ftsSearchable (e.g. 'comments.body'). Prevents oversized documents
+    | when a model has thousands of related records.
+    |
+    */
+    'max_related_values' => 100,
 ];
