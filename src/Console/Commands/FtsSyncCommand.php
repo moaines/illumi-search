@@ -5,6 +5,7 @@ namespace Moaines\LaravelFts\Console\Commands;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Moaines\LaravelFts\FtsIndexManager;
+use Symfony\Component\Console\Helper\ProgressBar;
 
 class FtsSyncCommand extends Command
 {
@@ -29,10 +30,21 @@ class FtsSyncCommand extends Command
             $this->info('Syncing all indexed models...');
         }
 
+        $pb = null;
+
         $results = $manager->sync(
             modelClasses: ! empty($models) ? $models : null,
             since: $since,
+            progress: function (string $event, ...$args) use (&$pb) {
+                match ($event) {
+                    'startModel' => $this->startProgressBar($pb, $args[0], $args[1]),
+                    'advance' => $pb?->advance($args[0]),
+                    'finishModel' => $this->finishProgressBar($pb),
+                };
+            },
         );
+
+        $this->clearProgressBar($pb);
 
         foreach ($results as $result) {
             match ($result['status']) {
@@ -46,5 +58,32 @@ class FtsSyncCommand extends Command
         $this->info('Sync complete.');
 
         return Command::SUCCESS;
+    }
+
+    private function startProgressBar(?ProgressBar &$pb, string $modelClass, int $total): void
+    {
+        $this->clearProgressBar($pb);
+        $short = class_basename($modelClass);
+        $this->line("  <fg=yellow>{$short}</>");
+        $pb = $this->output->createProgressBar($total);
+        $pb->setFormat('    %current%/%max% [%bar%] %elapsed:6s%');
+        $pb->start();
+    }
+
+    private function finishProgressBar(?ProgressBar &$pb): void
+    {
+        if ($pb === null) {
+            return;
+        }
+        $pb->finish();
+        $this->newLine(2);
+        $pb = null;
+    }
+
+    private function clearProgressBar(?ProgressBar $pb): void
+    {
+        if ($pb !== null) {
+            $pb->clear();
+        }
     }
 }

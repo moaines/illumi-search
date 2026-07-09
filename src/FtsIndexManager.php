@@ -55,7 +55,7 @@ class FtsIndexManager
         return static::$cachedModels;
     }
 
-    public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false): array
+    public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false, ?\Closure $progress = null): array
     {
         $models = $modelClasses !== null
             ? collect($modelClasses)
@@ -105,6 +105,9 @@ class FtsIndexManager
 
                 $totalRecords = $modelClass::count();
                 $keyName = (new $modelClass)->getKeyName();
+                $relations = $instance->ftsRelationsForRebuild();
+
+                $progress?->__invoke('startModel', $modelClass, $totalRecords);
 
                 $syncCount = 0;
                 $queuedCount = 0;
@@ -116,7 +119,12 @@ class FtsIndexManager
                         ->take($batchSize)
                         ->get();
 
+                    if (! empty($relations)) {
+                        $records->load($relations);
+                    }
+
                     $syncCount = $this->indexRecords($records, $modelClass);
+                    $progress?->__invoke('advance', $syncCount);
 
                     // Queue remaining as IndexBatchJob (each job handles up to 100)
                     $lastId = $records->last()?->getKey() ?? 0;
@@ -136,10 +144,17 @@ class FtsIndexManager
                 } else {
                     // Sync all
                     $modelClass::query()
-                        ->chunkById(100, function ($records) use ($modelClass, &$syncCount) {
-                            $syncCount += $this->indexRecords($records, $modelClass);
+                        ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress) {
+                            if (! empty($relations)) {
+                                $records->load($relations);
+                            }
+                            $synced = $this->indexRecords($records, $modelClass);
+                            $syncCount += $synced;
+                            $progress?->__invoke('advance', $synced);
                         }, $keyName);
                 }
+
+                $progress?->__invoke('finishModel');
 
                 $results[] = [
                     'model' => $modelClass,
@@ -212,7 +227,7 @@ class FtsIndexManager
         return $count;
     }
 
-    public function sync(?array $modelClasses = null, ?\DateTimeInterface $since = null): array
+    public function sync(?array $modelClasses = null, ?\DateTimeInterface $since = null, ?\Closure $progress = null): array
     {
         $models = $modelClasses !== null
             ? collect($modelClasses)
@@ -235,13 +250,24 @@ class FtsIndexManager
                 }
 
                 $count = 0;
-                $query->chunkById(100, function ($records) use ($modelClass, &$count) {
+                $total = (clone $query)->count();
+                $relations = $instance->ftsRelationsForRebuild();
+
+                $progress?->__invoke('startModel', $modelClass, $total);
+
+                $query->chunkById(100, function ($records) use ($modelClass, &$count, $relations, $progress) {
+                    if (! empty($relations)) {
+                        $records->load($relations);
+                    }
                     foreach ($records as $record) {
                         $processed = $record->processDocument($record, $this->processor);
                         $this->engine->upsert($modelClass, $record->getKey(), $processed);
                         $count++;
                     }
+                    $progress?->__invoke('advance', $records->count());
                 });
+
+                $progress?->__invoke('finishModel');
 
                 $results[] = ['model' => $modelClass, 'status' => 'synced', 'records' => $count];
             } catch (\Exception $e) {

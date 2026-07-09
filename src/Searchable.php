@@ -103,6 +103,23 @@ trait Searchable
         }
     }
 
+    public function ftsRelationsForRebuild(): array
+    {
+        $relations = [];
+        foreach ($this->getFtsSearchableColumns() as $key => $config) {
+            $colName = is_string($config) ? $config : $key;
+            $firstDot = strpos($colName, '.');
+            if ($firstDot === false) {
+                continue;
+            }
+            $relPath = substr($colName, 0, strrpos($colName, '.'));
+            if (! in_array($relPath, $relations, true)) {
+                $relations[] = $relPath;
+            }
+        }
+        return $relations;
+    }
+
     public function validateFtsSearchable(): array
     {
         $warnings = [];

@@ -41,4 +41,33 @@ class RebuildCommandTest extends TestCase
         $tablesAfter = $engine->listIndexTables();
         $this->assertNotContains($orphanTable, $tablesAfter);
     }
+
+    public function test_rebuild_progress_callback_called(): void
+    {
+        \Illuminate\Support\Facades\Schema::create('posts', function (\Illuminate\Database\Schema\Blueprint $table) {
+            $table->id();
+            $table->string('title');
+            $table->text('body')->nullable();
+            $table->timestamps();
+        });
+
+        \Moaines\LaravelFts\Tests\TestSupport\Models\Post::withoutEvents(fn () => \Moaines\LaravelFts\Tests\TestSupport\Models\Post::forceCreate([
+            'title' => 'Test',
+            'body' => 'Content',
+        ]));
+
+        $manager = app(\Moaines\LaravelFts\FtsIndexManager::class);
+
+        $startedModels = [];
+        $manager->rebuild(
+            modelClasses: [\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class],
+            progress: function (string $event, ...$args) use (&$startedModels) {
+                if ($event === 'startModel') {
+                    $startedModels[] = $args[0];
+                }
+            },
+        );
+
+        $this->assertNotEmpty($startedModels);
+    }
 }

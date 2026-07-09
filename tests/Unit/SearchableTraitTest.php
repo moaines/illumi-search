@@ -289,4 +289,68 @@ class SearchableTraitTest extends TestCase
 
         $this->assertNotEmpty($results);
     }
+
+    public function test_fts_relations_returns_single(): void
+    {
+        $this->createBookTables();
+        $book = new Book;
+
+        $relations = $book->ftsRelationsForRebuild();
+
+        $this->assertContains('author', $relations);
+        $this->assertContains('comments', $relations);
+        $this->assertNotContains('fullname', $relations);
+    }
+
+    public function test_fts_relations_ignores_plain_columns(): void
+    {
+        $model = new class extends \Illuminate\Database\Eloquent\Model {
+            use \Moaines\LaravelFts\Searchable;
+            protected array $ftsSearchable = ['title' => ['weight' => 3]];
+        };
+
+        $relations = $model->ftsRelationsForRebuild();
+
+        $this->assertEmpty($relations);
+    }
+
+    public function test_fts_relations_handles_nested_dot_notation(): void
+    {
+        $model = new class extends \Illuminate\Database\Eloquent\Model {
+            use \Moaines\LaravelFts\Searchable;
+            protected array $ftsSearchable = ['book.author.name' => ['weight' => 1]];
+        };
+
+        $relations = $model->ftsRelationsForRebuild();
+
+        $this->assertEquals(['book.author'], $relations);
+    }
+
+    public function test_fts_relations_handles_json_path(): void
+    {
+        $model = new class extends \Illuminate\Database\Eloquent\Model {
+            use \Moaines\LaravelFts\Searchable;
+            protected array $ftsSearchable = ['meta->rating' => ['weight' => 1]];
+        };
+
+        $relations = $model->ftsRelationsForRebuild();
+
+        $this->assertEmpty($relations);
+    }
+
+    public function test_fts_relations_deduplicates(): void
+    {
+        $model = new class extends \Illuminate\Database\Eloquent\Model {
+            use \Moaines\LaravelFts\Searchable;
+            protected array $ftsSearchable = [
+                'author.name' => ['weight' => 1],
+                'author.bio' => ['weight' => 1],
+            ];
+        };
+
+        $relations = $model->ftsRelationsForRebuild();
+
+        $this->assertCount(1, $relations);
+        $this->assertEquals(['author'], $relations);
+    }
 }
