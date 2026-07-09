@@ -21,7 +21,7 @@ class IndexBatchJob implements ShouldQueue
 
     public function __construct(
         private readonly string $modelClass,
-        private readonly int $offset,
+        private readonly int $lastId,
         private readonly int $limit,
     ) {}
 
@@ -32,7 +32,7 @@ class IndexBatchJob implements ShouldQueue
 
         $records = $this->modelClass::query()
             ->orderBy($keyName)
-            ->offset($this->offset)
+            ->where($keyName, '>', $this->lastId)
             ->limit($this->limit)
             ->get();
 

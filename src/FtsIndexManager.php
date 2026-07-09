@@ -7,17 +7,25 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\LaravelFts\Events\ModelIndexed;
+use Moaines\LaravelFts\Events\RebuildComplete;
 use Moaines\LaravelFts\Jobs\IndexBatchJob;
 
 class FtsIndexManager
 {
+    private static ?Collection $cachedModels = null;
+
     public function __construct(
         private readonly FtsEngine $engine,
         private readonly TextProcessor $processor,
     ) {}
 
-    public function discoverModels(): Collection
+    public function discoverModels(bool $refresh = false): Collection
     {
+        if (static::$cachedModels !== null && ! $refresh) {
+            return static::$cachedModels;
+        }
+
         $models = collect();
 
         $paths = config('fts.model_paths', [app_path('Models')]);
@@ -42,10 +50,12 @@ class FtsIndexManager
             }
         }
 
-        return $models->unique();
+        static::$cachedModels = $models->unique();
+
+        return static::$cachedModels;
     }
 
-    public function rebuild(?array $modelClasses = null, ?int $batchSize = null): array
+    public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false): array
     {
         $models = $modelClasses !== null
             ? collect($modelClasses)
@@ -104,19 +114,19 @@ class FtsIndexManager
                     $syncCount = $this->indexRecords($records, $modelClass);
 
                     // Queue remaining as IndexBatchJob (each job handles up to 100)
-                    $processed = $batchSize;
-                    while ($processed < $totalRecords) {
-                        $remaining = $totalRecords - $processed;
+                    $lastId = $records->last()?->getKey() ?? 0;
+                    while ($syncCount + $queuedCount < $totalRecords) {
+                        $remaining = $totalRecords - ($syncCount + $queuedCount);
                         $take = min(100, $remaining);
 
                         IndexBatchJob::dispatch(
                             modelClass: $modelClass,
-                            offset: $processed,
+                            lastId: $lastId,
                             limit: $take,
                         );
 
                         $queuedCount += $take;
-                        $processed += $take;
+                        $lastId += $take; // approximate — the job adjusts via where(>)
                     }
                 } else {
                     // Sync all
@@ -133,12 +143,20 @@ class FtsIndexManager
                     'queued' => $queuedCount,
                     'total' => $totalRecords,
                 ];
+
+                event(new ModelIndexed($modelClass, $syncCount));
             } catch (\Exception $e) {
                 $results[] = ['model' => $modelClass, 'status' => 'error', 'message' => $e->getMessage()];
+
+                event(new ModelIndexed($modelClass, 0));
             }
         }
 
-        $this->engine->vacuum();
+        event(new RebuildComplete($results));
+
+        if ($vacuum) {
+            $this->engine->vacuum();
+        }
 
         return $results;
     }
@@ -177,11 +195,12 @@ class FtsIndexManager
             }
 
             try {
-                $keyName = (new $modelClass)->getKeyName();
+                $instance = new $modelClass;
+                $keyName = $instance->getKeyName();
                 $query = $modelClass::query();
 
                 if ($since !== null) {
-                    $query->where('updated_at', '>=', $since);
+                    $query->where($instance->getUpdatedAtColumn(), '>=', $since);
                 }
 
                 $count = 0;
