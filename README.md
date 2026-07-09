@@ -918,6 +918,36 @@ laravel-fts/
 
 ## Changelog
 
+### v1.8.0
+
+- **Snippet fix for dot-notation columns.** When a term matches in a relation (e.g. `comments.body`), the snippet now extracts text from the correct column via `resolveFtsValue()`. Chooses the column that actually contains the search term.
+- **Orphaned meta cleanup.** `getIndexStats()` no longer crashes on orphaned meta entries. Cleans them up automatically.
+- **`resolveFtsValue()` made public.** Allows the engine to resolve dot-notation values for snippets.
+
+### v1.7.0
+
+- **Real-time progress bars.** `fts:rebuild` and `fts:sync` now display a per-model progress bar with current/max count and elapsed time.
+- **Eager-loaded relations.** Dot-notation columns (`writer.name`, `comments.body`) are now eager-loaded during chunks, eliminating N+1 queries on rebuild and sync.
+
+### v1.6.0
+
+- **Column name sanitization.** Dots (`.`), arrows (`->`), and dashes (`-`) in `$ftsSearchable` column names are now automatically converted to underscores (`_`) for FTS5. `'comments.body'` becomes `comments_body` in the index — FTS5 no longer rejects them.
+- **`ftsColumnName()` helper** on the Searchable trait.
+- **`sanitizeDocumentKeys()`** in the engine ensures all document keys are valid SQL identifiers.
+
+### v1.5.0
+
+- **Auto-cleanup orphaned tables.** `fts:rebuild` now removes index tables for models that no longer use the `Searchable` trait.
+- **New methods on `FtsEngine` interface:** `tableName()`, `listIndexTables()`, `dropIndexTable()`.
+
+### v1.4.2
+
+- **`fts:suggest` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
+
+### v1.4.1
+
+- **`fts:suggest` CLI fallback.** Falls back to the first available panel when `getCurrentPanel()` returns null (running in CLI).
+
 ### v1.4.0
 
 - **`fts:suggest` command.** Analyzes Filament panel Resources and suggests `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
