@@ -32,6 +32,11 @@ class FtsQueryBuilder
         $this->engine = $engine;
     }
 
+    /**
+     * Set the search query string.
+     *
+     * @example Fts::query('laravel php') ...;
+     */
     public function query(string $query): static
     {
         $this->query = $query;
@@ -39,6 +44,11 @@ class FtsQueryBuilder
         return $this;
     }
 
+    /**
+     * Limit search to a single model class.
+     *
+     * @example Fts::query('laravel')->model(Post::class)->get()
+     */
     public function model(string $modelClass): static
     {
         $this->modelClasses = [$modelClass];
@@ -46,6 +56,11 @@ class FtsQueryBuilder
         return $this;
     }
 
+    /**
+     * Search across multiple model classes.
+     *
+     * @example Fts::query('php')->models([Post::class, Comment::class])->get()
+     */
     public function models(array $modelClasses): static
     {
         $this->modelClasses = $modelClasses;
@@ -106,6 +121,13 @@ class FtsQueryBuilder
         return $this;
     }
 
+    /**
+     * Execute the search and return results.
+     *
+     * @example $results = Fts::query('laravel')->model(Post::class)->get()
+     *
+     * @return Collection<int, FtsResult>
+     */
     public function get(): Collection
     {
         $modelClasses = $this->modelClasses;
@@ -163,6 +185,11 @@ class FtsQueryBuilder
         })->values();
     }
 
+    /**
+     * Get the total count of matching results without retrieving them.
+     *
+     * @example Fts::query('laravel')->model(Post::class)->count()
+     */
     public function count(): int
     {
         $modelClasses = $this->modelClasses;
@@ -177,6 +204,11 @@ class FtsQueryBuilder
         );
     }
 
+    /**
+     * Paginate search results.
+     *
+     * @example Fts::query('laravel')->model(Post::class)->paginate(15)
+     */
     public function paginate(int $perPage = 15, string $pageName = 'page', ?int $page = null): Paginator
     {
         $modelClasses = $this->modelClasses;

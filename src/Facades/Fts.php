@@ -10,7 +10,7 @@ use Moaines\LaravelFts\FtsSpellcheck;
 /**
  * @method static FtsQueryBuilder query(string $query)
  *
- * @see \Moaines\LaravelFts\Contracts\FtsEngine
+ * @see \Moaines\LaravelFts\FtsQueryBuilder
  */
 class Fts extends Facade
 {
@@ -19,6 +19,14 @@ class Fts extends Facade
         return 'laravel-fts.engine';
     }
 
+    /**
+     * Start a new search query.
+     *
+     * @example Fts::query('laravel')->model(Post::class)->get()
+     *
+     * @param string $query The search terms
+     * @return FtsQueryBuilder
+     */
     public static function query(string $query): FtsQueryBuilder
     {
         return app(FtsQueryBuilder::class)->query($query);
@@ -26,6 +34,8 @@ class Fts extends Facade
 
     /**
      * Get spelling suggestions for a query term.
+     *
+     * @example Fts::didYouMean('laravell', [Post::class])
      *
      * @param string $query The (potentially misspelled) search term
      * @param array $modelClasses Optional model classes to scope suggestions

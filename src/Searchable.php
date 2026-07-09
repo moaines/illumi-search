@@ -36,6 +36,18 @@ trait Searchable
                 $engine->delete($model::class, $model->getKey());
             }
         });
+
+        if (method_exists(static::class, 'restored')) {
+            static::restored(function (Model $model) use ($indexing) {
+                if ($model->shouldFtsSync()) {
+                    if ($indexing === 'queue') {
+                        dispatch(new IndexModelJob($model::class, $model->getKey()));
+                    } else {
+                        static::syncToFts($model);
+                    }
+                }
+            });
+        }
     }
 
     public function shouldFtsSync(): bool
