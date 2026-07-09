@@ -55,13 +55,19 @@ trait Searchable
         return $this->ftsSyncOnSave ?? true;
     }
 
+    public function ftsColumnName(string $column): string
+    {
+        return str_replace(['.', '->', '-'], '_', $column);
+    }
+
     public function toFtsDocument(): array
     {
         $columns = $this->normalizeFtsSearchable();
         $document = [];
 
         foreach ($columns as $column => $config) {
-            $document[$column] = $this->resolveFtsValue($column);
+            $safeName = $this->ftsColumnName($column);
+            $document[$safeName] = $this->resolveFtsValue($column);
         }
 
         return $document;
@@ -197,7 +203,8 @@ trait Searchable
         $processed = [];
 
         foreach ($columns as $column => $config) {
-            $value = $doc[$column] ?? '';
+            $safeName = $model->ftsColumnName($column);
+            $value = $doc[$safeName] ?? '';
             $locale = $config['locale'] ?? app()->getLocale() ?? 'en';
             $processed[$column] = $processor->process((string) $value, $locale);
         }

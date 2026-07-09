@@ -213,11 +213,12 @@ Supports `belongsTo`, `hasMany`, and Eloquent accessors:
 
 ```php
 protected array $ftsSearchable = [
-    'title'         => ['weight' => 3],
-    'body'          => ['weight' => 1],
-    'writer.name'   => ['weight' => 1],   // belongsTo → Writer.name
-    'comments.body' => ['weight' => 1],   // hasMany → Comment.body (concatenated)
-    'fullname'      => ['weight' => 2],   // accessor → getFullnameAttribute()
+    'title'            => ['weight' => 3],
+    'body'             => ['weight' => 1],
+    'writer.name'      => ['weight' => 1],   // belongsTo → Writer.name
+    'comments.body'    => ['weight' => 1],   // hasMany → Comment.body (concatenated)
+    'fullname'         => ['weight' => 2],   // accessor → getFullnameAttribute()
+    'comments.meta->rating' => ['weight' => 1], // JSON property on related model
 ];
 ```
 
@@ -228,6 +229,9 @@ How each dot-notation variant resolves:
 | `'writer.name'` | `$book->writer->name` | `'Jean Dupont'` |
 | `'comments.body'` | `$book->comments->pluck('body')->implode(' ')` | `'Great! Loved it.'` |
 | `'fullname'` | `$book->fullname` (accessor) | `'Les Misérables by Jean Dupont'` |
+| `'comments.meta->rating'` | `$book->comments->pluck('meta->rating')` | `'5 4 5'` |
+
+Note: dots (`.`) and arrows (`->`) in column names are automatically converted to underscores (`_`) for the FTS5 index (e.g. `writer.name` becomes `writer_name`). This keeps FTS5 SQL identifiers valid while preserving the full path for value resolution.
 
 When the relation returns a collection (`hasMany`, `belongsToMany`), values are concatenated with a space. The maximum number of related values is controlled by `max_related_values` in config (default: 100). Null relations return an empty string silently.
 

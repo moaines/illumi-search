@@ -138,7 +138,7 @@ class SearchableTraitTest extends TestCase
 
         $doc = $book->toFtsDocument();
 
-        $this->assertStringContainsString('Jean Dupont', $doc['author.name']);
+        $this->assertStringContainsString('Jean Dupont', $doc['author_name']);
     }
 
     public function test_to_fts_document_resolves_has_many_dot_notation(): void
@@ -153,8 +153,8 @@ class SearchableTraitTest extends TestCase
 
         $doc = $book->toFtsDocument();
 
-        $this->assertStringContainsString('Great read!', $doc['comments.body']);
-        $this->assertStringContainsString('Very helpful', $doc['comments.body']);
+        $this->assertStringContainsString('Great read!', $doc['comments_body']);
+        $this->assertStringContainsString('Very helpful', $doc['comments_body']);
     }
 
     public function test_to_fts_document_null_relation_returns_empty(): void
@@ -167,10 +167,28 @@ class SearchableTraitTest extends TestCase
 
         $doc = $book->toFtsDocument();
 
-        $this->assertEquals('', $doc['author.name']);
+        $this->assertEquals('', $doc['author_name']);
     }
 
-    public function test_to_fts_document_resolves_virtual_accessor(): void
+    public function test_fts_column_name_sanitizes_dots(): void
+    {
+        $model = new Book;
+        $this->assertEquals('author_name', $model->ftsColumnName('author.name'));
+    }
+
+    public function test_fts_column_name_sanitizes_arrows(): void
+    {
+        $model = new Book;
+        $this->assertEquals('meta_prop', $model->ftsColumnName('meta->prop'));
+    }
+
+    public function test_fts_column_name_keeps_plain_names(): void
+    {
+        $model = new Book;
+        $this->assertEquals('title', $model->ftsColumnName('title'));
+    }
+
+    public function test_to_fts_document_uses_sanitized_keys(): void
     {
         $this->createBookTables();
         $author = Author::forceCreate(['name' => 'Jane']);
@@ -182,7 +200,11 @@ class SearchableTraitTest extends TestCase
 
         $doc = $book->toFtsDocument();
 
-        $this->assertStringContainsString('My Book by Jane', $doc['fullname']);
+        $this->assertArrayNotHasKey('author.name', $doc);
+        $this->assertArrayNotHasKey('comments.body', $doc);
+        $this->assertArrayHasKey('author_name', $doc);
+        $this->assertArrayHasKey('comments_body', $doc);
+        $this->assertStringContainsString('Jane', $doc['author_name']);
     }
 
     public function test_validate_fts_searchable_passes_valid_columns(): void
@@ -222,9 +244,9 @@ class SearchableTraitTest extends TestCase
 
         $doc = $book->toFtsDocument();
 
-        $this->assertStringContainsString('Comment 0', $doc['comments.body']);
-        $this->assertStringContainsString('Comment 1', $doc['comments.body']);
-        $this->assertStringNotContainsString('Comment 9', $doc['comments.body']);
+        $this->assertStringContainsString('Comment 0', $doc['comments_body']);
+        $this->assertStringContainsString('Comment 1', $doc['comments_body']);
+        $this->assertStringNotContainsString('Comment 9', $doc['comments_body']);
     }
 
     public function test_mixed_simple_and_dot_notation(): void
@@ -241,11 +263,30 @@ class SearchableTraitTest extends TestCase
         $doc = $book->toFtsDocument();
 
         $this->assertArrayHasKey('title', $doc);
-        $this->assertArrayHasKey('author.name', $doc);
-        $this->assertArrayHasKey('comments.body', $doc);
+        $this->assertArrayHasKey('author_name', $doc);
+        $this->assertArrayHasKey('comments_body', $doc);
         $this->assertArrayHasKey('fullname', $doc);
         $this->assertEquals('Les Misérables', $doc['title']);
-        $this->assertStringContainsString('Victor', $doc['author.name']);
-        $this->assertStringContainsString('Classic!', $doc['comments.body']);
+        $this->assertStringContainsString('Victor', $doc['author_name']);
+        $this->assertStringContainsString('Classic!', $doc['comments_body']);
+    }
+
+    public function test_rebuild_with_dot_notation_indexes_correctly(): void
+    {
+        config(['fts.indexing' => 'sync']);
+        $this->createBookTables();
+        $this->engine->createTable(Book::class, ['title', 'body', 'author_name', 'comments_body', 'fullname']);
+
+        $author = Author::forceCreate(['name' => 'Hugo']);
+        $book = Book::withoutEvents(fn () => Book::forceCreate([
+            'title' => 'Les Misérables',
+            'body' => 'Novel',
+            'author_id' => $author->id,
+        ]));
+
+        $book->syncToFts($book);
+        $results = $this->engine->search('Hugo', [Book::class], 10, withSnippets: false);
+
+        $this->assertNotEmpty($results);
     }
 }

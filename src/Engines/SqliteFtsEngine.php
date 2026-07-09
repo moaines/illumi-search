@@ -48,6 +48,16 @@ class SqliteFtsEngine implements FtsEngine
         return $this->databasePath;
     }
 
+    protected function sanitizeDocumentKeys(array $document): array
+    {
+        $sanitized = [];
+        foreach ($document as $key => $value) {
+            $sanitized[str_replace(['.', '->', '-'], '_', $key)] = $value;
+        }
+
+        return $sanitized;
+    }
+
     public function getDatabaseSize(): int
     {
         if (file_exists($this->databasePath)) {
@@ -110,8 +120,9 @@ class SqliteFtsEngine implements FtsEngine
 
         foreach ($columns as $key => $config) {
             $colName = is_string($key) ? $key : $config;
-            $contentColumns[] = $colName;
-            $columnDefinitions[] = $colName;
+            $safeName = str_replace(['.', '->', '-'], '_', $colName);
+            $contentColumns[] = $safeName;
+            $columnDefinitions[] = $safeName;
         }
 
         $columnDefinitions[] = 'model_id';
@@ -157,6 +168,7 @@ class SqliteFtsEngine implements FtsEngine
     {
         $table = $this->tableName($modelClass);
 
+        $document = $this->sanitizeDocumentKeys($document);
         $columns = array_keys($document);
         $placeholders = [];
         $values = [];
