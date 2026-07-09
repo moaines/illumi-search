@@ -8,6 +8,7 @@ use Moaines\LaravelFts\Console\Commands\FtsDoctorCommand;
 use Moaines\LaravelFts\Console\Commands\FtsOptimizeCommand;
 use Moaines\LaravelFts\Console\Commands\FtsRebuildCommand;
 use Moaines\LaravelFts\Console\Commands\FtsStatusCommand;
+use Moaines\LaravelFts\Console\Commands\FtsSuggestCommand;
 use Moaines\LaravelFts\Console\Commands\FtsSyncCommand;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
@@ -71,6 +72,7 @@ class LaravelFtsServiceProvider extends ServiceProvider
             FtsSyncCommand::class,
             FtsCheckCommand::class,
             FtsStatusCommand::class,
+            FtsSuggestCommand::class,
             FtsOptimizeCommand::class,
             FtsDoctorCommand::class,
         ]);

@@ -672,6 +672,25 @@ Diagnose the FTS5 environment — extensions, FTS5 support, database health, and
 ✅ All checks passed
 ```
 
+### `php artisan fts:suggest`
+
+Analyze Filament panel Resources to suggest `$ftsSearchable` columns for your models.
+
+```bash
+php artisan fts:suggest
+php artisan fts:suggest --panel=admin
+php artisan fts:suggest --format=json
+```
+
+The command reads `getGloballySearchableAttributes()` from each Resource. If the Resource does not override this method, it falls back to `$recordTitleAttribute`. Suggestions include a default weight heuristic: the record title attribute gets weight 3, other columns get weight 1.
+
+| Option | Description |
+|--------|-------------|
+| `--panel` | Filament panel ID (defaults to current panel) |
+| `--format` | Output format: `table` (default) or `json` |
+
+Requires Filament to be installed. Gracefully handles missing panels, resources without models, and virtual attributes (columns not found on the model's table).
+
 ---
 
 ## How It Works
@@ -894,6 +913,10 @@ laravel-fts/
 ---
 
 ## Changelog
+
+### v1.4.0
+
+- **`fts:suggest` command.** Analyzes Filament panel Resources and suggests `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
 
 ### v1.3.0
 
