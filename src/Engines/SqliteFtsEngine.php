@@ -480,12 +480,31 @@ class SqliteFtsEngine implements FtsEngine
     public function tableExists(string $modelClass): bool
     {
         $table = $this->tableName($modelClass);
+        $result = $this->db()->query("SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'");
 
+        return $result !== false && $result->fetchArray(SQLITE3_NUM) !== false;
+    }
+
+    /** @return array<string> */
+    public function listIndexTables(): array
+    {
         $result = $this->db()->query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='".SQLite3::escapeString($table)."'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'idx_%' AND name != '".self::META_TABLE."'"
         );
 
-        return $result->fetchArray() !== false;
+        $tables = [];
+        while ($row = $result->fetchArray(SQLITE3_NUM)) {
+            $tables[] = $row[0];
+        }
+
+        return $tables;
+    }
+
+    public function dropIndexTable(string $tableName): void
+    {
+        $vocabTable = $tableName . '_vocab';
+        $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
+        $this->db()->exec("DROP TABLE IF EXISTS {$tableName}");
     }
 
     public function getIndexedModelClasses(): array

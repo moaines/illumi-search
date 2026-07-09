@@ -159,6 +159,32 @@ class FtsIndexManager
 
         event(new RebuildComplete($results));
 
+        // Clean up orphaned index tables (tables for models that no longer use Searchable)
+        $processedTables = $models->map(fn ($cls) => $this->engine->tableName($cls))->toArray();
+        $existingTables = $this->engine->listIndexTables();
+
+        $internalSuffixes = ['_content', '_data', '_docsize', '_idx', '_config', '_vocab'];
+
+        foreach ($existingTables as $table) {
+            $isInternal = false;
+            foreach ($internalSuffixes as $suffix) {
+                if (str_ends_with($table, $suffix)) {
+                    $isInternal = true;
+                    break;
+                }
+            }
+            if ($isInternal) {
+                continue;
+            }
+
+            if (in_array($table, $processedTables, true)) {
+                continue;
+            }
+
+            $this->engine->dropIndexTable($table);
+            $results[] = ['model' => $table, 'status' => 'cleaned', 'message' => 'Orphaned index table removed'];
+        }
+
         if ($vacuum) {
             $this->engine->vacuum();
         }

@@ -21,4 +21,24 @@ class RebuildCommandTest extends TestCase
             ->expectsOutput('Rebuild complete.')
             ->assertSuccessful();
     }
+
+    public function test_rebuild_cleans_orphan_index_tables(): void
+    {
+        $engine = app(FtsEngine::class);
+
+        // Create an orphan FTS table for a class that does NOT use Searchable
+        $orphanModelClass = 'App\\Models\\DeletedModel';
+        $engine->createTable($orphanModelClass, ['title', 'body']);
+        $orphanTable = $engine->tableName($orphanModelClass);
+
+        $this->assertContains($orphanTable, $engine->listIndexTables());
+
+        // Rebuild — only processes models with the Searchable trait, should clean orphan
+        $this->artisan('fts:rebuild --force')
+            ->assertSuccessful();
+
+        // Orphan table should be removed after rebuild
+        $tablesAfter = $engine->listIndexTables();
+        $this->assertNotContains($orphanTable, $tablesAfter);
+    }
 }

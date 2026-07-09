@@ -54,6 +54,13 @@ interface FtsEngine
 
     public function tableExists(string $modelClass): bool;
 
+    public function tableName(string $modelClass): string;
+
+    /** @return array<string> */
+    public function listIndexTables(): array;
+
+    public function dropIndexTable(string $tableName): void;
+
     public function getIndexedModelClasses(): array;
 
     public function getIndexStats(): array;
