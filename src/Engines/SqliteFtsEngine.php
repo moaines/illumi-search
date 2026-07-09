@@ -394,39 +394,45 @@ class SqliteFtsEngine implements FtsEngine
 
     protected function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
     {
-        // Default: common text columns
         $defaultColumns = ['body', 'content', 'description', 'text', 'excerpt'];
         $textColumns = $snippetColumns ?? $defaultColumns;
         $sourceText = null;
+        $bestPos = null;
+        $bestTerm = '';
 
         foreach ($textColumns as $col) {
-            if (isset($model->{$col}) && is_string($model->{$col}) && strlen($model->{$col}) > 50) {
-                $sourceText = $model->{$col};
-                break;
+            $value = $this->snippetColumnValue($model, $col);
+
+            if (! is_string($value) || strlen($value) <= 50) {
+                continue;
+            }
+
+            $lower = mb_strtolower(strip_tags($value));
+
+            foreach ($searchTerms as $term) {
+                $termLower = mb_strtolower($term);
+                $pos = mb_strpos($lower, $termLower);
+                if ($pos !== false && ($bestPos === null || $pos < $bestPos)) {
+                    $bestPos = $pos;
+                    $bestTerm = $term;
+                    $sourceText = $value;
+                }
             }
         }
 
         if ($sourceText === null) {
-            return null;
-        }
-
-        // Find first occurrence of any search term
-        $sourceLower = mb_strtolower(strip_tags($sourceText));
-        $bestPos = null;
-        $bestTerm = '';
-
-        foreach ($searchTerms as $term) {
-            $termLower = mb_strtolower($term);
-            $pos = mb_strpos($sourceLower, $termLower);
-            if ($pos !== false && ($bestPos === null || $pos < $bestPos)) {
-                $bestPos = $pos;
-                $bestTerm = $term;
+            foreach ($textColumns as $col) {
+                $value = $this->snippetColumnValue($model, $col);
+                if (is_string($value) && strlen($value) > 50) {
+                    $sourceText = $value;
+                    $bestPos = 0;
+                    break;
+                }
             }
-        }
 
-        if ($bestPos === null) {
-            // No match in plain text columns, return start of body
-            $bestPos = 0;
+            if ($sourceText === null) {
+                return null;
+            }
         }
 
         // Extract window around match
@@ -456,6 +462,15 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         return $snippet;
+    }
+
+    private function snippetColumnValue(Model $model, string $col): string
+    {
+        if (str_contains($col, '.') && method_exists($model, 'resolveFtsValue')) {
+            return $model->resolveFtsValue($col);
+        }
+
+        return $model->{$col} ?? '';
     }
 
     public function count(string $query, array $modelClasses): int
@@ -538,14 +553,22 @@ class SqliteFtsEngine implements FtsEngine
 
         foreach ($models as $modelClass) {
             $table = $this->tableName($modelClass);
-            $row = $this->db()->query(
-                "SELECT COUNT(*) as cnt FROM {$table}"
-            )->fetchArray(SQLITE3_ASSOC);
+
+            $result = @$this->db()->query("SELECT COUNT(*) as cnt FROM {$table}");
+
+            if ($result === false) {
+                // Orphaned meta entry — clean up and skip
+                $escaped = SQLite3::escapeString($modelClass);
+                $this->db()->exec("DELETE FROM ".self::META_TABLE." WHERE model_class = '{$escaped}'");
+                continue;
+            }
+
+            $row = $result->fetchArray(SQLITE3_ASSOC);
 
             $metaResult = $this->db()->query(
                 'SELECT last_synced_at, columns FROM '.self::META_TABLE." WHERE model_class = '".SQLite3::escapeString($modelClass)."'"
             );
-            $meta = $metaResult->fetchArray(SQLITE3_ASSOC);
+            $meta = $metaResult ? $metaResult->fetchArray(SQLITE3_ASSOC) : false;
 
             $stats[] = [
                 'model_class' => $modelClass,

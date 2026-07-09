@@ -73,7 +73,7 @@ trait Searchable
         return $document;
     }
 
-    protected function resolveFtsValue(string $column): string
+    public function resolveFtsValue(string $column): string
     {
         try {
             if (! str_contains($column, '.')) {
