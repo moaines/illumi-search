@@ -895,10 +895,12 @@ laravel-fts/
 
 ## Changelog
 
-### Unreleased
+### v1.3.0
 
 - **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports `belongsTo`, `hasMany`, `belongsToMany`, and Eloquent accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
 - **`validateFtsSearchable()`.** Emits warnings during `fts:rebuild` for dot-notation columns referencing non-existent relations.
+
+### v1.2.0
 
 - **Absolute database path.** `FTS_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
 - **`--vacuum` flag.** `php artisan fts:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.
