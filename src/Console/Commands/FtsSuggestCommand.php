@@ -117,6 +117,15 @@ class FtsSuggestCommand extends Command
             : \Filament\Facades\Filament::getCurrentPanel();
 
         if ($panel === null) {
+            $panels = \Filament\Facades\Filament::getPanels();
+
+            if (! empty($panels)) {
+                $panel = reset($panels);
+                $this->line("<fg=yellow>ℹ Using panel:</> {$panel->getId()}");
+
+                return $panel->getResources();
+            }
+
             $this->warn('No Filament panel found. Make sure you are in a Filament context or specify --panel.');
 
             return null;

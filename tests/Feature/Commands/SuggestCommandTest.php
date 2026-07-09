@@ -69,6 +69,44 @@ class SuggestCommandTest extends TestCase
         return eval($code); // safe in tests
     }
 
+    public function test_falls_back_to_first_panel_when_no_current_panel(): void
+    {
+        $resource = new class extends Resource
+        {
+            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $recordTitleAttribute = 'title';
+
+            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
+            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
+            public static function getPages(): array { return []; }
+
+            public static function getEloquentQuery(): Builder
+            {
+                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+            }
+        };
+
+        $panel = $this->createMock(Panel::class);
+        $panel->method('getResources')->willReturn([$resource::class]);
+        $panel->method('getId')->willReturn('test-panel');
+
+        $panel2 = $this->createMock(Panel::class);
+        $panel2->method('getResources')->willReturn([]);
+
+        $this->app->singleton('filament', function () use ($panel, $panel2) {
+            return new class ($panel, $panel2) {
+                public function __construct(private $p1, private $p2) {}
+                public function getCurrentPanel() { return null; }
+                public function getPanels() { return ['admin' => $this->p1, 'test' => $this->p2]; }
+                public function getPanel(string $id) { return null; }
+            };
+        });
+
+        $this->artisan('fts:suggest')
+            ->expectsOutputToContain('test-panel')
+            ->assertSuccessful();
+    }
+
     public function test_no_resources_returns_no_suggestions(): void
     {
         $panel = $this->createMock(Panel::class);
@@ -91,6 +129,7 @@ class SuggestCommandTest extends TestCase
         $this->app->singleton('filament', function () {
             return new class {
                 public function getCurrentPanel() { return null; }
+                public function getPanels() { return []; }
                 public function getPanel(string $id) { return null; }
             };
         });
