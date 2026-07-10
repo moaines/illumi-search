@@ -134,6 +134,32 @@ return [
         | Default: 1000
         */
         'pgsz' => 1000,
+
+        /*
+        | WAL mode: enables concurrent reads and writes.
+        | Recommended for production. Disable only on NFS filesystems.
+        | Default: true
+        */
+        'wal' => env('FTS_WAL', true),
+
+        /*
+        | Cache size in kilobytes (negative = kilobyte count).
+        | -64000 ≈ 64 MB dedicated RAM for the FTS index cache.
+        | Default: -64000 (64 MB)
+        */
+        'cache_size_kb' => env('FTS_CACHE_SIZE_KB', -64000),
+
+        /*
+        | Synchronous mode: 'NORMAL' (fast, safe with WAL) or 'FULL' (slowest, safest).
+        | Default: 'NORMAL'
+        */
+        'synchronous' => env('FTS_SYNCHRONOUS', 'NORMAL'),
+
+        /*
+        | Temp storage: 'MEMORY' (faster) or 'FILE' (safer for low-RAM environments).
+        | Default: 'MEMORY'
+        */
+        'temp_store' => env('FTS_TEMP_STORE', 'MEMORY'),
     ],
 
     /*

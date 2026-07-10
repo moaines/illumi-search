@@ -851,6 +851,48 @@ The queued `IndexBatchJob` jobs process records in chunks of 100 each. Set `FTS_
 
 ---
 
+## How It Works
+
+When a model using the `Searchable` trait is saved, deleted, or restored:
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  Model::save()  │───▶│  Eloquent Event  │───▶│  Queue Job       │
+│  Model::delete()│    │  (saved /        │    │  IndexModelJob   │
+│  Model::restore()│   │   deleted /      │    │  ─ or ─          │
+│                 │    │   restored)      │    │  syncToFts()     │
+└─────────────────┘    └──────────────────┘    └────────┬─────────┘
+                                                         ▼
+                                                ┌──────────────────┐
+                                                │  SQLite FTS5     │
+                                                │  Index           │
+                                                │  (upsert/delete) │
+                                                └──────────────────┘
+```
+
+| Indexing mode | Auto-indexing | Queue needed | Best for |
+|---------------|--------------|-------------|----------|
+| `queue` (default) | ✅ Yes, async | ✅ Yes | Production — keeps HTTP fast |
+| `sync` | ✅ Yes, sync | ❌ No | Small datasets, dev, tests |
+| `manual` | ❌ No | ❌ No | Full control via commands |
+
+### Command Reference
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `fts:rebuild` | Full rebuild from scratch | `php artisan fts:rebuild` |
+| `fts:rebuild --model=Post` | Rebuild a single model | `php artisan fts:rebuild --model="App\Models\Post"` |
+| `fts:rebuild --batch-size=500` | Batch sync + queue for large tables | `php artisan fts:rebuild --batch-size=500` |
+| `fts:rebuild --vacuum` | Rebuild + VACUUM | `php artisan fts:rebuild --vacuum` |
+| `fts:sync` | Incremental sync | `php artisan fts:sync` |
+| `fts:sync --since="2026-01-15"` | Sync since a specific date | `php artisan fts:sync --since="2026-01-15"` |
+| `fts:sync --since="2026-01-15 14:30:00"` | Sync since date+time | `php artisan fts:sync --since="2026-01-15 14:30:00"` |
+| `fts:sync --model=Comment` | Sync a single model | `php artisan fts:sync --model="App\Models\Comment"` |
+| `fts:doctor` | Full health check | `php artisan fts:doctor` |
+| `fts:optimize` | Merge segments + VACUUM | `php artisan fts:optimize` |
+
+---
+
 ## FTS5 Query Modes
 
 ### Basic mode
@@ -925,6 +967,8 @@ laravel-fts/
 ## Changelog
 
 ### Unreleased
+
+- **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, and in-memory temp storage. Disable individually via `.env` (`FTS_WAL=false`, `FTS_SYNCHRONOUS=FULL`, etc.).
 
 ### v1.9.0
 

@@ -266,4 +266,44 @@ class SearchableConfigTest extends TestCase
 
         $this->assertFalse($result);
     }
+
+    public function test_database_opens_with_pragmas(): void
+    {
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+
+        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+    }
+
+    public function test_wal_mode_can_be_disabled(): void
+    {
+        config(['fts.fts5.wal' => false]);
+
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+
+        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+    }
+
+    public function test_cache_size_can_be_configured(): void
+    {
+        config(['fts.fts5.cache_size_kb' => -32000]);
+
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+
+        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+    }
+
+    public function test_wal_mode_is_active(): void
+    {
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+
+        $verify = new \SQLite3($engine->getDatabasePath());
+        $mode = $verify->querySingle("PRAGMA journal_mode");
+        $verify->close();
+
+        $this->assertSame('wal', $mode);
+    }
 }

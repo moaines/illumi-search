@@ -11,7 +11,7 @@ class FtsSyncCommand extends Command
 {
     protected $signature = 'fts:sync
         {--model=* : Specific model classes to sync (multiple allowed)}
-        {--since= : Only sync records updated after this datetime}';
+        {--since= : Only sync records updated after this datetime (ISO format: 2026-01-15 or 2026-01-15 14:30:00)}';
 
     protected $description = 'Incrementally sync changed records to the FTS5 index';
 

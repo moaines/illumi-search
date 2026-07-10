@@ -72,9 +72,13 @@ class SqliteFtsEngine implements FtsEngine
     {
         if ($this->db === null) {
             $this->db = new SQLite3($this->databasePath);
-            $this->db->exec('PRAGMA journal_mode=WAL');
-            $this->db->exec('PRAGMA synchronous=NORMAL');
-            $this->db->exec('PRAGMA cache_size=-64000');
+
+            if (config('fts.fts5.wal', true)) {
+                $this->db->exec('PRAGMA journal_mode=WAL');
+            }
+            $this->db->exec('PRAGMA synchronous=' . config('fts.fts5.synchronous', 'NORMAL'));
+            $this->db->exec('PRAGMA cache_size=' . config('fts.fts5.cache_size_kb', -64000));
+            $this->db->exec('PRAGMA temp_store=' . config('fts.fts5.temp_store', 'MEMORY'));
 
             $this->ensureMetaTable();
         }
