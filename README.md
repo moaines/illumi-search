@@ -151,7 +151,7 @@ return [
 
     'fts5' => [
         'prefix_lengths'  => [2, 3, 4],          // search-as-you-type
-        'detail'          => 'full',              // 'full', 'column', 'none'
+        'detail'          => 'full',              // 'full' (default) or 'column'. 'column' disables NEAR/phrase — FTS index shrinks ~30%, total DB reduction smaller
         'automerge'       => 4,                   // segments before auto merge
         'crisismerge'     => 16,                  // segments before forced merge
         'pgsz'            => 1000,                // index page size (bytes)
@@ -571,12 +571,9 @@ Results can be filtered through Laravel Policies or Spatie/Shield permissions. S
 
 ### Input handling
 
-- Search queries are normalized (lowercased, diacritics removed) before reaching FTS5
-- FTS5 special characters are properly escaped
-- Prepared statements prevent SQL injection
-- The `$summary` field is sanitized with `strip_tags($summary, '<mark>')` to prevent XSS in result snippets
-
 ---
+
+## Artisan Commands
 
 ### `php artisan fts:rebuild`
 
@@ -931,7 +928,7 @@ laravel-fts/
 
 ### v1.9.0
 
-- **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` saves ~30% index space if NEAR/phrase queries are not needed.
+- **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` shrinks the FTS index ~30% (total DB reduction is smaller — document content is unchanged).
 - **Merge tuning.** New `fts.fts5.automerge`, `fts.fts5.crisismerge`, and `fts.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
 - **`integrityCheck()`.** New method on `FtsEngine` interface. Performs FTS5 integrity-check on each indexed table.
 - **`fts:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).

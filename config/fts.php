@@ -107,8 +107,10 @@ return [
         /*
         | Detail: 'full', 'column', or 'none'.
         | - full: stores term + position + column (supports NEAR/phrase)
-        | - column: stores term + column only (saves ~30% space)
-        | - none: stores term only (saves ~50% space, no column-based ranking)
+        | - column: stores term + column only. FTS index shrinks ~30%.
+        |   Total DB reduction is smaller since document content is unchanged.
+        | - none: stores term only. FTS index shrinks ~50%.
+        |   No column-based ranking.
         */
         'detail' => 'full',
 
