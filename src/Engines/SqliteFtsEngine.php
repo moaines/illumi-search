@@ -73,7 +73,7 @@ class SqliteFtsEngine implements FtsEngine
         if ($this->db === null) {
             $this->db = new SQLite3($this->databasePath);
 
-            if (config('fts.fts5.wal', true)) {
+            if (filter_var(config('fts.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
                 $this->db->exec('PRAGMA journal_mode=WAL');
             }
             $this->db->exec('PRAGMA synchronous=' . config('fts.fts5.synchronous', 'NORMAL'));

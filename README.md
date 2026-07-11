@@ -851,7 +851,7 @@ The queued `IndexBatchJob` jobs process records in chunks of 100 each. Set `FTS_
 
 ---
 
-## How It Works
+## Architecture & Commands
 
 When a model using the `Searchable` trait is saved, deleted, or restored:
 
