@@ -181,6 +181,11 @@ return [
         |   - 67108864   = 64 MB
         |   - 268435456  = 256 MB
         |   - 1073741824 = 1 GB
+        |
+        | Limitations: mmap does not work on all filesystems. It is incompatible
+        | with network filesystems (NFS, SMB) and certain Docker/OCI mounts.
+        | Leave at 0 (disabled) on those systems to avoid crashes or corruption.
+        | Test thoroughly before enabling in production.
         | Default: 0 (disabled)
         */
         'mmap_size' => env('FTS_MMAP_SIZE', 0),
