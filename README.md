@@ -968,7 +968,7 @@ laravel-fts/
 
 ### Unreleased
 
-- **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, and in-memory temp storage. Disable individually via `.env` (`FTS_WAL=false`, `FTS_SYNCHRONOUS=FULL`, etc.).
+- **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional 1 GB mmap I/O for large indexes (`FTS_MMAP_SIZE=1073741824`). All configurable via config or `.env` (`FTS_WAL=false`, `FTS_SYNCHRONOUS=FULL`, `FTS_BUSY_TIMEOUT=3000`, etc.).
 
 ### v1.9.0
 

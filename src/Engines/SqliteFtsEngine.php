@@ -79,6 +79,8 @@ class SqliteFtsEngine implements FtsEngine
             $this->db->exec('PRAGMA synchronous=' . config('fts.fts5.synchronous', 'NORMAL'));
             $this->db->exec('PRAGMA cache_size=' . config('fts.fts5.cache_size_kb', -64000));
             $this->db->exec('PRAGMA temp_store=' . config('fts.fts5.temp_store', 'MEMORY'));
+            $this->db->exec('PRAGMA busy_timeout=' . config('fts.fts5.busy_timeout', 5000));
+            $this->db->exec('PRAGMA mmap_size=' . config('fts.fts5.mmap_size', 0));
 
             $this->ensureMetaTable();
         }

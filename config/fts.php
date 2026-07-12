@@ -160,6 +160,30 @@ return [
         | Default: 'MEMORY'
         */
         'temp_store' => env('FTS_TEMP_STORE', 'MEMORY'),
+
+        /*
+        | Busy timeout in milliseconds.
+        | Time to wait before returning SQLITE_BUSY when a table is locked.
+        | Essential for concurrent access with WAL mode — without it, a second
+        | writer gets an immediate error.
+        |   - 0         = no timeout (error immediately on lock)
+        |   - 1000-5000 = recommended range for web apps
+        |   - 10000+    = for long-running batch operations
+        | Default: 5000 (5 seconds)
+        */
+        'busy_timeout' => env('FTS_BUSY_TIMEOUT', 5000),
+
+        /*
+        | Mmapsize in bytes.
+        | Memory-mapped I/O for faster read queries (FTS5 search).
+        | Only useful for large indexes (>100 MB). Set to 0 to disable.
+        |   - 0          = disabled (default, same as SQLite default)
+        |   - 67108864   = 64 MB
+        |   - 268435456  = 256 MB
+        |   - 1073741824 = 1 GB
+        | Default: 0 (disabled)
+        */
+        'mmap_size' => env('FTS_MMAP_SIZE', 0),
     ],
 
     /*
