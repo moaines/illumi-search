@@ -416,7 +416,36 @@ class FtsResult {
 
 ---
 
-## Multi-tenant Isolation
+## Diagnostics
+
+Inspect the FTS5 engine version, current PRAGMAs, run integrity checks, and read/write custom metadata.
+
+```php
+use Moaines\LaravelFts\Facades\Fts;
+use Moaines\LaravelFts\Contracts\FtsEngine;
+
+$engine = app(FtsEngine::class);
+
+// Engine version
+echo $engine->getEngineVersion();           // "SQLite 3.46.0 | FTS5"
+
+// Read-only PRAGMAs
+echo $engine->getPragma('journal_mode');    // "wal"
+echo $engine->getPragma('cache_size');      // -64000
+echo $engine->getPragma('busy_timeout');    // 5000
+echo $engine->getPragma('page_size');       // 4096
+echo $engine->getPragma('page_count');      // 12345
+
+// Full integrity check across all FTS5 tables
+$result = $engine->fullIntegrityCheck();
+// ['passed' => true, 'errors' => []]
+
+// Persistent config storage (stored in `_fts_config` table)
+$engine->setConfig('last_rebuild_at', now()->toIso8601String());
+$lastRebuild = $engine->getConfig('last_rebuild_at');
+```
+
+---
 
 Isolate search indexes per tenant. Each tenant gets its own SQLite file.
 
@@ -968,6 +997,8 @@ laravel-fts/
 
 ### Unreleased
 
+- **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `FtsEngine` for index introspection and health checks.
+- **Safe PRAGMA whitelist.** Only read-only PRAGMAs are allowed via `getPragma()` (journal_mode, cache_size, busy_timeout, synchronous, etc.).
 - **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`FTS_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `FTS_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.
 
 ### v1.9.0

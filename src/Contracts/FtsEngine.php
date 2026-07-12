@@ -77,4 +77,24 @@ interface FtsEngine
 
     /** @return array<int, array{term: string, cnt: int}> */
     public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array;
+
+    /** Get SQLite and FTS5 version string. */
+    public function getEngineVersion(): string;
+
+    /**
+     * Query a read-only PRAGMA.
+     * Supported: journal_mode, synchronous, cache_size, temp_store,
+     * busy_timeout, mmap_size, wal_autocheckpoint, page_size, page_count,
+     * freelist_count, application_id, user_version.
+     */
+    public function getPragma(string $name): string|int|null;
+
+    /** Run integrity_check on all FTS5 tables. Returns ['passed' => bool, 'errors' => list<string>]. */
+    public function fullIntegrityCheck(): array;
+
+    /** Read a value from the config storage table. */
+    public function getConfig(string $key, mixed $default = null): mixed;
+
+    /** Write a value to the config storage table. */
+    public function setConfig(string $key, mixed $value): void;
 }

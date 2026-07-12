@@ -15,6 +15,7 @@ class SqliteFtsEngine implements FtsEngine
 {
     use HasQueryTerms;
     private const META_TABLE = '_fts_meta';
+    private const CONFIG_TABLE = '_fts_config';
 
     private ?SQLite3 $db = null;
 
@@ -106,6 +107,17 @@ class SqliteFtsEngine implements FtsEngine
                 last_synced_at TEXT
             )',
             self::META_TABLE
+        ));
+    }
+
+    protected function ensureConfigTable(): void
+    {
+        $this->db()->exec(sprintf(
+            'CREATE TABLE IF NOT EXISTS %s (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )',
+            self::CONFIG_TABLE
         ));
     }
 
@@ -930,5 +942,86 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         return 'model_id';
+    }
+
+    public function getEngineVersion(): string
+    {
+        $sqlite = $this->db()->querySingle('SELECT sqlite_version()');
+
+        return 'SQLite ' . $sqlite . ' | FTS5';
+    }
+
+    public function getPragma(string $name): string|int|null
+    {
+        $safe = ['journal_mode', 'synchronous', 'cache_size', 'temp_store',
+            'busy_timeout', 'mmap_size', 'wal_autocheckpoint',
+            'page_size', 'page_count', 'freelist_count',
+            'application_id', 'user_version',
+        ];
+
+        if (! in_array($name, $safe, true)) {
+            throw new \Moaines\LaravelFts\Exceptions\FtsException("Unsupported or unsafe PRAGMA: {$name}");
+        }
+
+        return $this->db()->querySingle("PRAGMA {$name}");
+    }
+
+    public function fullIntegrityCheck(): array
+    {
+        $errors = [];
+        $tables = $this->listIndexTables();
+
+        if (empty($tables)) {
+            return ['passed' => false, 'errors' => ['No FTS5 tables found']];
+        }
+
+        $shadowSuffixes = ['_data', '_idx', '_content', '_docsize', '_config', '_vocab'];
+
+        foreach ($tables as $table) {
+            $isShadow = false;
+            foreach ($shadowSuffixes as $suffix) {
+                if (str_ends_with($table, $suffix)) {
+                    $isShadow = true;
+                    break;
+                }
+            }
+
+            if ($isShadow) {
+                continue;
+            }
+
+            try {
+                $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('integrity-check')");
+            } catch (\Exception $e) {
+                $errors[] = $table . ': ' . $e->getMessage();
+            }
+        }
+
+        return ['passed' => empty($errors), 'errors' => $errors];
+    }
+
+    public function getConfig(string $key, mixed $default = null): mixed
+    {
+        $this->ensureConfigTable();
+
+        $stmt = $this->db()->prepare(
+            'SELECT value FROM ' . self::CONFIG_TABLE . ' WHERE key = :key'
+        );
+        $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
+        $row = $stmt->execute()->fetchArray(\SQLITE3_ASSOC);
+
+        return $row !== false ? json_decode($row['value'], true) : $default;
+    }
+
+    public function setConfig(string $key, mixed $value): void
+    {
+        $this->ensureConfigTable();
+
+        $stmt = $this->db()->prepare(
+            'INSERT OR REPLACE INTO ' . self::CONFIG_TABLE . ' (key, value) VALUES (:key, :value)'
+        );
+        $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
+        $stmt->bindValue(':value', json_encode($value), \SQLITE3_TEXT);
+        $stmt->execute();
     }
 }
