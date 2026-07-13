@@ -93,4 +93,62 @@ class TextProcessorTest extends TestCase
 
         $this->assertIsString($result);
     }
+
+    public function test_stemming_processor_is_bound_when_configured(): void
+    {
+        config(['fts.fts5.processor' => 'stemming']);
+
+        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+
+        $this->assertInstanceOf(\Moaines\LaravelFts\Text\StemmingTextProcessor::class, $processor);
+    }
+
+    public function test_stemming_french_removes_verb_endings(): void
+    {
+        config(['fts.fts5.processor' => 'stemming']);
+
+        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+
+        $result = $processor->process('mangeais mangeant mangera', 'fr');
+
+        // All three words should stem to "mang"
+        $tokens = explode(' ', $result);
+        $this->assertCount(3, $tokens);
+        $this->assertSame($tokens[0], $tokens[1]);
+        $this->assertSame($tokens[1], $tokens[2]);
+    }
+
+    public function test_stemming_english_porter(): void
+    {
+        config(['fts.fts5.processor' => 'stemming']);
+
+        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+
+        $result = $processor->process('running runner runs', 'en');
+
+        $tokens = explode(' ', $result);
+
+        // "running" and "runs" should stem to "run"
+        $this->assertEquals('run', $tokens[0]);
+        $this->assertEquals('run', $tokens[2]);
+    }
+
+    public function test_stemming_falls_back_to_unicode_for_unknown_locale(): void
+    {
+        config(['fts.fts5.processor' => 'stemming']);
+
+        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+
+        $result = $processor->process('hello world', 'xx');
+
+        // Unknown locale → no stemming → same as unicode processor
+        $tokens = explode(' ', $result);
+        $this->assertCount(2, $tokens);
+        $this->assertEquals('hello', $tokens[0]);
+        $this->assertEquals('world', $tokens[1]);
+    }
 }

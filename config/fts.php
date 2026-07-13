@@ -94,9 +94,28 @@ return [
      */
     'fts5' => [
         /*
-        | Tokenizer: 'unicode61', 'porter', or 'unicode61 remove_diacritics 2'.
+        | Tokenizer.
+        | Built-in options:
+        |   unicode61              = Unicode-aware (default). Supports CJK, accents.
+        |   ascii                  = ASCII-only. Faster on English-only data.
+        |   porter                 | Porter stemmer. 'porter unicode61' for stemming.
+        |   trigram                | Substring matching (3-char tokens). LIKE %search%.
+        | Examples:
+        |   'unicode61 remove_diacritics 2'  = force diacritics removal
+        |   'porter ascii'                   = Porter stemmer on ASCII
+        |   'trigram'                        = LIKE-style matching
         */
         'tokenizer' => 'unicode61',
+
+        /*
+        | Text processor: 'unicode' (default) or 'stemming'.
+        |   unicode  = NFC normalization + diacritics removal + CJK separation (default)
+        |   stemming = same as unicode + multi-language word stemming via wamania/php-stemmer.
+        |              Supports: en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi.
+        |              Unknown languages fall back to unicode processing silently.
+        | Default: 'unicode'
+        */
+        'processor' => env('FTS_PROCESSOR', 'unicode'),
 
         /*
         | Prefix lengths for search-as-you-type (advanced mode only).
@@ -113,6 +132,14 @@ return [
         |   No column-based ranking.
         */
         'detail' => 'full',
+
+        /*
+        | Column-size storage.
+        | 1 = store column sizes (default, needed for BM25 ranking accuracy)
+        | 0 = omit column sizes (saves ~10% disk space, BM25 slightly less accurate)
+        | Default: 1
+        */
+        'columnsize' => env('FTS_COLUMNSIZE', 1),
 
         /*
         | Automerge: segment count threshold for automatic merging.

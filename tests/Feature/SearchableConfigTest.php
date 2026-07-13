@@ -306,4 +306,14 @@ class SearchableConfigTest extends TestCase
 
         $this->assertSame('wal', $mode);
     }
+
+    public function test_columnsize_0_creates_table_without_docsize(): void
+    {
+        config(['fts.fts5.columnsize' => 0]);
+
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+
+        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+    }
 }

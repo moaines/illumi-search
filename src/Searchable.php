@@ -18,19 +18,21 @@ trait Searchable
             return;
         }
 
-        static::saved(function (Model $model) use ($indexing) {
+        $queue = config('fts.queue_connection');
+
+        static::saved(function (Model $model) use ($indexing, $queue) {
             if ($model->shouldFtsSync()) {
                 if ($indexing === 'queue') {
-                    dispatch(new IndexModelJob($model::class, $model->getKey()));
+                    dispatch(new IndexModelJob($model::class, $model->getKey()))->onConnection($queue);
                 } else {
                     static::syncToFts($model);
                 }
             }
         });
 
-        static::deleted(function (Model $model) use ($indexing) {
+        static::deleted(function (Model $model) use ($indexing, $queue) {
             if ($indexing === 'queue') {
-                dispatch(new DeleteIndexJob($model::class, $model->getKey()));
+                dispatch(new DeleteIndexJob($model::class, $model->getKey()))->onConnection($queue);
             } else {
                 $engine = app(FtsEngine::class);
                 $engine->delete($model::class, $model->getKey());
@@ -38,10 +40,10 @@ trait Searchable
         });
 
         if (method_exists(static::class, 'restored')) {
-            static::restored(function (Model $model) use ($indexing) {
+            static::restored(function (Model $model) use ($indexing, $queue) {
                 if ($model->shouldFtsSync()) {
                     if ($indexing === 'queue') {
-                        dispatch(new IndexModelJob($model::class, $model->getKey()));
+                        dispatch(new IndexModelJob($model::class, $model->getKey()))->onConnection($queue);
                     } else {
                         static::syncToFts($model);
                     }

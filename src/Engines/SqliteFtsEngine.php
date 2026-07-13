@@ -162,6 +162,11 @@ class SqliteFtsEngine implements FtsEngine
             $options[] = "detail={$detail}";
         }
 
+        $columnsize = config('fts.fts5.columnsize', 1);
+        if ((int) $columnsize === 0) {
+            $options[] = 'columnsize=0';
+        }
+
         $optionString = implode(', ', $options);
         $sql = "CREATE VIRTUAL TABLE IF NOT EXISTS {$table} USING fts5({$columnList}, {$optionString})";
 

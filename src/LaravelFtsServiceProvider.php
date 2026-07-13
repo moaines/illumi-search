@@ -16,6 +16,7 @@ use Moaines\LaravelFts\Engines\SqliteFtsEngine;
 use Moaines\LaravelFts\Exceptions\FtsException;
 use Moaines\LaravelFts\Exceptions\FtsExtensionMissingException;
 use Moaines\LaravelFts\FtsSpellcheck;
+use Moaines\LaravelFts\Text\StemmingTextProcessor;
 use Moaines\LaravelFts\Text\UnicodeTextProcessor;
 
 class LaravelFtsServiceProvider extends ServiceProvider
@@ -47,7 +48,13 @@ class LaravelFtsServiceProvider extends ServiceProvider
             return $engine;
         });
 
-        $this->app->singleton(TextProcessor::class, UnicodeTextProcessor::class);
+        $this->app->singleton(TextProcessor::class, function () {
+            $processor = config('fts.fts5.processor', 'unicode');
+
+            return $processor === 'stemming'
+                ? new StemmingTextProcessor
+                : new UnicodeTextProcessor;
+        });
 
         $this->app->bind(FtsSpellcheck::class, function ($app) {
             return new FtsSpellcheck($app->make(FtsEngine::class));

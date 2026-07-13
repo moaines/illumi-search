@@ -997,6 +997,12 @@ laravel-fts/
 
 ### Unreleased
 
+### v1.10.0
+
+- **Queue connection support.** Implemented `fts.queue_connection` (`FTS_QUEUE_CONNECTION`). Set a specific queue for FTS indexing jobs (e.g. `FTS_QUEUE_CONNECTION=database`). When `null` (default), uses the application's default queue connection.
+- **Multi-language stemming.** New text processor `stemming` (`FTS_PROCESSOR=stemming`) powered by [wamania/php-stemmer](https://github.com/wamania/php-stemmer). Stems words in 13 languages (en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi). Unknown languages fall back to unicode processing silently. Default: `unicode`.
+- **Tokenizer options documented.** Built-in tokenizers: `unicode61` (default), `ascii`, `porter`, `trigram`. Porter can wrap any tokenizer (`porter unicode61`, `porter ascii`). Trigram enables substring matching (LIKE-style `%search%`).
+- **Column-size option.** New `fts.fts5.columnsize` config (`1` or `0`). Set to `0` to omit column size storage — saves ~10% disk space with slightly less accurate BM25 ranking. Default: `1`.
 - **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `FtsEngine` for index introspection and health checks.
 - **Safe PRAGMA whitelist.** Only read-only PRAGMAs are allowed via `getPragma()` (journal_mode, cache_size, busy_timeout, synchronous, etc.).
 - **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`FTS_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `FTS_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.

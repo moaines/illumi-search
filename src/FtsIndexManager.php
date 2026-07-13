@@ -136,7 +136,7 @@ class FtsIndexManager
                             modelClass: $modelClass,
                             lastId: $lastId,
                             limit: $take,
-                        );
+                        )->onConnection(config('fts.queue_connection'));
 
                         $queuedCount += $take;
                         $lastId += $take; // approximate — the job adjusts via where(>)
