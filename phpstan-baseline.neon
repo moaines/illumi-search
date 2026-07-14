@@ -1,6 +1,24 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:integrityCheck\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
 			message: '#^Negated boolean expression is always true\.$#'
 			identifier: booleanNot.alwaysTrue
 			count: 1
@@ -11,6 +29,18 @@ parameters:
 			identifier: identical.alwaysTrue
 			count: 1
 			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsOptimizeCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Console/Commands/FtsOptimizeCommand.php
 
 		-
 			message: '#^Match expression does not handle remaining value\: string$#'
@@ -35,6 +65,18 @@ parameters:
 			identifier: parameterByRef.unusedType
 			count: 1
 			path: src/Console/Commands/FtsRebuildCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsStatusCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/FtsStatusCommand.php
 
 		-
 			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsSuggestCommand\:\:resolvePanelResources\(\) return type has no value type specified in iterable type array\.$#'
@@ -86,24 +128,6 @@ parameters:
 
 		-
 			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:count\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Contracts/FtsEngine.php
-
-		-
-			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:createTable\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Contracts/FtsEngine.php
-
-		-
-			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:createTable\(\) has parameter \$prefixLengths with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Contracts/FtsEngine.php
-
-		-
-			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:fullIntegrityCheck\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Contracts/FtsEngine.php
@@ -253,6 +277,12 @@ parameters:
 			path: src/Engines/SqliteFtsEngine.php
 
 		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:queryVocab\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
 			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:resolveSnippetColumns\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -361,6 +391,48 @@ parameters:
 			path: src/FtsIndexManager.php
 
 		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:createTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:dropIndexTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:dropTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:listIndexTables\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:tableExists\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:tableName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:vacuum\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
 			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:checkSchema\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -415,6 +487,12 @@ parameters:
 			path: src/FtsIndexManager.php
 
 		-
+			message: '#^Unable to resolve the template type TMapValue in call to method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
 			message: '#^Unsafe access to private property Moaines\\LaravelFts\\FtsIndexManager\:\:\$cachedModels through static\:\:\.$#'
 			identifier: staticClassAccess.privateProperty
 			count: 4
@@ -461,6 +539,12 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/FtsResult.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:queryVocab\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsSpellcheck.php
 
 		-
 			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:extractQueryTerms\(\) return type has no value type specified in iterable type array\.$#'

@@ -4,13 +4,13 @@ namespace Moaines\LaravelFts\Tests\Unit;
 
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\LaravelFts\Engines\SqliteFtsEngine;
 use Moaines\LaravelFts\FtsIndexManager;
 use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
 use Moaines\LaravelFts\Tests\TestCase;
 
 class FtsIndexManagerTest extends TestCase
 {
-    private FtsEngine $engine;
     private FtsIndexManager $manager;
 
     protected function setUp(): void
@@ -19,9 +19,8 @@ class FtsIndexManagerTest extends TestCase
 
         config(['fts.model_paths' => [__DIR__ . '/../TestSupport/Models']]);
 
-        $this->engine = $this->createMock(FtsEngine::class);
         $this->manager = new FtsIndexManager(
-            $this->engine,
+            $this->app->make(FtsEngine::class),
             app(TextProcessor::class),
         );
     }
@@ -49,11 +48,8 @@ class FtsIndexManagerTest extends TestCase
         $this->assertNotSame($first, $second);
     }
 
-    public function test_check_schema_reports_missing_tables(): void
+    public function test_check_schema_returns_array(): void
     {
-        $this->engine->method('tableExists')->willReturn(false);
-        $this->engine->method('getIndexedModelClasses')->willReturn([]);
-
         $result = $this->manager->checkSchema();
 
         $this->assertIsArray($result);

@@ -316,4 +316,37 @@ class SearchableConfigTest extends TestCase
 
         $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
     }
+
+    public function test_engine_has_generic_methods(): void
+    {
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+
+        $this->assertTrue(method_exists($engine, 'upsert'));
+        $this->assertTrue(method_exists($engine, 'delete'));
+        $this->assertTrue(method_exists($engine, 'search'));
+        $this->assertTrue(method_exists($engine, 'count'));
+        $this->assertTrue(method_exists($engine, 'optimize'));
+        $this->assertTrue(method_exists($engine, 'getEngineVersion'));
+        $this->assertTrue(method_exists($engine, 'getIndexedModelClasses'));
+        $this->assertTrue(method_exists($engine, 'getIndexStats'));
+        $this->assertTrue(method_exists($engine, 'getConfig'));
+        $this->assertTrue(method_exists($engine, 'setConfig'));
+    }
+
+    public function test_engine_has_sqlite_specific_methods(): void
+    {
+        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+
+        $this->assertTrue(method_exists($engine, 'createTable'));
+        $this->assertTrue(method_exists($engine, 'dropTable'));
+        $this->assertTrue(method_exists($engine, 'tableExists'));
+        $this->assertTrue(method_exists($engine, 'integrityCheck'));
+        $this->assertTrue(method_exists($engine, 'tableName'));
+        $this->assertTrue(method_exists($engine, 'getDatabasePath'));
+        $this->assertTrue(method_exists($engine, 'getDatabaseSize'));
+        $this->assertTrue(method_exists($engine, 'getPragma'));
+        $this->assertTrue(method_exists($engine, 'fullIntegrityCheck'));
+        $this->assertTrue(method_exists($engine, 'queryVocab'));
+        $this->assertTrue(method_exists($engine, 'vacuum'));
+    }
 }
