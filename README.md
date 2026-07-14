@@ -129,35 +129,37 @@ php artisan vendor:publish --tag=fts-config
 
 ## Configuration
 
-```php
-// config/fts.php
+### Environment variables
 
-return [
-    // SQLite index file.
-    // - Relative path (default): resolved via storage_path()
-    // - Absolute path (starts with /): used as-is for persistent volumes
-    // - Cloud storage (S3, GCS) is NOT supported
-    'database_path' => env('FTS_DATABASE_PATH', 'app/fts/fts-index.sqlite'),
-
-    // Search mode: 'basic' or 'advanced'
-    'mode' => env('FTS_MODE', 'advanced'),
-
-    // Indexing: 'queue', 'sync', or 'manual'
-    'indexing' => env('FTS_INDEXING', 'queue'),
-
-    'operators' => [
-        'enabled' => null,  // null = auto-detect, or ['AND', 'OR', 'NOT']
-    ],
-
-    'fts5' => [
-        'prefix_lengths'  => [2, 3, 4],          // search-as-you-type
-        'detail'          => 'full',              // 'full' (default) or 'column'. 'column' disables NEAR/phrase — FTS index shrinks ~30%, total DB reduction smaller
-        'automerge'       => 4,                   // segments before auto merge
-        'crisismerge'     => 16,                  // segments before forced merge
-        'pgsz'            => 1000,                // index page size (bytes)
-    ],
-];
-```
+| Env | Config key | Default | Possible values |
+|-----|-----------|---------|----------------|
+| `FTS_DATABASE_PATH` | `database_path` | `app/fts/fts-index.sqlite` | Relative to `storage_path()`, or absolute (starts with `/`) |
+| `FTS_MODE` | `mode` | `advanced` | `basic` (simple wildcards), `advanced` (boolean, phrase, NEAR) |
+| `FTS_INDEXING` | `indexing` | `queue` | `queue` (async via jobs), `sync` (immediate), `manual` (commands only) |
+| `FTS_QUEUE_CONNECTION` | `queue_connection` | `null` (default queue) | Any queue name (`sync`, `redis`, `database`, etc.) |
+| `FTS_REBUILD_BATCH_SIZE` | `rebuild_batch_size` | `0` (all sync) | `500`, `1000` — batch size before switching to queue jobs |
+| — | `max_results` | `50` | Any positive integer |
+| — | `model_paths` | `[app_path('Models')]` | Array of paths to scan for Searchable models |
+| `FTS_PROCESSOR` | `fts5.processor` | `unicode` | `unicode` (default), `stemming` (multi-language stemming) |
+| — | `fts5.tokenizer` | `unicode61` | `unicode61`, `ascii`, `porter`, `trigram`, `porter unicode61` |
+| — | `fts5.prefix_lengths` | `[2, 3, 4]` | E.g. `[2, 3, 4]` for prefix indexes |
+| `FTS_COLUMNSIZE` | `fts5.columnsize` | `1` | `1` (default), `0` (omit column sizes, saves ~10% space) |
+| — | `fts5.detail` | `full` | `full` (default), `column` (+NEAR +phrase), `none` (term only) |
+| — | `fts5.automerge` | `4` | Segments before auto‑merge (0 = disable) |
+| — | `fts5.crisismerge` | `16` | Segments before forced merge |
+| — | `fts5.pgsz` | `1000` | Index page size in bytes |
+| `FTS_WAL` | `fts5.wal` | `true` | `true`, `false` (disable only on NFS) |
+| `FTS_CACHE_SIZE_KB` | `fts5.cache_size_kb` | `-64000` (64 MB) | Positive = pages, negative = kilobytes |
+| `FTS_SYNCHRONOUS` | `fts5.synchronous` | `NORMAL` | `NORMAL` (fast, safe with WAL), `FULL` (safest, slowest) |
+| `FTS_TEMP_STORE` | `fts5.temp_store` | `MEMORY` | `MEMORY` (fast), `FILE` (safe for low RAM) |
+| `FTS_BUSY_TIMEOUT` | `fts5.busy_timeout` | `5000` | Milliseconds (0 = no timeout, 1000–5000 recommended) |
+| `FTS_MMAP_SIZE` | `fts5.mmap_size` | `0` (disabled) | 0 = off, `67108864` (64 MB), `268435456` (256 MB). ⚠️ Incompatible with NFS/Docker mounts |
+| `FTS_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
+| `FTS_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
+| `FTS_TENANCY_DIRECTORY` | `tenancy.directory` | `app/fts/tenants` | Relative to `storage_path()` |
+| `FTS_SPELLCHECK_VOCAB_LIMIT` | `spellcheck.vocab_limit` | `1000` | Max terms loaded from vocab table |
+| `FTS_OPERATORS` | `operators.enabled` | `null` | `null` (auto‑detect), `['AND', 'OR', 'NOT']`, `[]` |
+| — | `max_related_values` | `100` | Max related model values for dot‑notation columns |
 
 ### Operators
 
@@ -172,9 +174,13 @@ Control which FTS5 query operators are allowed in advanced mode.
 
 Operators are auto-detected at runtime. Run `php artisan fts:doctor` to see which operators your SQLite build supports vs. which are enabled by config.
 
----
+### Publish config
 
-## Model Setup
+```bash
+php artisan vendor:publish --tag=fts-config
+```
+
+This publishes `config/fts.php` where you can override any setting. Use `.env` variables for values that differ between environments (local, staging, production).
 
 ### 1. Minimal
 

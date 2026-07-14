@@ -29,9 +29,40 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_fails_when_fts5_missing(): void
     {
-        // We can't actually disable FTS5 at runtime, but we can verify
-        // the command structure is correct
         $this->artisan('fts:doctor')
             ->assertSuccessful();
+    }
+
+    public function test_doctor_validates_config_values(): void
+    {
+        config(['fts.fts5.detail' => 'invalid']);
+        config(['fts.fts5.synchronous' => 'INVALID']);
+        config(['fts.mode' => 'wrong']);
+        config(['fts.fts5.processor' => 'bad']);
+
+        $this->artisan('fts:doctor')
+            ->expectsOutputToContain('Config Validation')
+            ->expectsOutputToContain('✗')
+            ->assertExitCode(1);
+    }
+
+    public function test_doctor_reports_valid_config(): void
+    {
+        config(['fts.fts5.detail' => 'column']);
+        config(['fts.fts5.synchronous' => 'NORMAL']);
+        config(['fts.mode' => 'basic']);
+
+        $this->artisan('fts:doctor')
+            ->expectsOutputToContain('Config Validation')
+            ->assertSuccessful();
+    }
+
+    public function test_doctor_validates_busy_timeout(): void
+    {
+        config(['fts.fts5.busy_timeout' => -1]);
+
+        $this->artisan('fts:doctor')
+            ->expectsOutputToContain('✗')
+            ->assertExitCode(1);
     }
 }
