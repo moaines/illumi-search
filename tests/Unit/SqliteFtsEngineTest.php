@@ -247,4 +247,130 @@ class SqliteFtsEngineTest extends TestCase
         $results = $this->engine->search('valid', ['App\Models\Post'], 10);
         $this->assertCount(1, $results);
     }
+
+    // ─── escapeQuery tests for all modes ───────────────────────────
+
+    public function test_basic_mode_without_quotes_adds_wildcard(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'java', 'basic');
+
+        $this->assertStringContainsString('java*', $result);
+    }
+
+    public function test_basic_mode_with_single_quoted_term_exact(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, '"java"', 'basic');
+
+        // Quoted term must NOT get wildcard
+        $this->assertStringContainsString('"java"', $result);
+        $this->assertStringNotContainsString('"java"*', $result);
+    }
+
+    public function test_basic_mode_with_quoted_phrase_preserved(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, '"java 8"', 'basic');
+
+        $this->assertStringContainsString('"java 8"', $result);
+    }
+
+    public function test_basic_mode_mixed_quoted_and_unquoted(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, '"exact phrase" java', 'basic');
+
+        $this->assertStringContainsString('"exact phrase"', $result);
+        $this->assertStringContainsString('java*', $result);
+    }
+
+    public function test_advanced_mode_with_quoted_phrase_preserved(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, '"laravel framework"', 'advanced');
+
+        $this->assertStringContainsString('"laravel framework"', $result);
+    }
+
+    public function test_advanced_mode_mixed_operators_and_quotes(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'php AND "laravel framework"', 'advanced');
+
+        $this->assertStringContainsString('php*', $result);
+        $this->assertStringContainsString('"laravel framework"', $result);
+        $this->assertDoesNotMatchRegularExpression('/\bAND\*/', $result);
+    }
+
+    public function test_raw_mode_passthrough(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'php AND "laravel framework"', 'raw');
+
+        // Raw mode returns the normalized (lowercased) query without escaping
+        $this->assertStringContainsString('php', $result);
+        $this->assertStringContainsString('"laravel framework"', $result);
+        $this->assertStringContainsString('and', $result);
+    }
+
+    // ─── Real search tests for quotes in basic mode ────────────────
+
+    public function test_basic_mode_quote_exact_does_not_return_partial(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'javascript guide', 'body' => 'learn js']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'java tutorial', 'body' => 'learn java']);
+
+        // Unquoted "java" in basic mode should match both (partial wildcard)
+        $unquoted = $this->engine->search('java', ['App\Models\Post'], 10, 0, 'basic');
+        $this->assertCount(2, $unquoted);
+
+        // Quoted '"java"' in basic mode should match only "java tutorial" (exact)
+        $quoted = $this->engine->search('"java"', ['App\Models\Post'], 10, 0, 'basic');
+        $this->assertCount(1, $quoted);
+        $this->assertEquals('java tutorial', $quoted[0]->title);
+    }
+
+    public function test_basic_mode_phrase_exact(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'hello world foo', 'body' => 'test']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'hello bar', 'body' => 'test']);
+
+        // "hello world" in basic mode should match only post 1 (phrase exact)
+        $results = $this->engine->search('"hello world"', ['App\Models\Post'], 10, 0, 'basic');
+        $this->assertCount(1, $results);
+        $this->assertEquals('hello world foo', $results[0]->title);
+    }
+
+    public function test_advanced_mode_phrase_exact(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'hello world', 'body' => 'test']);
+
+        // Both unquoted and quoted should find it in advanced mode
+        $results = $this->engine->search('"hello world"', ['App\Models\Post'], 10, 0, 'advanced');
+        $this->assertCount(1, $results);
+        $this->assertEquals('hello world', $results[0]->title);
+    }
+
+    public function test_raw_mode_preserves_query(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'hello world', 'body' => 'test']);
+
+        $results = $this->engine->search('hello world', ['App\Models\Post'], 10, 0, 'raw');
+        $this->assertCount(1, $results);
+    }
 }

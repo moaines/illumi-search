@@ -775,9 +775,20 @@ class SqliteFtsEngine implements FtsEngine
         $query = $this->normalizeQuery($query);
 
         if ($mode === 'basic') {
-            $escaped = preg_replace('/[^\p{L}\p{N}\s\-\*]/u', ' ', $query);
-            $terms = array_filter(explode(' ', $escaped));
-            $terms = array_map(fn ($t) => trim($t).'*', $terms);
+            preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
+            $terms = [];
+
+            foreach ($tokenMatches[0] as $token) {
+                if (preg_match('/^"([^"]+)"$/', $token, $m)) {
+                    // Quoted phrase — preserve as-is, no wildcard
+                    $terms[] = '"' . $m[1] . '"';
+                } else {
+                    $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
+                    if ($clean !== '') {
+                        $terms[] = $clean . '*';
+                    }
+                }
+            }
 
             return $this->cachedSafeQueries[$cacheKey] = implode(' ', $terms);
         }
@@ -788,7 +799,8 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         // For advanced mode, split into terms and quote those with special chars
-        $terms = preg_split('/\s+/', trim($query));
+        preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
+        $terms = $tokenMatches[0];
         $escaped = [];
         $this->ensureOperatorsProbed();
         $this->applyOperatorConfig();
