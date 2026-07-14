@@ -420,6 +420,49 @@ class FtsResult {
 > 
 > When using Filament, the Resource's Global Search methods (`getGlobalSearchResultUrl()`, `getGlobalSearchResultDetails()`) take priority over `ftsUrl()` and `ftsCategory()` on the model.
 
+### Laravel Scout
+
+This package does **not** provide a Scout driver — the built-in `Searchable` trait + `Fts` facade cover most search use cases without Scout's overhead.
+
+If you need Scout integration (for compatibility with existing code), create a custom engine:
+
+```php
+namespace App\Engines;
+
+use Laravel\Scout\Engines\Engine;
+use Moaines\LaravelFts\Facades\Fts;
+
+class FtsScoutEngine extends Engine
+{
+    public function search(Builder $builder)
+    {
+        $results = Fts::query($builder->query)
+            ->model($builder->model)
+            ->get();
+
+        return collect($results->pluck('model_id'));
+    }
+
+    public function mapIds($results) { /* ... */ }
+    public function map(Builder $builder, $results, $model) { /* ... */ }
+    public function paginate(Builder $builder, $perPage, $page) { /* ... */ }
+    public function delete($models) { /* ... */ }
+    // ... other required methods
+}
+```
+
+Register in `AppServiceProvider`:
+
+```php
+use Laravel\Scout\EngineManager;
+
+$this->app->make(EngineManager::class)->extend('fts', function () {
+    return new \App\Engines\FtsScoutEngine;
+});
+```
+
+Set `SCOUT_DRIVER=fts` in your `.env`.
+
 ---
 
 ## Diagnostics

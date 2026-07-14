@@ -1,0 +1,517 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between ''fts\.fts5\.busy…'' and ''fts\.fts5\.busy…'' will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: src/Console/Commands/FtsDoctorCommand.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 1
+			path: src/Console/Commands/FtsRebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsRebuildCommand\:\:finishProgressBar\(\) never assigns Symfony\\Component\\Console\\Helper\\ProgressBar to &\$pb so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: src/Console/Commands/FtsRebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsRebuildCommand\:\:indexedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/FtsRebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsRebuildCommand\:\:startProgressBar\(\) never assigns null to &\$pb so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: src/Console/Commands/FtsRebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsSuggestCommand\:\:resolvePanelResources\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/FtsSuggestCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsSuggestCommand\:\:resolveSearchableAttributes\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/FtsSuggestCommand.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:filter\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: src/Console/Commands/FtsSuggestCommand.php
+
+		-
+			message: '#^Parameter \#1 \$value of function collect contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: src/Console/Commands/FtsSuggestCommand.php
+
+		-
+			message: '#^Return type of call to function collect contains unresolvable type\.$#'
+			identifier: function.unresolvableReturnType
+			count: 2
+			path: src/Console/Commands/FtsSuggestCommand.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: string$#'
+			identifier: match.unhandled
+			count: 1
+			path: src/Console/Commands/FtsSyncCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsSyncCommand\:\:finishProgressBar\(\) never assigns Symfony\\Component\\Console\\Helper\\ProgressBar to &\$pb so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: src/Console/Commands/FtsSyncCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Console\\Commands\\FtsSyncCommand\:\:startProgressBar\(\) never assigns null to &\$pb so it can be removed from the by\-ref type\.$#'
+			identifier: parameterByRef.unusedType
+			count: 1
+			path: src/Console/Commands/FtsSyncCommand.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:count\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:createTable\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:createTable\(\) has parameter \$prefixLengths with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:fullIntegrityCheck\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:search\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Contracts\\FtsEngine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Contracts/FtsEngine.php
+
+		-
+			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 2
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:count\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:createTable\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:createTable\(\) has parameter \$prefixLengths with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:enrichWithSnippets\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:enrichWithSnippets\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:extractQueryTerms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:extractSearchTerms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:extractSnippet\(\) has parameter \$searchTerms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:extractSnippet\(\) has parameter \$snippetColumns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:fullIntegrityCheck\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:getRawSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:getSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:getTitleColumn\(\) has parameter \$row with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:resolveSnippetColumns\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:sanitizeDocumentKeys\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:sanitizeDocumentKeys\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:search\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:updateMeta\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$cachedSafeQueries type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$rawSupportedOperators type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$supportedOperators type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$operatorsProbed through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 3
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$rawSupportedOperators through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 4
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\LaravelFts\\Engines\\SqliteFtsEngine\:\:\$supportedOperators through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 10
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Variable \$ids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: src/Engines/SqliteFtsEngine.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Events\\RebuildComplete\:\:__construct\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Events/RebuildComplete.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Facades\\Fts\:\:didYouMean\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Facades/Fts.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\Facades\\Fts\:\:didYouMean\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Facades/Fts.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:ftsRelationsForRebuild\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:validateFtsSearchable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:checkSchema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:discoverModels\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:indexRecords\(\) has parameter \$records with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:rebuild\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:rebuild\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:status\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:sync\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsIndexManager\:\:sync\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\FtsIndexManager\:\:\$cachedModels with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\LaravelFts\\FtsIndexManager\:\:\$cachedModels through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 4
+			path: src/FtsIndexManager.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsQueryBuilder\:\:filterAuthorized\(\) has parameter \$results with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsQueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsQueryBuilder\:\:filterAuthorized\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsQueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsQueryBuilder\:\:models\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsQueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsQueryBuilder\:\:paginate\(\) return type with generic class Illuminate\\Pagination\\LengthAwarePaginator does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsQueryBuilder.php
+
+		-
+			message: '#^Class Moaines\\LaravelFts\\FtsResult implements generic interface Illuminate\\Contracts\\Support\\Arrayable but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsResult.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsResult\:\:__construct\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsResult.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsResult\:\:make\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsResult.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:extractQueryTerms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsSpellcheck.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:findSimilar\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsSpellcheck.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:findSimilar\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsSpellcheck.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:suggest\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/FtsSpellcheck.php
+
+		-
+			message: '#^Method Moaines\\LaravelFts\\FtsSpellcheck\:\:suggest\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/FtsSpellcheck.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Jobs\\IndexBatchJob\:\:\$backoff type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Jobs/IndexBatchJob.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Jobs\\IndexModelJob\:\:\$backoff type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Jobs/IndexModelJob.php
+
+		-
+			message: '#^Property Moaines\\LaravelFts\\Text\\StemmingTextProcessor\:\:\$stemmers type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Text/StemmingTextProcessor.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\LaravelFts\\Text\\StemmingTextProcessor\:\:\$stemmers through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 3
+			path: src/Text/StemmingTextProcessor.php
