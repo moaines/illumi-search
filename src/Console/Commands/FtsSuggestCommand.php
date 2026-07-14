@@ -5,7 +5,6 @@ namespace Moaines\LaravelFts\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 class FtsSuggestCommand extends Command
 {

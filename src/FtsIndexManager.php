@@ -65,119 +65,133 @@ class FtsIndexManager
         $results = [];
 
         foreach ($models as $modelClass) {
-            if (! class_exists($modelClass)) {
-                $results[] = ['model' => $modelClass, 'status' => 'error', 'message' => 'Class not found'];
+            $result = $this->rebuildModel($modelClass, $batchSize, $progress);
+            $results[] = $result;
 
-                continue;
+            foreach (($result['warnings'] ?? []) as $w) {
+                $results[] = $w;
             }
 
-            if (! in_array('Moaines\\LaravelFts\\Searchable', class_uses_recursive($modelClass))) {
-                $results[] = ['model' => $modelClass, 'status' => 'skipped', 'message' => 'Not searchable'];
-
-                continue;
-            }
-
-            try {
-                /** @var Model $instance */
-                $instance = new $modelClass;
-                $columns = $instance->getFtsSearchableColumns();
-
-                if (empty($columns)) {
-                    $results[] = ['model' => $modelClass, 'status' => 'skipped', 'message' => 'No searchable columns'];
-
-                    continue;
-                }
-
-                $warnings = $instance->validateFtsSearchable();
-                foreach ($warnings as $w) {
-                    $results[] = ['model' => $modelClass, 'status' => 'warning', 'message' => $w];
-                }
-
-                $this->engine->dropTable($modelClass);
-
-                $prefixLengths = config('fts.fts5.prefix_lengths', [2, 3, 4]);
-
-                $this->engine->createTable(
-                    $modelClass,
-                    array_keys($columns),
-                    $prefixLengths
-                );
-
-                $totalRecords = $modelClass::count();
-                $keyName = (new $modelClass)->getKeyName();
-                $relations = $instance->ftsRelationsForRebuild();
-
-                $progress?->__invoke('startModel', $modelClass, $totalRecords);
-
-                $syncCount = 0;
-                $queuedCount = 0;
-
-                if ($batchSize > 0 && $totalRecords > $batchSize) {
-                    // Sync first batch manually (without chunk, to respect the limit)
-                    $records = $modelClass::query()
-                        ->orderBy($keyName)
-                        ->take($batchSize)
-                        ->get();
-
-                    if (! empty($relations)) {
-                        $records->load($relations);
-                    }
-
-                    $syncCount = $this->indexRecords($records, $modelClass);
-                    $progress?->__invoke('advance', $syncCount);
-
-                    // Queue remaining as IndexBatchJob (each job handles up to 100)
-                    $lastId = $records->last()?->getKey() ?? 0;
-                    while ($syncCount + $queuedCount < $totalRecords) {
-                        $remaining = $totalRecords - ($syncCount + $queuedCount);
-                        $take = min(100, $remaining);
-
-                        IndexBatchJob::dispatch(
-                            modelClass: $modelClass,
-                            lastId: $lastId,
-                            limit: $take,
-                        )->onConnection(config('fts.queue_connection'));
-
-                        $queuedCount += $take;
-                        $lastId += $take; // approximate — the job adjusts via where(>)
-                    }
-                } else {
-                    // Sync all
-                    $modelClass::query()
-                        ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress) {
-                            if (! empty($relations)) {
-                                $records->load($relations);
-                            }
-                            $synced = $this->indexRecords($records, $modelClass);
-                            $syncCount += $synced;
-                            $progress?->__invoke('advance', $synced);
-                        }, $keyName);
-                }
-
-                $progress?->__invoke('finishModel');
-
-                $results[] = [
-                    'model' => $modelClass,
-                    'status' => 'indexed',
-                    'records' => $syncCount,
-                    'queued' => $queuedCount,
-                    'total' => $totalRecords,
-                ];
-
-                event(new ModelIndexed($modelClass, $syncCount));
-            } catch (\Exception $e) {
-                $results[] = ['model' => $modelClass, 'status' => 'error', 'message' => $e->getMessage()];
-
-                event(new ModelIndexed($modelClass, 0));
-            }
+            event(new ModelIndexed($modelClass, $result['status'] === 'error' ? 0 : ($result['records'] ?? 0)));
         }
 
         event(new RebuildComplete($results));
+        $results = $this->cleanupOrphans($models, $results);
 
-        // Clean up orphaned index tables (tables for models that no longer use Searchable)
+        if ($vacuum) {
+            $this->engine->vacuum();
+        }
+
+        return $results;
+    }
+
+    private function rebuildModel(string $modelClass, int $batchSize, ?\Closure $progress): array
+    {
+        if (! class_exists($modelClass)) {
+            return ['model' => $modelClass, 'status' => 'error', 'message' => 'Class not found'];
+        }
+
+        if (! in_array('Moaines\\LaravelFts\\Searchable', class_uses_recursive($modelClass))) {
+            return ['model' => $modelClass, 'status' => 'skipped', 'message' => 'Not searchable'];
+        }
+
+        try {
+            /** @var Model $instance */
+            $instance = new $modelClass;
+            $columns = $instance->getFtsSearchableColumns();
+
+            if (empty($columns)) {
+                return ['model' => $modelClass, 'status' => 'skipped', 'message' => 'No searchable columns'];
+            }
+
+            $warningMessages = [];
+            foreach ($instance->validateFtsSearchable() as $w) {
+                $warningMessages[] = ['model' => $modelClass, 'status' => 'warning', 'message' => $w];
+            }
+
+            $this->engine->dropTable($modelClass);
+            $this->engine->createTable($modelClass, array_keys($columns), config('fts.fts5.prefix_lengths', [2, 3, 4]));
+
+            $totalRecords = $modelClass::count();
+            $keyName = (new $modelClass)->getKeyName();
+            $relations = $instance->ftsRelationsForRebuild();
+            $syncCount = 0;
+            $queuedCount = 0;
+
+            $progress?->__invoke('startModel', $modelClass, $totalRecords);
+
+            if ($batchSize > 0 && $totalRecords > $batchSize) {
+                $syncCount = $this->rebuildWithBatch($modelClass, $batchSize, $keyName, $relations, $progress, $queuedCount);
+            } else {
+                $syncCount = $this->rebuildSyncAll($modelClass, $keyName, $relations, $progress);
+            }
+
+            $progress?->__invoke('finishModel');
+
+            return [
+                'model' => $modelClass,
+                'status' => 'indexed',
+                'records' => $syncCount,
+                'queued' => $queuedCount,
+                'total' => $totalRecords,
+                'warnings' => $warningMessages,
+            ];
+        } catch (\Exception $e) {
+            return ['model' => $modelClass, 'status' => 'error', 'message' => $e->getMessage()];
+        }
+    }
+
+    private function rebuildWithBatch(string $modelClass, int $batchSize, string $keyName, array $relations, ?\Closure $progress, int &$queuedCount): int
+    {
+        $records = $modelClass::query()
+            ->orderBy($keyName)
+            ->take($batchSize)
+            ->get();
+
+        if (! empty($relations)) $records->load($relations);
+
+        $syncCount = $this->indexRecords($records, $modelClass);
+        $progress?->__invoke('advance', $syncCount);
+
+        $lastId = $records->last()?->getKey() ?? 0;
+        $totalRecords = $modelClass::count();
+
+        while ($syncCount + $queuedCount < $totalRecords) {
+            $remaining = $totalRecords - ($syncCount + $queuedCount);
+            $take = min(100, $remaining);
+
+            IndexBatchJob::dispatch(
+                modelClass: $modelClass,
+                lastId: $lastId,
+                limit: $take,
+            )->onConnection(config('fts.queue_connection'));
+
+            $queuedCount += $take;
+            $lastId += $take;
+        }
+
+        return $syncCount;
+    }
+
+    private function rebuildSyncAll(string $modelClass, string $keyName, array $relations, ?\Closure $progress): int
+    {
+        $syncCount = 0;
+
+        $modelClass::query()
+            ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress) {
+                if (! empty($relations)) $records->load($relations);
+                $synced = $this->indexRecords($records, $modelClass);
+                $syncCount += $synced;
+                $progress?->__invoke('advance', $synced);
+            }, $keyName);
+
+        return $syncCount;
+    }
+
+    private function cleanupOrphans(Collection $models, array $results): array
+    {
         $processedTables = $models->map(fn ($cls) => $this->engine->tableName($cls))->toArray();
         $existingTables = $this->engine->listIndexTables();
-
         $internalSuffixes = ['_content', '_data', '_docsize', '_idx', '_config', '_vocab'];
 
         foreach ($existingTables as $table) {
@@ -188,20 +202,10 @@ class FtsIndexManager
                     break;
                 }
             }
-            if ($isInternal) {
-                continue;
-            }
-
-            if (in_array($table, $processedTables, true)) {
-                continue;
-            }
+            if ($isInternal || in_array($table, $processedTables, true)) continue;
 
             $this->engine->dropIndexTable($table);
             $results[] = ['model' => $table, 'status' => 'cleaned', 'message' => 'Orphaned index table removed'];
-        }
-
-        if ($vacuum) {
-            $this->engine->vacuum();
         }
 
         return $results;

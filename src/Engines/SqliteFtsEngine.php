@@ -774,31 +774,34 @@ class SqliteFtsEngine implements FtsEngine
         // Normalize query: lowercase + remove diacritics to match indexed content
         $query = $this->normalizeQuery($query);
 
-        if ($mode === 'basic') {
-            preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
-            $terms = [];
+        return $this->cachedSafeQueries[$cacheKey] = match ($mode) {
+            'basic' => $this->escapeBasicQuery($query),
+            'raw' => $query,
+            default => $this->escapeAdvancedQuery($query),
+        };
+    }
 
-            foreach ($tokenMatches[0] as $token) {
-                if (preg_match('/^"([^"]+)"$/', $token, $m)) {
-                    // Quoted phrase — preserve as-is, no wildcard
-                    $terms[] = '"' . $m[1] . '"';
-                } else {
-                    $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
-                    if ($clean !== '') {
-                        $terms[] = $clean . '*';
-                    }
+    private function escapeBasicQuery(string $query): string
+    {
+        preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
+        $terms = [];
+
+        foreach ($tokenMatches[0] as $token) {
+            if (preg_match('/^"([^"]+)"$/', $token, $m)) {
+                $terms[] = '"' . $m[1] . '"';
+            } else {
+                $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
+                if ($clean !== '') {
+                    $terms[] = $clean . '*';
                 }
             }
-
-            return $this->cachedSafeQueries[$cacheKey] = implode(' ', $terms);
         }
 
-        if ($mode === 'raw') {
-            // No wildcards, no escaping — bare normalized query
-            return $this->cachedSafeQueries[$cacheKey] = $query;
-        }
+        return implode(' ', $terms);
+    }
 
-        // For advanced mode, split into terms and quote those with special chars
+    private function escapeAdvancedQuery(string $query): string
+    {
         preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
         $terms = $tokenMatches[0];
         $escaped = [];
@@ -807,47 +810,39 @@ class SqliteFtsEngine implements FtsEngine
         $operatorsConfig = config('fts.operators.enabled');
 
         foreach ($terms as $term) {
-            if (empty($term)) {
-                continue;
-            }
+            if (empty($term)) continue;
 
-            // Preserve FTS5 operators without wildcards
             $termUpper = strtoupper($term);
             $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
 
             if (in_array($baseOp, static::$supportedOperators, true)) {
-                $escaped[] = $baseOp; // uppercase — FTS5 requires uppercase operators
+                $escaped[] = $baseOp;
                 continue;
             }
 
-            // Fallback: unsupported NEAR → AND (only if config doesn't restrict operators)
             if ($baseOp === 'NEAR' && $operatorsConfig === null) {
                 $escaped[] = 'AND';
                 continue;
             }
 
-            // Keep existing quoted phrases intact
             if (str_starts_with($term, '"') && str_ends_with($term, '"')) {
                 $escaped[] = $term;
                 continue;
             }
 
-            // Keep column:value syntax intact
             if (preg_match('/^[\p{L}_]+:.*$/u', $term)) {
                 $escaped[] = $term;
                 continue;
             }
 
-            // Quote terms with special FTS5 characters (hyphens, parens, etc.)
             if (preg_match('/[:\-\(\)\^]/', $term)) {
                 $escaped[] = '"' . $term . '"';
             } else {
-                // Add prefix wildcard for search-as-you-type
                 $escaped[] = $term . '*';
             }
         }
 
-        return $this->cachedSafeQueries[$cacheKey] = implode(' ', $escaped);
+        return implode(' ', $escaped);
     }
 
     protected function normalizeQuery(string $query): string

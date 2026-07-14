@@ -3,11 +3,13 @@
 namespace Moaines\LaravelFts\Console\Commands;
 
 use Illuminate\Console\Command;
+use Moaines\LaravelFts\Console\Commands\Concerns\HasFtsProgressBar;
 use Moaines\LaravelFts\FtsIndexManager;
-use Symfony\Component\Console\Helper\ProgressBar;
 
 class FtsRebuildCommand extends Command
 {
+    use HasFtsProgressBar;
+
     protected $signature = 'fts:rebuild
         {--model=* : Specific model classes to rebuild (multiple allowed)}
         {--force : Skip confirmation prompt}
@@ -71,33 +73,6 @@ class FtsRebuildCommand extends Command
         $this->info('Rebuild complete.');
 
         return Command::SUCCESS;
-    }
-
-    private function startProgressBar(?ProgressBar &$pb, string $modelClass, int $total): void
-    {
-        $this->clearProgressBar($pb);
-        $short = class_basename($modelClass);
-        $this->line("  <fg=yellow>{$short}</>");
-        $pb = $this->output->createProgressBar($total);
-        $pb->setFormat('    %current%/%max% [%bar%] %elapsed:6s%');
-        $pb->start();
-    }
-
-    private function finishProgressBar(?ProgressBar &$pb): void
-    {
-        if ($pb === null) {
-            return;
-        }
-        $pb->finish();
-        $this->newLine(2);
-        $pb = null;
-    }
-
-    private function clearProgressBar(?ProgressBar $pb): void
-    {
-        if ($pb !== null) {
-            $pb->clear();
-        }
     }
 
     private function indexedResult(array $result): void

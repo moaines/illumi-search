@@ -4,11 +4,12 @@ namespace Moaines\LaravelFts\Console\Commands;
 
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Moaines\LaravelFts\Console\Commands\Concerns\HasFtsProgressBar;
 use Moaines\LaravelFts\FtsIndexManager;
-use Symfony\Component\Console\Helper\ProgressBar;
 
 class FtsSyncCommand extends Command
 {
+    use HasFtsProgressBar;
     protected $signature = 'fts:sync
         {--model=* : Specific model classes to sync (multiple allowed)}
         {--since= : Only sync records updated after this datetime (ISO format: 2026-01-15 or 2026-01-15 14:30:00)}';
@@ -58,32 +59,5 @@ class FtsSyncCommand extends Command
         $this->info('Sync complete.');
 
         return Command::SUCCESS;
-    }
-
-    private function startProgressBar(?ProgressBar &$pb, string $modelClass, int $total): void
-    {
-        $this->clearProgressBar($pb);
-        $short = class_basename($modelClass);
-        $this->line("  <fg=yellow>{$short}</>");
-        $pb = $this->output->createProgressBar($total);
-        $pb->setFormat('    %current%/%max% [%bar%] %elapsed:6s%');
-        $pb->start();
-    }
-
-    private function finishProgressBar(?ProgressBar &$pb): void
-    {
-        if ($pb === null) {
-            return;
-        }
-        $pb->finish();
-        $this->newLine(2);
-        $pb = null;
-    }
-
-    private function clearProgressBar(?ProgressBar $pb): void
-    {
-        if ($pb !== null) {
-            $pb->clear();
-        }
     }
 }

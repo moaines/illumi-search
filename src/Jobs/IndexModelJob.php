@@ -9,7 +9,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Exceptions\FtsException;
 use Throwable;
 
 class IndexModelJob implements ShouldQueue

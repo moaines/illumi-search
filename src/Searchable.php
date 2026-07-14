@@ -20,7 +20,7 @@ trait Searchable
 
         $queue = config('fts.queue_connection');
 
-        static::saved(function (Model $model) use ($indexing, $queue) {
+        $indexOnSave = function (Model $model) use ($indexing, $queue): void {
             if ($model->shouldFtsSync()) {
                 if ($indexing === 'queue') {
                     dispatch(new IndexModelJob($model::class, $model->getKey()))->onConnection($queue);
@@ -28,7 +28,9 @@ trait Searchable
                     static::syncToFts($model);
                 }
             }
-        });
+        };
+
+        static::saved($indexOnSave);
 
         static::deleted(function (Model $model) use ($indexing, $queue) {
             if ($indexing === 'queue') {
@@ -40,15 +42,7 @@ trait Searchable
         });
 
         if (method_exists(static::class, 'restored')) {
-            static::restored(function (Model $model) use ($indexing, $queue) {
-                if ($model->shouldFtsSync()) {
-                    if ($indexing === 'queue') {
-                        dispatch(new IndexModelJob($model::class, $model->getKey()))->onConnection($queue);
-                    } else {
-                        static::syncToFts($model);
-                    }
-                }
-            });
+            static::restored($indexOnSave);
         }
     }
 
