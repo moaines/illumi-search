@@ -465,6 +465,61 @@ Set `SCOUT_DRIVER=fts` in your `.env`.
 
 ---
 
+## API REST
+
+Search endpoint for headless apps, mobile apps, or programmatic access.
+
+### Enable
+
+```env
+FTS_API_ENABLED=true
+```
+
+### Endpoint
+
+```
+GET /api/search
+```
+
+### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `q` | string | ✅ | — | Search query (max 200 chars) |
+| `models` | string/array | ❌ | All indexed models | Comma-separated `?models=Post,Comment` or array `?models[]=Post&models[]=Comment` |
+| `limit` | int | ❌ | 10 | Max results (max 50) |
+| `mode` | string | ❌ | `advanced` | `basic`, `advanced`, `raw` |
+| `suggest` | bool | ❌ | `false` | Include spellcheck suggestions when no results |
+
+### Example
+
+```bash
+curl "/api/search?q=laravel&models=Post,Comment&limit=5&suggest=1"
+```
+
+### Response
+
+```json
+{
+    "results": [
+        {
+            "id": "records:...",
+            "title": "Laravel Testing",
+            "url": "/admin/posts/1/edit",
+            "summary": "... <mark>Laravel</mark> ..."
+        }
+    ],
+    "total": 1,
+    "suggestions": ["laravel", "laravel framework"]
+}
+```
+
+### Rate limiting
+
+Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `config('fts.api.rate_limit')`.
+
+---
+
 ## Diagnostics
 
 Inspect the FTS5 engine version, current PRAGMAs, run integrity checks, and read/write custom metadata.
@@ -717,6 +772,26 @@ Space saved: 1.8 MB
 Tables optimized: 2
 ```
 
+### `php artisan fts:search`
+
+Search the index directly from the command line.
+
+```bash
+php artisan fts:search "laravel"
+php artisan fts:search "laravel" --models=Post,Comment --limit=5 --json
+php artisan fts:search "laravel" --suggest     # with spellcheck
+```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--models=Post,Comment` | Comma-separated model classes |
+| `--limit=10` | Max results |
+| `--mode=advanced` | Search mode: `basic`, `advanced`, or `raw` |
+| `--json` | Output as JSON (for scripting) |
+| `--suggest` | Include spellcheck suggestions when no results |
+
 ### `php artisan fts:doctor`
 
 Diagnose the FTS5 environment — extensions, FTS5 support, database health, configuration, and per-table integrity checks.
@@ -968,6 +1043,9 @@ When a model using the `Searchable` trait is saved, deleted, or restored:
 | `fts:sync --model=Comment` | Sync a single model | `php artisan fts:sync --model="App\Models\Comment"` |
 | `fts:doctor` | Full health check | `php artisan fts:doctor` |
 | `fts:optimize` | Merge segments + VACUUM | `php artisan fts:optimize` |
+| `fts:search` | Search from CLI | `php artisan fts:search "laravel"` |
+| `fts:search --models=Post` | Search specific models | `php artisan fts:search "php" --models=Post,Comment` |
+| `fts:search --json` | Search as JSON | `php artisan fts:search "laravel" --json` |
 
 ---
 
@@ -1045,6 +1123,12 @@ laravel-fts/
 ## Changelog
 
 ### Unreleased
+
+### v1.11.0
+
+- **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `FTS_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
+- **CLI search.** New `php artisan fts:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
+- **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `FtsIndexManager::rebuild()`, and `SqliteFtsEngine::escapeQuery()` into focused private methods.
 
 ### v1.10.0
 

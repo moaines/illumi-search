@@ -2,11 +2,13 @@
 
 namespace Moaines\LaravelFts;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Moaines\LaravelFts\Console\Commands\FtsCheckCommand;
 use Moaines\LaravelFts\Console\Commands\FtsDoctorCommand;
 use Moaines\LaravelFts\Console\Commands\FtsOptimizeCommand;
 use Moaines\LaravelFts\Console\Commands\FtsRebuildCommand;
+use Moaines\LaravelFts\Console\Commands\FtsSearchCommand;
 use Moaines\LaravelFts\Console\Commands\FtsStatusCommand;
 use Moaines\LaravelFts\Console\Commands\FtsSuggestCommand;
 use Moaines\LaravelFts\Console\Commands\FtsSyncCommand;
@@ -78,11 +80,14 @@ class LaravelFtsServiceProvider extends ServiceProvider
             FtsRebuildCommand::class,
             FtsSyncCommand::class,
             FtsCheckCommand::class,
+            FtsSearchCommand::class,
             FtsStatusCommand::class,
             FtsSuggestCommand::class,
             FtsOptimizeCommand::class,
             FtsDoctorCommand::class,
         ]);
+
+        $this->registerApiRoutes();
     }
 
     protected function validateRequirements(): void
@@ -106,5 +111,21 @@ class LaravelFtsServiceProvider extends ServiceProvider
         } catch (\Exception $e) {
             throw FtsException::fts5NotAvailable();
         }
+    }
+
+    protected function registerApiRoutes(): void
+    {
+        if (! config('fts.api.enabled', false)) {
+            return;
+        }
+
+        Route::middleware([
+            'api',
+            'throttle:' . config('fts.api.rate_limit', 30) . ',1',
+        ])
+            ->prefix(config('fts.api.prefix', 'api/search'))
+            ->group(function () {
+                Route::get('/', \Moaines\LaravelFts\Http\Controllers\SearchApiController::class);
+            });
     }
 }

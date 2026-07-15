@@ -287,4 +287,20 @@ return [
     |
     */
     'max_related_values' => 100,
+
+    /*
+    |--------------------------------------------------------------------------
+    | API
+    |--------------------------------------------------------------------------
+    |
+    | REST API endpoint for search queries.
+    | Enabled by default in local environment.
+    |
+    */
+    'api' => [
+        'enabled'    => env('FTS_API_ENABLED', false),
+        'middleware' => ['api'],
+        'prefix'     => 'api/search',
+        'rate_limit' => 30,
+    ],
 ];
