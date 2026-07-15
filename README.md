@@ -78,7 +78,8 @@ $results = Fts::query('laravel')->model(Post::class)->get();
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Model Setup](#model-setup)
-- [Search API](#search-api)
+- [Search (PHP)](#search-php)
+- [REST API](#rest-api)
 - [Artisan Commands](#artisan-commands)
 - [`fts:doctor`](#php-artisan-ftsdoctor)
 - [How It Works](#how-it-works)
@@ -89,6 +90,8 @@ $results = Fts::query('laravel')->model(Post::class)->get();
 - [Authorization](#authorization)
 - [Indexing Strategies](#indexing-strategies)
 - [Lazy Rebuild](#lazy-rebuild-batch--queue)
+- [Diagnostics](#diagnostics)
+- [Package Structure](#package-structure)
 - [Testing](#testing)
 
 ---
@@ -316,7 +319,7 @@ protected bool $ftsSyncOnSave = true;  // disable auto-indexing for this model
 
 ---
 
-## Search API
+## Search (PHP)
 
 ### Facade
 
@@ -465,7 +468,7 @@ Set `SCOUT_DRIVER=fts` in your `.env`.
 
 ---
 
-## API REST
+## REST API
 
 Search endpoint for headless apps, mobile apps, or programmatic access.
 
