@@ -9,7 +9,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\LaravelFts\Tests\TestCase;
 
-class SuggestCommandTest extends TestCase
+class DiscoverFilamentCommandTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -102,7 +102,7 @@ class SuggestCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('test-panel')
             ->assertSuccessful();
     }
@@ -120,7 +120,7 @@ class SuggestCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->assertSuccessful();
     }
 
@@ -134,7 +134,7 @@ class SuggestCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('No Filament panel found')
             ->assertSuccessful();
     }
@@ -158,7 +158,7 @@ class SuggestCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('title')
             ->assertSuccessful();
     }
@@ -187,7 +187,7 @@ class SuggestCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('title')
             ->expectsOutputToContain('body')
             ->assertSuccessful();
@@ -246,7 +246,7 @@ class SuggestCommandTest extends TestCase
         $resource::setModel($modelClass);
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('author.name')
             ->assertSuccessful();
     }
@@ -275,7 +275,7 @@ class SuggestCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:suggest --format=json')
+        $this->artisan('fts:discover-filament --format=json')
             ->assertSuccessful();
     }
 
@@ -303,7 +303,7 @@ class SuggestCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:suggest')
+        $this->artisan('fts:discover-filament')
             ->expectsOutputToContain('$ftsSearchable')
             ->expectsOutputToContain("'extra' => ['weight' => 1]")
             ->assertSuccessful();

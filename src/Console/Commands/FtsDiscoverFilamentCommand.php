@@ -6,13 +6,13 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
-class FtsSuggestCommand extends Command
+class FtsDiscoverFilamentCommand extends Command
 {
-    protected $signature = 'fts:suggest
+    protected $signature = 'fts:discover-filament
         {--panel= : The Filament panel ID (defaults to current)}
         {--format=table : Output format (table|json)}';
 
-    protected $description = 'Suggest $ftsSearchable columns based on Filament Resources';
+    protected $description = 'Discover $ftsSearchable columns based on Filament Resources';
 
     public function handle(): int
     {

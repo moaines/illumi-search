@@ -5,12 +5,12 @@ namespace Moaines\LaravelFts;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Moaines\LaravelFts\Console\Commands\FtsCheckCommand;
+use Moaines\LaravelFts\Console\Commands\FtsDiscoverFilamentCommand;
 use Moaines\LaravelFts\Console\Commands\FtsDoctorCommand;
 use Moaines\LaravelFts\Console\Commands\FtsOptimizeCommand;
 use Moaines\LaravelFts\Console\Commands\FtsRebuildCommand;
 use Moaines\LaravelFts\Console\Commands\FtsSearchCommand;
 use Moaines\LaravelFts\Console\Commands\FtsStatusCommand;
-use Moaines\LaravelFts\Console\Commands\FtsSuggestCommand;
 use Moaines\LaravelFts\Console\Commands\FtsSyncCommand;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
@@ -82,7 +82,7 @@ class LaravelFtsServiceProvider extends ServiceProvider
             FtsCheckCommand::class,
             FtsSearchCommand::class,
             FtsStatusCommand::class,
-            FtsSuggestCommand::class,
+            FtsDiscoverFilamentCommand::class,
             FtsOptimizeCommand::class,
             FtsDoctorCommand::class,
         ]);

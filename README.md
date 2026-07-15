@@ -4,13 +4,14 @@
 [![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Flaravel--fts-28a745?logo=composer)](https://packagist.org/packages/moaines/laravel-fts)
 
-**Full-text search for Laravel using SQLite FTS5 + PHP-intl.**
+**Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + `ext-intl`.**
 BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
 (Latin, CJK, Arabic, Cyrillic), per-column weights, boolean operators,
 auto-detected operator support with NEAR→AND fallback, spellcheck,
 multi-tenant isolation, authorization.
 Drop-in `Searchable` trait with queue/sync/lazy batch indexing.
 No external services. Just SQLite and PHP.
+Available in most hosting environments (DigitalOcean, Amezmo, Laravel Forge, — FTS5 is bundled with PHP).
 
 ```bash
 composer require moaines/laravel-fts
@@ -28,6 +29,8 @@ composer require moaines/laravel-fts
 | Chinese / Japanese / Korean | No | Character-level tokenization |
 | Column weighting | No | Per-column weights |
 | Performance (10k+ rows) | Table scan | Inverted index |
+| PHP extension required | None | `ext-sqlite3` + `ext-intl` (bundled with PHP) |
+| Hosting compatibility | Any | ✅ Most providers (DigitalOcean, Amezmo, Forge)
 
 ---
 
@@ -111,6 +114,30 @@ $results = Fts::query('laravel')->model(Post::class)->get();
 $db = new SQLite3(':memory:');
 $db->exec("CREATE VIRTUAL TABLE _test USING fts5(content)");
 ```
+
+### Compatibility check
+
+Run this in your terminal before installing to verify your environment:
+
+```bash
+php -r "
+echo 'SQLite3 extension: ' . (extension_loaded('sqlite3') ? '✅ active' : '❌ NOT loaded') . PHP_EOL;
+echo 'intl extension: ' . (extension_loaded('intl') ? '✅ active' : '❌ NOT loaded') . PHP_EOL;
+echo 'mbstring extension: ' . (extension_loaded('mbstring') ? '✅ active' : '❌ NOT loaded') . PHP_EOL;
+if (extension_loaded('sqlite3')) {
+    \$db = new SQLite3(':memory:');
+    echo 'SQLite3 version: ' . \$db->version()['versionString'] . PHP_EOL;
+    try {
+        \$db->exec('CREATE VIRTUAL TABLE _test USING fts5(content)');
+        echo 'FTS5: ✅ available' . PHP_EOL;
+    } catch (\Exception \$e) {
+        echo 'FTS5: ❌ NOT available — ' . \$e->getMessage() . PHP_EOL;
+    }
+}
+"
+```
+
+If everything shows ✅, you're ready to install.
 
 ---
 
@@ -222,7 +249,7 @@ Three syntaxes are accepted:
 ### 3. With dot notation
 
 Search across related model attributes without custom `toFtsDocument()` logic.
-Supports `belongsTo`, `hasMany`, and Eloquent accessors:
+Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors:
 
 ```php
 protected array $ftsSearchable = [
@@ -705,8 +732,6 @@ protected array $ftsSearchable = [
 
 Results can be filtered through Laravel Policies or Spatie/Shield permissions. See the [Authorization section](#authorization) for details.
 
-### Input handling
-
 ---
 
 ## Artisan Commands
@@ -717,9 +742,10 @@ Drop and recreate all FTS5 tables, then repopulate from Eloquent models.
 
 ```
 Options:
-  --model=CLASS     Rebuild specific model(s) only
-  --force           Skip confirmation
-  --batch-size=N    Index N records now, queue the rest (default: config)
+  --model=CLASS       Rebuild specific model(s) (repeatable: --model=Post --model=Comment)
+  --force             Skip confirmation
+  --batch-size=N      Index N records now, queue the rest (default: config)
+  --vacuum            Run VACUUM after rebuilding
 ```
 
 ### `php artisan fts:sync`
@@ -728,7 +754,7 @@ Incremental sync of changed records.
 
 ```
 Options:
-  --model=CLASS  Sync specific model(s)
+  --model=CLASS  Sync specific model(s) (repeatable: --model=Post --model=Comment)
   --since=DATE   Only records updated after date
 ```
 
@@ -838,17 +864,17 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
 ✅ All checks passed
 ```
 
-### `php artisan fts:suggest`
+### `php artisan fts:discover-filament`
 
-Analyze Filament panel Resources to suggest `$ftsSearchable` columns for your models.
+Analyze Filament panel Resources to discover `$ftsSearchable` columns for your models.
 
 ```bash
-php artisan fts:suggest
-php artisan fts:suggest --panel=admin
-php artisan fts:suggest --format=json
+php artisan fts:discover-filament
+php artisan fts:discover-filament --panel=admin
+php artisan fts:discover-filament --format=json
 ```
 
-The command reads `getGloballySearchableAttributes()` from each Resource. If the Resource does not override this method, it falls back to `$recordTitleAttribute`. Suggestions include a default weight heuristic: the record title attribute gets weight 3, other columns get weight 1.
+The command reads `getGloballySearchableAttributes()` from each Resource. If the Resource does not override this method, it falls back to `$recordTitleAttribute`. Discovery includes a default weight heuristic: the record title attribute gets weight 3, other columns get weight 1.
 
 | Option | Description |
 |--------|-------------|
@@ -1101,9 +1127,11 @@ laravel-fts/
 ├── src/
 │   ├── Contracts/          # FtsEngine, TextProcessor interfaces
 │   ├── Engines/            # SqliteFtsEngine
-│   ├── Text/               # UnicodeTextProcessor
-│   ├── Console/Commands/   # rebuild, sync, check, status
-│   ├── Jobs/               # IndexModelJob, DeleteIndexJob
+│   ├── Text/               # UnicodeTextProcessor, StemmingTextProcessor
+│   ├── Console/Commands/   # rebuild, sync, search, check, status, doctor, discover-filament, optimize
+│   ├── Http/Controllers/   # SearchApiController
+│   ├── Http/Requests/      # SearchApiRequest
+│   ├── Jobs/               # IndexModelJob, DeleteIndexJob, IndexBatchJob
 │   ├── Facades/Fts.php
 │   ├── FtsQueryBuilder.php
 │   ├── FtsResult.php
@@ -1175,19 +1203,19 @@ laravel-fts/
 
 ### v1.4.2
 
-- **`fts:suggest` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
+- **`fts:discover-filament` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
 
 ### v1.4.1
 
-- **`fts:suggest` CLI fallback.** Falls back to the first available panel when `getCurrentPanel()` returns null (running in CLI).
+- **`fts:discover-filament` CLI fallback.** Falls back to the first available panel when `getCurrentPanel()` returns null (running in CLI).
 
 ### v1.4.0
 
-- **`fts:suggest` command.** Analyzes Filament panel Resources and suggests `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
+- **`fts:discover-filament` command.** Analyzes Filament panel Resources and discovers `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
 
 ### v1.3.0
 
-- **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports `belongsTo`, `hasMany`, `belongsToMany`, and Eloquent accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
+- **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
 - **`validateFtsSearchable()`.** Emits warnings during `fts:rebuild` for dot-notation columns referencing non-existent relations.
 
 ### v1.2.0
