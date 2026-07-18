@@ -2,19 +2,17 @@
 
 namespace Moaines\LaravelFts\Engines;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Concerns\HasQueryTerms;
 use Moaines\LaravelFts\Contracts\FtsEngine;
 use Moaines\LaravelFts\Contracts\TextProcessor;
 use Moaines\LaravelFts\Exceptions\FtsException;
 use Moaines\LaravelFts\FtsResult;
+use Moaines\LaravelFts\Support\SnippetService;
 use SQLite3;
 
 class SqliteFtsEngine implements FtsEngine
 {
-    use HasQueryTerms;
     private const META_TABLE = '_fts_meta';
+
     private const CONFIG_TABLE = '_fts_config';
 
     private ?SQLite3 $db = null;
@@ -38,6 +36,7 @@ class SqliteFtsEngine implements FtsEngine
 
     public function __construct(
         private readonly string $databasePath,
+        private readonly ?SnippetService $snippets = null,
     ) {}
 
     public function setTextProcessor(TextProcessor $processor): void
@@ -77,11 +76,11 @@ class SqliteFtsEngine implements FtsEngine
             if (filter_var(config('fts.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
                 $this->db->exec('PRAGMA journal_mode=WAL');
             }
-            $this->db->exec('PRAGMA synchronous=' . config('fts.fts5.synchronous', 'NORMAL'));
-            $this->db->exec('PRAGMA cache_size=' . config('fts.fts5.cache_size_kb', -64000));
-            $this->db->exec('PRAGMA temp_store=' . config('fts.fts5.temp_store', 'MEMORY'));
-            $this->db->exec('PRAGMA busy_timeout=' . config('fts.fts5.busy_timeout', 5000));
-            $this->db->exec('PRAGMA mmap_size=' . config('fts.fts5.mmap_size', 0));
+            $this->db->exec('PRAGMA synchronous='.config('fts.fts5.synchronous', 'NORMAL'));
+            $this->db->exec('PRAGMA cache_size='.config('fts.fts5.cache_size_kb', -64000));
+            $this->db->exec('PRAGMA temp_store='.config('fts.fts5.temp_store', 'MEMORY'));
+            $this->db->exec('PRAGMA busy_timeout='.config('fts.fts5.busy_timeout', 5000));
+            $this->db->exec('PRAGMA mmap_size='.config('fts.fts5.mmap_size', 0));
 
             $this->ensureMetaTable();
         }
@@ -154,7 +153,7 @@ class SqliteFtsEngine implements FtsEngine
         $options[] = "tokenize='{$tokenizerDef}'";
 
         if (! empty($prefixLengths)) {
-            $options[] = "prefix='" . implode(' ', $prefixLengths) . "'";
+            $options[] = "prefix='".implode(' ', $prefixLengths)."'";
         }
 
         $detail = config('fts.fts5.detail', 'full');
@@ -174,17 +173,21 @@ class SqliteFtsEngine implements FtsEngine
 
         // Set runtime FTS5 options (automerge, crisismerge, pgsz)
         $runtimeKeys = [
-            'automerge'   => config('fts.fts5.automerge', 4),
+            'automerge' => config('fts.fts5.automerge', 4),
             'crisismerge' => config('fts.fts5.crisismerge', 16),
-            'pgsz'        => config('fts.fts5.pgsz', 1000),
+            'pgsz' => config('fts.fts5.pgsz', 1000),
         ];
 
         foreach ($runtimeKeys as $key => $value) {
-            @$this->db()->exec("INSERT INTO {$table}({$table}) VALUES('{$key}={$value}')");
+            try {
+                $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('{$key}={$value}')");
+            } catch (\Exception) {
+                // Silently skip invalid FTS5 runtime config keys
+            }
         }
 
         // Vocab table for spellcheck
-        $vocabTable = $table . '_vocab';
+        $vocabTable = $table.'_vocab';
         $this->db()->exec(
             "CREATE VIRTUAL TABLE IF NOT EXISTS {$vocabTable} USING fts5vocab({$table}, 'row')"
         );
@@ -195,7 +198,7 @@ class SqliteFtsEngine implements FtsEngine
     public function dropTable(string $modelClass): void
     {
         $table = $this->tableName($modelClass);
-        $vocabTable = $table . '_vocab';
+        $vocabTable = $table.'_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$table}");
 
@@ -263,6 +266,10 @@ class SqliteFtsEngine implements FtsEngine
         }
     }
 
+    /**
+     * @param  array<class-string>  $modelClasses
+     * @return list<FtsResult>
+     */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array
     {
         if (empty(trim($query))) {
@@ -289,7 +296,7 @@ class SqliteFtsEngine implements FtsEngine
                 $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
                 $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
 
-                $result = @$stmt->execute();
+                $result = $stmt->execute();
 
                 if ($result === false) {
                     continue;
@@ -316,6 +323,7 @@ class SqliteFtsEngine implements FtsEngine
                 }
             } catch (\Exception $e) {
                 report($e);
+
                 continue;
             }
         }
@@ -326,7 +334,10 @@ class SqliteFtsEngine implements FtsEngine
         $results = array_slice($results, 0, $limit);
 
         // Enrich with snippets from original models
-        $results = $withSnippets ? $this->enrichWithSnippets($results, $query) : $results;
+        if ($withSnippets) {
+            $service = $this->snippets ?? app(SnippetService::class);
+            $results = $service->enrich($results, $query);
+        }
 
         return array_map(
             fn ($r) => FtsResult::make(
@@ -342,204 +353,9 @@ class SqliteFtsEngine implements FtsEngine
         );
     }
 
-    protected function enrichWithSnippets(array $results, string $query): array
-    {
-        $grouped = [];
-        $order = [];
-
-        foreach ($results as $i => $r) {
-            $grouped[$r['modelClass']][] = $r;
-            $order[] = ['modelClass' => $r['modelClass'], 'index' => count($grouped[$r['modelClass']]) - 1];
-        }
-
-        $searchTerms = $this->extractSearchTerms($query);
-
-        foreach ($grouped as $modelClass => &$entries) {
-            $ids = array_column($entries, 'modelId');
-
-            if (! class_exists($modelClass) || empty($ids)) {
-                continue;
-            }
-
-            try {
-                $instance = new $modelClass;
-                $keyName = $instance->getKeyName();
-
-                $snippetCols = $this->resolveSnippetColumns($instance);
-                $defaultCols = ['body', 'content', 'description', 'text', 'excerpt'];
-                $textColumns = $snippetCols ?? $defaultCols;
-
-                // Build optimized select: only local DB columns needed for snippets
-                $selectCols = [$keyName];
-                $relationCols = [];
-
-                foreach ($textColumns as $col) {
-                    if (str_contains($col, '.')) {
-                        $relName = explode('.', $col)[0];
-                        if (! in_array($relName, $relationCols, true)) {
-                            $relationCols[] = $relName;
-                        }
-                    } elseif (Schema::hasColumn($instance->getTable(), $col)) {
-                        $selectCols[] = $col;
-                    }
-                    // Non-dot, non-DB → virtual accessor → no select needed
-                }
-
-                $query = $modelClass::whereIn($keyName, $ids);
-
-                if (count($selectCols) > 1) {
-                    $query->select($selectCols);
-                }
-
-                $models = $query->get()->keyBy->getKey();
-
-                if (! empty($relationCols)) {
-                    $models->load(array_unique($relationCols));
-                }
-
-                foreach ($entries as &$entry) {
-                    $model = $models[$entry['modelId']] ?? null;
-                    if ($model === null) {
-                        continue;
-                    }
-
-                    $entry['eloquentModel'] = $model;
-                    $entry['title'] = $model->title ?? $model->{$this->getTitleColumn($entry['row'])} ?? $entry['title'];
-                    $entry['summary'] = $this->extractSnippet($model, $searchTerms, $snippetCols);
-                }
-            } catch (\Exception) {
-                continue;
-            }
-        }
-
-        $enriched = [];
-        foreach ($results as $i => $r) {
-            $mc = $r['modelClass'];
-            $gi = $order[$i]['index'];
-            $enriched[] = $grouped[$mc][$gi];
-        }
-
-        return $enriched;
-    }
-
     /**
-     * Determine which columns are allowed for snippet extraction.
-     * Checks the model's $ftsSearchable for 'snippet' config.
+     * @param  array<class-string>  $modelClasses
      */
-    protected function resolveSnippetColumns(Model $model): ?array
-    {
-        if (! method_exists($model, 'getFtsSearchableColumns')) {
-            return null;
-        }
-
-        $raw = $model->getFtsSearchableColumns();
-        if (empty($raw)) {
-            return null;
-        }
-
-        if (! method_exists($model, 'normalizeFtsSearchable')) {
-            return null;
-        }
-
-        $searchable = $model->normalizeFtsSearchable();
-        $allowed = [];
-
-        foreach ($searchable as $column => $config) {
-            $snippetEnabled = $config['snippet'] ?? true;
-            if ($snippetEnabled) {
-                $allowed[] = $column;
-            }
-        }
-
-        return ! empty($allowed) ? $allowed : null;
-    }
-
-    protected function extractSearchTerms(string $query): array
-    {
-        return $this->extractQueryTerms($query);
-    }
-
-    protected function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
-    {
-        $defaultColumns = ['body', 'content', 'description', 'text', 'excerpt'];
-        $textColumns = $snippetColumns ?? $defaultColumns;
-        $sourceText = null;
-        $bestPos = null;
-        $bestTerm = '';
-
-        foreach ($textColumns as $col) {
-            $value = $this->snippetColumnValue($model, $col);
-
-            if (! is_string($value) || strlen($value) <= 50) {
-                continue;
-            }
-
-            $lower = mb_strtolower(strip_tags($value));
-
-            foreach ($searchTerms as $term) {
-                $termLower = mb_strtolower($term);
-                $pos = mb_strpos($lower, $termLower);
-                if ($pos !== false && ($bestPos === null || $pos < $bestPos)) {
-                    $bestPos = $pos;
-                    $bestTerm = $term;
-                    $sourceText = $value;
-                }
-            }
-        }
-
-        if ($sourceText === null) {
-            foreach ($textColumns as $col) {
-                $value = $this->snippetColumnValue($model, $col);
-                if (is_string($value) && strlen($value) > 50) {
-                    $sourceText = $value;
-                    $bestPos = 0;
-                    break;
-                }
-            }
-
-            if ($sourceText === null) {
-                return null;
-            }
-        }
-
-        // Extract window around match
-        $windowSize = 120;
-        $snippetStart = max(0, $bestPos - 60);
-        $snippetLen = min(mb_strlen($sourceText), $windowSize);
-        $snippet = mb_substr(strip_tags($sourceText), $snippetStart, $snippetLen);
-
-        // Add ellipsis if truncated
-        if ($snippetStart > 0) {
-            $snippet = '…' . $snippet;
-        }
-        if ($snippetStart + $snippetLen < mb_strlen(strip_tags($sourceText)) - 1) {
-            $snippet .= '…';
-        }
-
-        // Highlight matching terms
-        foreach ($searchTerms as $term) {
-            if (empty(trim($term))) {
-                continue;
-            }
-            $snippet = preg_replace(
-                '/' . preg_quote($term, '/') . '/iu',
-                '<mark>$0</mark>',
-                $snippet,
-            );
-        }
-
-        return $snippet;
-    }
-
-    private function snippetColumnValue(Model $model, string $col): string
-    {
-        if (str_contains($col, '.') && method_exists($model, 'resolveFtsValue')) {
-            return $model->resolveFtsValue($col);
-        }
-
-        return $model->{$col} ?? '';
-    }
-
     public function count(string $query, array $modelClasses): int
     {
         if (empty(trim($query))) {
@@ -613,7 +429,7 @@ class SqliteFtsEngine implements FtsEngine
 
     public function dropIndexTable(string $tableName): void
     {
-        $vocabTable = $tableName . '_vocab';
+        $vocabTable = $tableName.'_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$tableName}");
     }
@@ -638,12 +454,15 @@ class SqliteFtsEngine implements FtsEngine
         foreach ($models as $modelClass) {
             $table = $this->tableName($modelClass);
 
-            $result = @$this->db()->query("SELECT COUNT(*) as cnt FROM {$table}");
+            try {
+                $result = $this->db()->query("SELECT COUNT(*) as cnt FROM {$table}");
+            } catch (\Exception) {
+                $result = false;
+            }
 
             if ($result === false) {
-                // Orphaned meta entry — clean up and skip
-                $escaped = SQLite3::escapeString($modelClass);
-                $this->db()->exec("DELETE FROM ".self::META_TABLE." WHERE model_class = '{$escaped}'");
+                $this->cleanupOrphanedMeta($modelClass);
+
                 continue;
             }
 
@@ -706,7 +525,7 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         $table = $this->tableName($modelClass);
-        $vocabTable = $table . '_vocab';
+        $vocabTable = $table.'_vocab';
         $suggestions = [];
 
         try {
@@ -715,7 +534,7 @@ class SqliteFtsEngine implements FtsEngine
             $stmt = $this->db()->prepare(
                 "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}"
             );
-            $stmt->bindValue(':prefix', $prefix . '%', SQLITE3_TEXT);
+            $stmt->bindValue(':prefix', $prefix.'%', SQLITE3_TEXT);
 
             if ($stmt === false) {
                 return [];
@@ -737,6 +556,7 @@ class SqliteFtsEngine implements FtsEngine
             }
         } catch (\Exception $e) {
             report($e);
+
             return [];
         }
 
@@ -744,6 +564,7 @@ class SqliteFtsEngine implements FtsEngine
             if ($a['distance'] !== $b['distance']) {
                 return $a['distance'] <=> $b['distance'];
             }
+
             return $b['frequency'] <=> $a['frequency'];
         });
 
@@ -766,7 +587,7 @@ class SqliteFtsEngine implements FtsEngine
 
     protected function escapeQuery(string $query, string $mode): string
     {
-        $cacheKey = md5($query . $mode);
+        $cacheKey = md5($query.$mode);
         if (isset($this->cachedSafeQueries[$cacheKey])) {
             return $this->cachedSafeQueries[$cacheKey];
         }
@@ -788,11 +609,11 @@ class SqliteFtsEngine implements FtsEngine
 
         foreach ($tokenMatches[0] as $token) {
             if (preg_match('/^"([^"]+)"$/', $token, $m)) {
-                $terms[] = '"' . $m[1] . '"';
+                $terms[] = '"'.$m[1].'"';
             } else {
                 $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
                 if ($clean !== '') {
-                    $terms[] = $clean . '*';
+                    $terms[] = $clean.'*';
                 }
             }
         }
@@ -810,35 +631,48 @@ class SqliteFtsEngine implements FtsEngine
         $operatorsConfig = config('fts.operators.enabled');
 
         foreach ($terms as $term) {
-            if (empty($term)) continue;
+            if (empty($term)) {
+                continue;
+            }
 
             $termUpper = strtoupper($term);
             $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
 
             if (in_array($baseOp, static::$supportedOperators, true)) {
                 $escaped[] = $baseOp;
+
                 continue;
             }
 
             if ($baseOp === 'NEAR' && $operatorsConfig === null) {
                 $escaped[] = 'AND';
+
+                continue;
+            }
+
+            // Unsupported operator keyword → literal quoted term
+            if (in_array($baseOp, ['AND', 'OR', 'NOT', 'NEAR'], true)) {
+                $escaped[] = '"'.$term.'"';
+
                 continue;
             }
 
             if (str_starts_with($term, '"') && str_ends_with($term, '"')) {
                 $escaped[] = $term;
+
                 continue;
             }
 
             if (preg_match('/^[\p{L}_]+:.*$/u', $term)) {
                 $escaped[] = $term;
+
                 continue;
             }
 
             if (preg_match('/[:\-\(\)\^]/', $term)) {
-                $escaped[] = '"' . $term . '"';
+                $escaped[] = '"'.$term.'"';
             } else {
-                $escaped[] = $term . '*';
+                $escaped[] = $term.'*';
             }
         }
 
@@ -862,8 +696,8 @@ class SqliteFtsEngine implements FtsEngine
         static::$operatorsProbed = true;
 
         try {
-            $db = new \SQLite3(':memory:');
-            $db->exec("CREATE VIRTUAL TABLE _fts_probe USING fts5(content)");
+            $db = new SQLite3(':memory:');
+            $db->exec('CREATE VIRTUAL TABLE _fts_probe USING fts5(content)');
             $db->exec("INSERT INTO _fts_probe VALUES('test aaa bbb')");
 
             try {
@@ -956,11 +790,22 @@ class SqliteFtsEngine implements FtsEngine
         return 'model_id';
     }
 
+    private function cleanupOrphanedMeta(string $modelClass): void
+    {
+        try {
+            $stmt = $this->db()->prepare('DELETE FROM '.self::META_TABLE.' WHERE model_class = :model');
+            $stmt->bindValue(':model', $modelClass, \SQLITE3_TEXT);
+            $stmt->execute();
+        } catch (\Exception) {
+            // Best-effort cleanup
+        }
+    }
+
     public function getEngineVersion(): string
     {
         $sqlite = $this->db()->querySingle('SELECT sqlite_version()');
 
-        return 'SQLite ' . $sqlite . ' | FTS5';
+        return 'SQLite '.$sqlite.' | FTS5';
     }
 
     public function getPragma(string $name): string|int|null
@@ -972,7 +817,7 @@ class SqliteFtsEngine implements FtsEngine
         ];
 
         if (! in_array($name, $safe, true)) {
-            throw new \Moaines\LaravelFts\Exceptions\FtsException("Unsupported or unsafe PRAGMA: {$name}");
+            throw new FtsException("Unsupported or unsafe PRAGMA: {$name}");
         }
 
         return $this->db()->querySingle("PRAGMA {$name}");
@@ -1005,7 +850,7 @@ class SqliteFtsEngine implements FtsEngine
             try {
                 $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('integrity-check')");
             } catch (\Exception $e) {
-                $errors[] = $table . ': ' . $e->getMessage();
+                $errors[] = $table.': '.$e->getMessage();
             }
         }
 
@@ -1017,7 +862,7 @@ class SqliteFtsEngine implements FtsEngine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'SELECT value FROM ' . self::CONFIG_TABLE . ' WHERE key = :key'
+            'SELECT value FROM '.self::CONFIG_TABLE.' WHERE key = :key'
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $row = $stmt->execute()->fetchArray(\SQLITE3_ASSOC);
@@ -1030,7 +875,7 @@ class SqliteFtsEngine implements FtsEngine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'INSERT OR REPLACE INTO ' . self::CONFIG_TABLE . ' (key, value) VALUES (:key, :value)'
+            'INSERT OR REPLACE INTO '.self::CONFIG_TABLE.' (key, value) VALUES (:key, :value)'
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $stmt->bindValue(':value', json_encode($value), \SQLITE3_TEXT);

@@ -17,7 +17,8 @@ use Moaines\LaravelFts\Contracts\TextProcessor;
 use Moaines\LaravelFts\Engines\SqliteFtsEngine;
 use Moaines\LaravelFts\Exceptions\FtsException;
 use Moaines\LaravelFts\Exceptions\FtsExtensionMissingException;
-use Moaines\LaravelFts\FtsSpellcheck;
+use Moaines\LaravelFts\Http\Controllers\SearchApiController;
+use Moaines\LaravelFts\Support\SnippetService;
 use Moaines\LaravelFts\Text\StemmingTextProcessor;
 use Moaines\LaravelFts\Text\UnicodeTextProcessor;
 
@@ -41,10 +42,17 @@ class LaravelFtsServiceProvider extends ServiceProvider
 
             $dir = dirname($fullPath);
             if (! is_dir($dir)) {
-                @mkdir($dir, 0755, true);
+                try {
+                    mkdir($dir, 0755, true);
+                } catch (\Exception) {
+                    // Best-effort: will fail later with a clearer error
+                }
             }
 
-            $engine = new SqliteFtsEngine($fullPath);
+            $engine = new SqliteFtsEngine(
+                databasePath: $fullPath,
+                snippets: $app->make(SnippetService::class),
+            );
             $engine->setTextProcessor($app->make(TextProcessor::class));
 
             return $engine;
@@ -57,6 +65,8 @@ class LaravelFtsServiceProvider extends ServiceProvider
                 ? new StemmingTextProcessor
                 : new UnicodeTextProcessor;
         });
+
+        $this->app->singleton(SnippetService::class);
 
         $this->app->bind(FtsSpellcheck::class, function ($app) {
             return new FtsSpellcheck($app->make(FtsEngine::class));
@@ -121,11 +131,11 @@ class LaravelFtsServiceProvider extends ServiceProvider
 
         Route::middleware([
             'api',
-            'throttle:' . config('fts.api.rate_limit', 30) . ',1',
+            'throttle:'.config('fts.api.rate_limit', 30).',1',
         ])
             ->prefix(config('fts.api.prefix', 'api/search'))
             ->group(function () {
-                Route::get('/', \Moaines\LaravelFts\Http\Controllers\SearchApiController::class);
+                Route::get('/', SearchApiController::class);
             });
     }
 }

@@ -5,9 +5,13 @@ namespace Moaines\LaravelFts\Tests\Feature;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Text\UnicodeTextProcessor;
+use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\LaravelFts\Contracts\TextProcessor;
 use Moaines\LaravelFts\Searchable;
+use Moaines\LaravelFts\Support\SnippetService;
 use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
+use Moaines\LaravelFts\Text\UnicodeTextProcessor;
 
 class SearchableConfigTest extends TestCase
 {
@@ -28,7 +32,9 @@ class SearchableConfigTest extends TestCase
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -48,7 +54,9 @@ class SearchableConfigTest extends TestCase
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3],
                 'body' => true,
@@ -66,7 +74,9 @@ class SearchableConfigTest extends TestCase
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3],
                 'author',
@@ -85,15 +95,17 @@ class SearchableConfigTest extends TestCase
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3, 'locale' => 'de'],
                 'body' => ['weight' => 1, 'locale' => 'fr'],
             ];
         };
 
-        $processor = new UnicodeTextProcessor();
-        $global = app(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $processor = new UnicodeTextProcessor;
+        $global = app(TextProcessor::class);
 
         $processed = $model->processDocument($model, $global);
 
@@ -107,18 +119,20 @@ class SearchableConfigTest extends TestCase
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3, 'snippet' => false],
                 'body' => ['weight' => 1, 'snippet' => true],
             ];
         };
 
-        $ref = new \ReflectionClass(\Moaines\LaravelFts\Engines\SqliteFtsEngine::class);
+        $ref = new \ReflectionClass(SnippetService::class);
         $method = $ref->getMethod('resolveSnippetColumns');
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $result = $method->invoke($engine, $model);
+        $service = $this->app->make(SnippetService::class);
+        $result = $method->invoke($service, $model);
 
         $this->assertNotNull($result);
         $this->assertContains('body', $result);
@@ -128,13 +142,16 @@ class SearchableConfigTest extends TestCase
     public function test_enrich_selects_only_needed_columns(): void
     {
         config(['fts.indexing' => 'manual']);
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
 
         $modelClass = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected $fillable = ['title', 'body', 'unused'];
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -165,13 +182,16 @@ class SearchableConfigTest extends TestCase
         // The enrichWithSnippets eager-loads relation columns for dot-notation.
         // This is tested more thoroughly in SearchableTraitTest.
         // Here we just verify the engine produces results with snippets enabled.
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
 
         $model = new class extends Model
         {
             use Searchable;
+
             protected $table = 'test_models';
+
             protected $fillable = ['title', 'body'];
+
             protected array $ftsSearchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -202,8 +222,11 @@ class SearchableConfigTest extends TestCase
         $modelClass = new class extends Model
         {
             use Searchable;
+
             protected $table = 'virtual_models';
+
             protected $guarded = [];
+
             public $timestamps = true;
 
             protected array $ftsSearchable = [
@@ -212,13 +235,13 @@ class SearchableConfigTest extends TestCase
 
             public function getFullnameAttribute(): string
             {
-                return $this->first_name . ' ' . $this->last_name;
+                return $this->first_name.' '.$this->last_name;
             }
         };
 
         $instance = $modelClass::create(['first_name' => 'Victor', 'last_name' => 'Hugo']);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
         $cls = get_class($modelClass);
         $engine->createTable($cls, ['fullname']);
         $engine->upsert($cls, $instance->id, $instance->toFtsDocument());
@@ -232,35 +255,35 @@ class SearchableConfigTest extends TestCase
     {
         config(['fts.fts5.detail' => 'column']);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title', 'body']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_create_table_with_detail_none(): void
     {
         config(['fts.fts5.detail' => 'none']);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title', 'body']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_integrity_check_passes_on_valid_table(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title', 'body']);
 
-        $result = $engine->integrityCheck(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class);
+        $result = $engine->integrityCheck(Post::class);
 
         $this->assertTrue($result);
     }
 
     public function test_integrity_check_fails_on_missing_table(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
 
         $result = $engine->integrityCheck('App\\Models\\NonExistent');
 
@@ -269,39 +292,39 @@ class SearchableConfigTest extends TestCase
 
     public function test_database_opens_with_pragmas(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_wal_mode_can_be_disabled(): void
     {
         config(['fts.fts5.wal' => false]);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title', 'body']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_cache_size_can_be_configured(): void
     {
         config(['fts.fts5.cache_size_kb' => -32000]);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_wal_mode_is_active(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title']);
 
         $verify = new \SQLite3($engine->getDatabasePath());
-        $mode = $verify->querySingle("PRAGMA journal_mode");
+        $mode = $verify->querySingle('PRAGMA journal_mode');
         $verify->close();
 
         $this->assertSame('wal', $mode);
@@ -311,15 +334,15 @@ class SearchableConfigTest extends TestCase
     {
         config(['fts.fts5.columnsize' => 0]);
 
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
-        $engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $engine = $this->app->make(FtsEngine::class);
+        $engine->createTable(Post::class, ['title', 'body']);
 
-        $this->assertTrue($engine->tableExists(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class));
+        $this->assertTrue($engine->tableExists(Post::class));
     }
 
     public function test_engine_has_generic_methods(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
 
         $this->assertTrue(method_exists($engine, 'upsert'));
         $this->assertTrue(method_exists($engine, 'delete'));
@@ -335,7 +358,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_engine_has_sqlite_specific_methods(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(FtsEngine::class);
 
         $this->assertTrue(method_exists($engine, 'createTable'));
         $this->assertTrue(method_exists($engine, 'dropTable'));

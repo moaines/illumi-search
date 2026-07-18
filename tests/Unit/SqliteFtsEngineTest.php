@@ -186,7 +186,7 @@ class SqliteFtsEngineTest extends TestCase
         $result = $method->invoke($this->engine, 'php OR laravel', 'advanced');
 
         $this->assertStringContainsString('php*', $result);
-        $this->assertStringContainsString('or*', $result);
+        $this->assertStringContainsString('"or"', $result);
         $this->assertStringContainsString('laravel*', $result);
     }
 

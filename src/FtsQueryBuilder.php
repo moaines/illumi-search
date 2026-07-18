@@ -36,6 +36,8 @@ class FtsQueryBuilder
      * Set the search query string.
      *
      * @example Fts::query('laravel php') ...;
+     *
+     * @return $this
      */
     public function query(string $query): static
     {
@@ -130,12 +132,7 @@ class FtsQueryBuilder
      */
     public function get(): Collection
     {
-        $modelClasses = $this->modelClasses;
-
-        // Auto-discover all indexed models when none specified
-        if (empty($modelClasses)) {
-            $modelClasses = $this->resolveEngine()->getIndexedModelClasses();
-        }
+        $modelClasses = $this->resolveModelClasses();
 
         $results = collect($this->resolveEngine()->search(
             query: $this->query,
@@ -189,18 +186,14 @@ class FtsQueryBuilder
      * Get the total count of matching results without retrieving them.
      *
      * @example Fts::query('laravel')->model(Post::class)->count()
+     *
+     * @return int<0, max>
      */
     public function count(): int
     {
-        $modelClasses = $this->modelClasses;
-
-        if (empty($modelClasses)) {
-            $modelClasses = $this->resolveEngine()->getIndexedModelClasses();
-        }
-
         return $this->resolveEngine()->count(
             query: $this->query,
-            modelClasses: $modelClasses,
+            modelClasses: $this->resolveModelClasses(),
         );
     }
 
@@ -208,15 +201,13 @@ class FtsQueryBuilder
      * Paginate search results.
      *
      * @example Fts::query('laravel')->model(Post::class)->paginate(15)
+     *
+     * @param  int<1, max>  $perPage
+     * @return Paginator<int, FtsResult>
      */
     public function paginate(int $perPage = 15, string $pageName = 'page', ?int $page = null): Paginator
     {
-        $modelClasses = $this->modelClasses;
-
-        if (empty($modelClasses)) {
-            $modelClasses = $this->resolveEngine()->getIndexedModelClasses();
-        }
-        $this->modelClasses = $modelClasses;
+        $this->modelClasses = $this->resolveModelClasses();
 
         $page = $page ?: Paginator::resolveCurrentPage($pageName);
         $this->limit = $perPage;
@@ -241,5 +232,14 @@ class FtsQueryBuilder
         }
 
         return $this->engine;
+    }
+
+    private function resolveModelClasses(): array
+    {
+        if (! empty($this->modelClasses)) {
+            return $this->modelClasses;
+        }
+
+        return $this->resolveEngine()->getIndexedModelClasses();
     }
 }
