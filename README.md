@@ -4,6 +4,10 @@
 [![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Fillumi--search-28a745?logo=composer)](https://packagist.org/packages/moaines/illumi-search)
 
+<p align="center">
+    <img src="art/banner_1024x640.png" alt="Illumi Search" width="800">
+</p>
+
 **Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + `ext-intl`.**
 BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
 (Latin, CJK, Arabic, Cyrillic), per-column weights, boolean operators,
@@ -1236,6 +1240,13 @@ illumi-search/
 - **Fixed `normalize()` dead branch.** `Normalizer::normalize()` failure now returns the original text instead of an empty string.
 
 ---
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/logo_64x64_dark.png">
+    <img src="art/logo_64x64_transparent.png" alt="Illumi Search" width="64">
+  </picture>
+</p>
 
 ## License
 
