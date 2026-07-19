@@ -3,14 +3,14 @@
 namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Illuminate\Database\Eloquent\Model;
-use Moaines\IllumiSearch\FtsResult;
+use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-class FtsResultTest extends TestCase
+class ResultTest extends TestCase
 {
     public function test_creates_result_with_make(): void
     {
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: 'App\Models\Post',
             modelId: 42,
             rank: 0.5,
@@ -30,7 +30,7 @@ class FtsResultTest extends TestCase
 
     public function test_authorized_default_true(): void
     {
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: 'App\Models\Post',
             modelId: 1,
             rank: 0.0,
@@ -42,7 +42,7 @@ class FtsResultTest extends TestCase
 
     public function test_authorized_can_be_false(): void
     {
-        $result = new FtsResult(
+        $result = new Result(
             id: 'App\Models\Post:1',
             modelClass: 'App\Models\Post',
             modelId: 1,
@@ -56,7 +56,7 @@ class FtsResultTest extends TestCase
 
     public function test_to_array_returns_expected_structure(): void
     {
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: 'App\Models\Post',
             modelId: 1,
             rank: 0.8,
@@ -81,7 +81,7 @@ class FtsResultTest extends TestCase
 
     public function test_constructor_sets_correct_id(): void
     {
-        $result = new FtsResult(
+        $result = new Result(
             id: 'App\Models\Post:42',
             modelClass: 'App\Models\Post',
             modelId: 42,
@@ -94,11 +94,12 @@ class FtsResultTest extends TestCase
 
     public function test_model_attached_via_make(): void
     {
-        $model = new class extends Model {
+        $model = new class extends Model
+        {
             protected $table = 'test';
         };
 
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: 'App\Models\Post',
             modelId: 1,
             rank: 0.0,
@@ -110,14 +111,19 @@ class FtsResultTest extends TestCase
         $this->assertSame($model, $result->model);
     }
 
-    public function test_model_provides_fts_url(): void
+    public function test_model_provides_search_url(): void
     {
-        $model = new class extends Model {
+        $model = new class extends Model
+        {
             protected $table = 'test';
-            public function ftsUrl(): string { return '/custom-url'; }
+
+            public function searchUrl(): string
+            {
+                return '/custom-url';
+            }
         };
 
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: get_class($model),
             modelId: 1,
             rank: 0.0,
@@ -125,17 +131,22 @@ class FtsResultTest extends TestCase
             model: $model,
         );
 
-        $this->assertEquals('/custom-url', $result->model->ftsUrl());
+        $this->assertEquals('/custom-url', $result->model->searchUrl());
     }
 
-    public function test_model_provides_fts_category(): void
+    public function test_model_provides_search_category(): void
     {
-        $model = new class extends Model {
+        $model = new class extends Model
+        {
             protected $table = 'test';
-            public function ftsCategory(): ?string { return 'CustomCategory'; }
+
+            public function searchCategory(): ?string
+            {
+                return 'CustomCategory';
+            }
         };
 
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: get_class($model),
             modelId: 1,
             rank: 0.0,
@@ -143,16 +154,17 @@ class FtsResultTest extends TestCase
             model: $model,
         );
 
-        $this->assertEquals('CustomCategory', $result->model->ftsCategory());
+        $this->assertEquals('CustomCategory', $result->model->searchCategory());
     }
 
     public function test_model_excluded_from_sleep(): void
     {
-        $model = new class extends Model {
+        $model = new class extends Model
+        {
             protected $table = 'test';
         };
 
-        $result = FtsResult::make(
+        $result = Result::make(
             modelClass: 'App\Models\Post',
             modelId: 1,
             rank: 0.0,
@@ -163,7 +175,7 @@ class FtsResultTest extends TestCase
         $serialized = serialize($result);
         $unserialized = unserialize($serialized);
 
-        $this->assertInstanceOf(FtsResult::class, $unserialized);
+        $this->assertInstanceOf(Result::class, $unserialized);
         $this->assertEquals('App\Models\Post', $unserialized->modelClass);
     }
 }

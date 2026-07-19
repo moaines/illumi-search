@@ -6,13 +6,13 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
 
-class FtsDiscoverFilamentCommand extends Command
+class DiscoverFilamentCommand extends Command
 {
-    protected $signature = 'fts:discover-filament
+    protected $signature = 'illumi-search:discover-filament
         {--panel= : The Filament panel ID (defaults to current)}
         {--format=table : Output format (table|json)}';
 
-    protected $description = 'Discover $ftsSearchable columns based on Filament Resources';
+    protected $description = 'Discover $searchable columns based on Filament Resources';
 
     public function handle(): int
     {
@@ -49,7 +49,7 @@ class FtsDiscoverFilamentCommand extends Command
 
             $model = new $modelClass;
             $existing = $this->usesSearchable($modelClass)
-                ? array_keys($model->normalizeFtsSearchable())
+                ? array_keys($model->normalizeSearchable())
                 : [];
 
             foreach ($attrs as $attr) {
@@ -79,7 +79,7 @@ class FtsDiscoverFilamentCommand extends Command
         }
 
         if (empty($rows)) {
-            $this->info('No suggestions found. All models already have $ftsSearchable configured.');
+            $this->info('No suggestions found. All models already have $searchable configured.');
 
             return Command::SUCCESS;
         }
@@ -97,7 +97,7 @@ class FtsDiscoverFilamentCommand extends Command
 
         if ($missingCount > 0) {
             $this->newLine();
-            $this->warn("{$missingCount} columns not yet in \$ftsSearchable.");
+            $this->warn("{$missingCount} columns not yet in \$searchable.");
             $this->newLine();
 
             $missingByModel = collect($rows)->filter(fn ($r) => $r['exists'] === '❌')->groupBy('model');
@@ -112,7 +112,7 @@ class FtsDiscoverFilamentCommand extends Command
                 $this->line("  {");
                 $this->line("      use Searchable;");
                 $this->line('');
-                $this->line("      protected array \$ftsSearchable = [");
+                $this->line("      protected array \$searchable = [");
 
                 foreach ($missing as $row) {
                     $this->line("          '{$row['column']}' => ['weight' => {$row['weight']}],");

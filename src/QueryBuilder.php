@@ -6,9 +6,9 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-class FtsQueryBuilder
+class QueryBuilder
 {
     private string $query = '';
 
@@ -21,13 +21,13 @@ class FtsQueryBuilder
 
     private int $offset = 0;
 
-    private ?FtsEngine $engine = null;
+    private ?Engine $engine = null;
 
     private bool $authorizationEnabled = false;
 
     private ?Authenticatable $user = null;
 
-    public function __construct(?FtsEngine $engine = null)
+    public function __construct(?Engine $engine = null)
     {
         $this->engine = $engine;
     }
@@ -35,7 +35,7 @@ class FtsQueryBuilder
     /**
      * Set the search query string.
      *
-     * @example Fts::query('laravel php') ...;
+     * @example IllumiSearch::query('laravel php') ...;
      *
      * @return $this
      */
@@ -49,7 +49,7 @@ class FtsQueryBuilder
     /**
      * Limit search to a single model class.
      *
-     * @example Fts::query('laravel')->model(Post::class)->get()
+     * @example IllumiSearch::query('laravel')->model(Post::class)->get()
      */
     public function model(string $modelClass): static
     {
@@ -61,7 +61,7 @@ class FtsQueryBuilder
     /**
      * Search across multiple model classes.
      *
-     * @example Fts::query('php')->models([Post::class, Comment::class])->get()
+     * @example IllumiSearch::query('php')->models([Post::class, Comment::class])->get()
      */
     public function models(array $modelClasses): static
     {
@@ -79,7 +79,7 @@ class FtsQueryBuilder
 
     public function limit(int $limit): static
     {
-        $this->limit = max(1, min($limit, config('fts.max_results', 50)));
+        $this->limit = max(1, min($limit, config('illumi-search.max_results', 50)));
 
         return $this;
     }
@@ -91,7 +91,7 @@ class FtsQueryBuilder
         return $this;
     }
 
-    public function engine(FtsEngine $engine): static
+    public function engine(Engine $engine): static
     {
         $this->engine = $engine;
 
@@ -126,9 +126,9 @@ class FtsQueryBuilder
     /**
      * Execute the search and return results.
      *
-     * @example $results = Fts::query('laravel')->model(Post::class)->get()
+     * @example $results = IllumiSearch::query('laravel')->model(Post::class)->get()
      *
-     * @return Collection<int, FtsResult>
+     * @return Collection<int, Result>
      */
     public function get(): Collection
     {
@@ -142,7 +142,7 @@ class FtsQueryBuilder
             mode: $this->mode,
         ));
 
-        if ($this->authorizationEnabled || config('fts.authorization.enabled', false)) {
+        if ($this->authorizationEnabled || config('illumi-search.authorization.enabled', false)) {
             $results = $this->filterAuthorized($results);
         }
 
@@ -157,7 +157,7 @@ class FtsQueryBuilder
             return $results;
         }
 
-        return $results->filter(function (FtsResult $result) use ($user): bool {
+        return $results->filter(function (Result $result) use ($user): bool {
             $modelClass = $result->modelClass;
 
             if (! class_exists($modelClass)) {
@@ -185,7 +185,7 @@ class FtsQueryBuilder
     /**
      * Get the total count of matching results without retrieving them.
      *
-     * @example Fts::query('laravel')->model(Post::class)->count()
+     * @example IllumiSearch::query('laravel')->model(Post::class)->count()
      *
      * @return int<0, max>
      */
@@ -200,10 +200,10 @@ class FtsQueryBuilder
     /**
      * Paginate search results.
      *
-     * @example Fts::query('laravel')->model(Post::class)->paginate(15)
+     * @example IllumiSearch::query('laravel')->model(Post::class)->paginate(15)
      *
      * @param  int<1, max>  $perPage
-     * @return Paginator<int, FtsResult>
+     * @return Paginator<int, Result>
      */
     public function paginate(int $perPage = 15, string $pageName = 'page', ?int $page = null): Paginator
     {
@@ -225,10 +225,10 @@ class FtsQueryBuilder
         );
     }
 
-    private function resolveEngine(): FtsEngine
+    private function resolveEngine(): Engine
     {
         if ($this->engine === null) {
-            $this->engine = app(FtsEngine::class);
+            $this->engine = app(Engine::class);
         }
 
         return $this->engine;

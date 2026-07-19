@@ -16,7 +16,7 @@ class TenantManagerTest extends TestCase
 
     public function test_enabled_returns_true_when_resolver_set_and_config_enabled(): void
     {
-        config(['fts.tenancy.enabled' => true]);
+        config(['illumi-search.tenancy.enabled' => true]);
 
         $manager = new TenantManager;
         $manager->setResolver(fn () => 'abc');
@@ -26,8 +26,8 @@ class TenantManagerTest extends TestCase
 
     public function test_tenant_database_path_appends_tenant_id(): void
     {
-        config(['fts.tenancy.enabled' => true]);
-        config(['fts.tenancy.directory' => 'app/fts/tenants']);
+        config(['illumi-search.tenancy.enabled' => true]);
+        config(['illumi-search.tenancy.directory' => 'app/search/tenants']);
 
         $manager = new TenantManager;
         $manager->setResolver(fn () => 'tenant_xyz');
@@ -40,7 +40,7 @@ class TenantManagerTest extends TestCase
 
     public function test_tenant_database_path_returns_base_path_when_disabled(): void
     {
-        config(['fts.tenancy.enabled' => false]);
+        config(['illumi-search.tenancy.enabled' => false]);
 
         $manager = new TenantManager;
         $manager->setResolver(fn () => 'tenant_xyz');
@@ -52,7 +52,7 @@ class TenantManagerTest extends TestCase
 
     public function test_tenant_database_path_returns_base_path_when_tenant_id_null(): void
     {
-        config(['fts.tenancy.enabled' => true]);
+        config(['illumi-search.tenancy.enabled' => true]);
 
         $manager = new TenantManager;
         $manager->setResolver(fn () => null);

@@ -4,19 +4,19 @@ namespace Moaines\IllumiSearch\Console\Commands;
 
 use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsProgressBar;
-use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasProgressBar;
+use Moaines\IllumiSearch\IndexManager;
 
-class FtsSyncCommand extends Command
+class SyncCommand extends Command
 {
-    use HasFtsProgressBar;
-    protected $signature = 'fts:sync
+    use HasProgressBar;
+    protected $signature = 'illumi-search:sync
         {--model=* : Specific model classes to sync (multiple allowed)}
         {--since= : Only sync records updated after this datetime (ISO format: 2026-01-15 or 2026-01-15 14:30:00)}';
 
     protected $description = 'Incrementally sync changed records to the FTS5 index';
 
-    public function handle(FtsIndexManager $manager): int
+    public function handle(IndexManager $manager): int
     {
         $models = $this->option('model');
         $since = null;

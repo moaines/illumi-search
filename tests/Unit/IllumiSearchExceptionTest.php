@@ -2,10 +2,10 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-class FtsExceptionTest extends TestCase
+class IllumiSearchExceptionTest extends TestCase
 {
     public static function factoryMethodProvider(): array
     {
@@ -22,9 +22,9 @@ class FtsExceptionTest extends TestCase
     /** @dataProvider factoryMethodProvider */
     public function test_factory_methods(string $method, array $args, string $needle): void
     {
-        $e = FtsException::$method(...$args);
+        $e = IllumiSearchException::$method(...$args);
 
-        $this->assertInstanceOf(FtsException::class, $e);
+        $this->assertInstanceOf(IllumiSearchException::class, $e);
         $this->assertStringContainsString($needle, $e->getMessage());
     }
 }

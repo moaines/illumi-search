@@ -4,9 +4,9 @@ namespace Moaines\IllumiSearch;
 
 use Illuminate\Support\Collection;
 use Moaines\IllumiSearch\Concerns\HasQueryTerms;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-class FtsSpellcheck
+class Spellcheck
 {
     use HasQueryTerms;
     private int $maxDistance = 2;
@@ -14,7 +14,7 @@ class FtsSpellcheck
     private int $maxSuggestions = 5;
 
     public function __construct(
-        private readonly FtsEngine $engine,
+        private readonly Engine $engine,
     ) {}
 
     public function maxDistance(int $distance): static

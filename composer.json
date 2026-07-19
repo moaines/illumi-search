@@ -1,8 +1,9 @@
 {
     "name": "moaines/illumi-search",
     "description": "SQLite FTS5 full-text search for Laravel with PHP-intl. BM25 ranking, search-as-you-type, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, spellcheck, multi-tenant, authorization. Searchable trait with queue/sync/lazy batch indexing. No external services.",
+    "version": "1.0.0",
     "type": "library",
-    "keywords": ["laravel", "fts", "fulltext", "search", "sqlite", "fts5", "intl"],
+    "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "intl"],
     "license": "MIT",
     "authors": [
         {
@@ -48,7 +49,7 @@
                 "Moaines\\IllumiSearch\\IllumiSearchServiceProvider"
             ],
             "aliases": {
-                "Fts": "Moaines\\IllumiSearch\\Facades\\Fts"
+                "IllumiSearch": "Moaines\\IllumiSearch\\Facades\\IllumiSearch"
             }
         }
     },

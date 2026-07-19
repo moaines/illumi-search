@@ -5,7 +5,7 @@ namespace Moaines\IllumiSearch;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 
-class FtsResult implements Arrayable
+class Result implements Arrayable
 {
     public function __construct(
         public readonly string $id,

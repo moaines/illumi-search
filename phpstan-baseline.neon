@@ -1,304 +1,310 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsDiscoverFilamentCommand\:\:resolvePanelResources\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\DiscoverFilamentCommand\:\:resolvePanelResources\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsDiscoverFilamentCommand.php
+			path: src/Console/Commands/DiscoverFilamentCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsDiscoverFilamentCommand\:\:resolveSearchableAttributes\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\DiscoverFilamentCommand\:\:resolveSearchableAttributes\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsDiscoverFilamentCommand.php
+			path: src/Console/Commands/DiscoverFilamentCommand.php
 
 		-
 			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,array\<string, mixed\>\>\:\:filter\(\) contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 2
-			path: src/Console/Commands/FtsDiscoverFilamentCommand.php
+			path: src/Console/Commands/DiscoverFilamentCommand.php
 
 		-
 			message: '#^Parameter \#1 \$value of function collect contains unresolvable type\.$#'
 			identifier: argument.unresolvableType
 			count: 2
-			path: src/Console/Commands/FtsDiscoverFilamentCommand.php
+			path: src/Console/Commands/DiscoverFilamentCommand.php
 
 		-
 			message: '#^Return type of call to function collect contains unresolvable type\.$#'
 			identifier: function.unresolvableReturnType
 			count: 2
-			path: src/Console/Commands/FtsDiscoverFilamentCommand.php
+			path: src/Console/Commands/DiscoverFilamentCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:integrityCheck\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:integrityCheck\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsDoctorCommand\:\:checkDatabase\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\DoctorCommand\:\:checkDatabase\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsDoctorCommand\:\:checkIntegrity\(\) has parameter \$stats with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\DoctorCommand\:\:checkIntegrity\(\) has parameter \$stats with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
 			message: '#^Negated boolean expression is always true\.$#'
 			identifier: booleanNot.alwaysTrue
 			count: 1
-			path: src/Console/Commands/FtsDoctorCommand.php
+			path: src/Console/Commands/DoctorCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsOptimizeCommand.php
+			path: src/Console/Commands/OptimizeCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
 			identifier: method.notFound
 			count: 2
-			path: src/Console/Commands/FtsOptimizeCommand.php
+			path: src/Console/Commands/OptimizeCommand.php
 
 		-
 			message: '#^Match expression does not handle remaining value\: string$#'
 			identifier: match.unhandled
 			count: 1
-			path: src/Console/Commands/FtsRebuildCommand.php
+			path: src/Console/Commands/RebuildCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsRebuildCommand\:\:indexedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:indexedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsRebuildCommand.php
+			path: src/Console/Commands/RebuildCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsSearchCommand\:\:getSuggestions\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\SearchCommand\:\:getSuggestions\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsSearchCommand.php
+			path: src/Console/Commands/SearchCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsSearchCommand\:\:getSuggestions\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\SearchCommand\:\:getSuggestions\(\) has parameter \$results with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsSearchCommand.php
+			path: src/Console/Commands/SearchCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\FtsSearchCommand\:\:getSuggestions\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\SearchCommand\:\:getSuggestions\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Console/Commands/FtsSearchCommand.php
+			path: src/Console/Commands/SearchCommand.php
 
 		-
-			message: '#^Property Moaines\\IllumiSearch\\FtsResult\:\:\$title \(string\) on left side of \?\? is not nullable\.$#'
+			message: '#^Property Moaines\\IllumiSearch\\Result\:\:\$title \(string\) on left side of \?\? is not nullable\.$#'
 			identifier: nullCoalesce.property
 			count: 1
-			path: src/Console/Commands/FtsSearchCommand.php
+			path: src/Console/Commands/SearchCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabasePath\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsStatusCommand.php
+			path: src/Console/Commands/StatusCommand.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getDatabaseSize\(\)\.$#'
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Console/Commands/FtsStatusCommand.php
+			path: src/Console/Commands/StatusCommand.php
 
 		-
 			message: '#^Match expression does not handle remaining value\: string$#'
 			identifier: match.unhandled
 			count: 1
-			path: src/Console/Commands/FtsSyncCommand.php
+			path: src/Console/Commands/SyncCommand.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:count\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:count\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:search\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:search\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Contracts\\Engine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Contracts/FtsEngine.php
+			path: src/Contracts/Engine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:createTable\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:createTable\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:createTable\(\) has parameter \$prefixLengths with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:createTable\(\) has parameter \$prefixLengths with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:fullIntegrityCheck\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:fullIntegrityCheck\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:getIndexStats\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:getIndexedModelClasses\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:getRawSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:getRawSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:getSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:getSupportedOperators\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:getTitleColumn\(\) has parameter \$row with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:getTitleColumn\(\) has parameter \$row with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:insertBatch\(\) has parameter \$documents with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:optimize\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:queryVocab\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:queryVocab\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:sanitizeDocumentKeys\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:sanitizeDocumentKeys\(\) has parameter \$document with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:sanitizeDocumentKeys\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:sanitizeDocumentKeys\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:updateMeta\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:updateMeta\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:upsert\(\) has parameter \$document with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$cachedSafeQueries type has no value type specified in iterable type array\.$#'
+			message: '#^PHPDoc tag @return has invalid value \(Result\>\)\: Unexpected token "\>", expected TOKEN_HORIZONTAL_WS at offset 75 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: src/Engines/SqliteEngine.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$cachedSafeQueries type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$rawSupportedOperators type has no value type specified in iterable type array\.$#'
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$rawSupportedOperators type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$supportedOperators type has no value type specified in iterable type array\.$#'
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$supportedOperators type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$operatorsProbed through static\:\:\.$#'
+			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$operatorsProbed through static\:\:\.$#'
 			identifier: staticClassAccess.privateProperty
 			count: 3
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$rawSupportedOperators through static\:\:\.$#'
+			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$rawSupportedOperators through static\:\:\.$#'
 			identifier: staticClassAccess.privateProperty
 			count: 4
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteFtsEngine\:\:\$supportedOperators through static\:\:\.$#'
+			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$supportedOperators through static\:\:\.$#'
 			identifier: staticClassAccess.privateProperty
 			count: 10
-			path: src/Engines/SqliteFtsEngine.php
+			path: src/Engines/SqliteEngine.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Events\\RebuildComplete\:\:__construct\(\) has parameter \$results with no value type specified in iterable type array\.$#'
@@ -307,262 +313,184 @@ parameters:
 			path: src/Events/RebuildComplete.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Facades\\Fts\:\:didYouMean\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Facades\\IllumiSearch\:\:didYouMean\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Facades/Fts.php
+			path: src/Facades/IllumiSearch.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Facades\\Fts\:\:didYouMean\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			message: '#^Method Moaines\\IllumiSearch\\Facades\\IllumiSearch\:\:didYouMean\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
 			identifier: missingType.generics
 			count: 1
-			path: src/Facades/Fts.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:ftsRelationsForRebuild\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:validateFtsSearchable\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:createTable\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:dropIndexTable\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:dropTable\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:listIndexTables\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:tableExists\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:tableName\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:vacuum\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:checkSchema\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:cleanupOrphans\(\) has parameter \$models with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:cleanupOrphans\(\) has parameter \$results with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:cleanupOrphans\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:discoverModels\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:indexRecords\(\) has parameter \$records with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuild\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuild\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuildModel\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuildSyncAll\(\) has parameter \$relations with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuildWithBatch\(\) has parameter \$relations with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:status\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:sync\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsIndexManager\:\:sync\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Parameter &\$queuedCount by\-ref type of method Moaines\\IllumiSearch\\FtsIndexManager\:\:rebuildWithBatch\(\) expects int, \(float\|int\) given\.$#'
-			identifier: parameterByRef.type
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Property Moaines\\IllumiSearch\\FtsIndexManager\:\:\$cachedModels with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Unable to resolve the template type TMapValue in call to method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\)$#'
-			identifier: argument.templateType
-			count: 1
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\FtsIndexManager\:\:\$cachedModels through static\:\:\.$#'
-			identifier: staticClassAccess.privateProperty
-			count: 4
-			path: src/FtsIndexManager.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsQueryBuilder\:\:filterAuthorized\(\) has parameter \$results with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsQueryBuilder.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsQueryBuilder\:\:filterAuthorized\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsQueryBuilder.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsQueryBuilder\:\:models\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsQueryBuilder.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsQueryBuilder\:\:resolveModelClasses\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsQueryBuilder.php
-
-		-
-			message: '#^Class Moaines\\IllumiSearch\\FtsResult implements generic interface Illuminate\\Contracts\\Support\\Arrayable but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsResult.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsResult\:\:__construct\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsResult.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsResult\:\:make\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsResult.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\FtsEngine\:\:queryVocab\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/FtsSpellcheck.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsSpellcheck\:\:extractQueryTerms\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsSpellcheck.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsSpellcheck\:\:findSimilar\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsSpellcheck.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsSpellcheck\:\:findSimilar\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsSpellcheck.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsSpellcheck\:\:suggest\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/FtsSpellcheck.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\FtsSpellcheck\:\:suggest\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/FtsSpellcheck.php
+			path: src/Facades/IllumiSearch.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Http\\Requests\\SearchApiRequest\:\:rules\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Http/Requests/SearchApiRequest.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:relationsForRebuild\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:validateSearchable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:createTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:dropIndexTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:dropTable\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:listIndexTables\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:tableExists\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:tableName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:vacuum\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:checkSchema\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:cleanupOrphans\(\) has parameter \$models with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:cleanupOrphans\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:cleanupOrphans\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:discoverModels\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:indexRecords\(\) has parameter \$records with no type specified\.$#'
+			identifier: missingType.parameter
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuild\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuild\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuildModel\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuildSyncAll\(\) has parameter \$relations with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuildWithBatch\(\) has parameter \$relations with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:status\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:sync\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:sync\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Parameter &\$queuedCount by\-ref type of method Moaines\\IllumiSearch\\IndexManager\:\:rebuildWithBatch\(\) expects int, \(float\|int\) given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\IndexManager\:\:\$cachedModels with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Unable to resolve the template type TMapValue in call to method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\)$#'
+			identifier: argument.templateType
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Unsafe access to private property Moaines\\IllumiSearch\\IndexManager\:\:\$cachedModels through static\:\:\.$#'
+			identifier: staticClassAccess.privateProperty
+			count: 4
+			path: src/IndexManager.php
 
 		-
 			message: '#^Property Moaines\\IllumiSearch\\Jobs\\IndexBatchJob\:\:\$backoff type has no value type specified in iterable type array\.$#'
@@ -575,6 +503,84 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Jobs/IndexModelJob.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:filterAuthorized\(\) has parameter \$results with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:filterAuthorized\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:models\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:resolveModelClasses\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Class Moaines\\IllumiSearch\\Result implements generic interface Illuminate\\Contracts\\Support\\Arrayable but does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Result.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Result\:\:__construct\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Result.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Result\:\:make\(\) has parameter \$raw with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Result.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:queryVocab\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Spellcheck.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Spellcheck\:\:extractQueryTerms\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Spellcheck.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Spellcheck\:\:findSimilar\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Spellcheck.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Spellcheck\:\:findSimilar\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Spellcheck.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Spellcheck\:\:suggest\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Spellcheck.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Spellcheck\:\:suggest\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/Spellcheck.php
 
 		-
 			message: '#^Call to function is_string\(\) with string will always evaluate to true\.$#'

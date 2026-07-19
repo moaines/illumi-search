@@ -2,17 +2,17 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-class SqliteFtsEngineTest extends TestCase
+class SqliteEngineTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
 
         $this->engine->createTable('App\Models\Post', ['title', 'body']);
     }
@@ -177,7 +177,7 @@ class SqliteFtsEngineTest extends TestCase
 
     public function test_operators_config_restricts_supported_ops(): void
     {
-        $this->app['config']->set('fts.operators.enabled', ['AND']);
+        $this->app['config']->set('illumi-search.operators.enabled', ['AND']);
 
         $ref = new \ReflectionClass($this->engine);
         $method = $ref->getMethod('escapeQuery');

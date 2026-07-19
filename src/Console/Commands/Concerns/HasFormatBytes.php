@@ -2,7 +2,7 @@
 
 namespace Moaines\IllumiSearch\Console\Commands\Concerns;
 
-trait HasFtsFormatBytes
+trait HasFormatBytes
 {
     protected function formatBytes(int $bytes): string
     {

@@ -10,7 +10,7 @@ class MultiTenantTest extends TestCase
     protected function defineEnvironment($app): void
     {
         parent::defineEnvironment($app);
-        $app['config']->set('fts.tenancy.enabled', true);
+        $app['config']->set('illumi-search.tenancy.enabled', true);
     }
 
     public function test_tenant_manager_resolves_tenant_id(): void
@@ -35,7 +35,7 @@ class MultiTenantTest extends TestCase
         $manager = $this->app->make(TenantManager::class);
         $manager->setResolver(fn () => 'acme');
 
-        $basePath = storage_path('app/fts/fts-index.sqlite');
+        $basePath = storage_path('app/search/fts-index.sqlite');
         $tenantPath = $manager->tenantDatabasePath($basePath);
 
         $this->assertStringContainsString('tenants/acme/', $tenantPath);
@@ -44,12 +44,12 @@ class MultiTenantTest extends TestCase
 
     public function test_tenant_database_path_unchanged_when_disabled(): void
     {
-        $this->app['config']->set('fts.tenancy.enabled', false);
+        $this->app['config']->set('illumi-search.tenancy.enabled', false);
 
         $manager = $this->app->make(TenantManager::class);
         $manager->setResolver(fn () => 'acme');
 
-        $basePath = storage_path('app/fts/fts-index.sqlite');
+        $basePath = storage_path('app/search/fts-index.sqlite');
         $tenantPath = $manager->tenantDatabasePath($basePath);
 
         $this->assertEquals($basePath, $tenantPath);
@@ -58,7 +58,7 @@ class MultiTenantTest extends TestCase
     public function test_different_tenants_get_different_paths(): void
     {
         $manager = $this->app->make(TenantManager::class);
-        $basePath = storage_path('app/fts/fts-index.sqlite');
+        $basePath = storage_path('app/search/fts-index.sqlite');
 
         $manager->setResolver(fn () => 'tenant_a');
         $pathA = $manager->tenantDatabasePath($basePath);
@@ -75,10 +75,10 @@ class MultiTenantTest extends TestCase
     {
         $manager = $this->app->make(TenantManager::class);
         $manager->setResolver(fn () => 'acme');
-        $basePath = storage_path('app/fts/fts-index.sqlite');
+        $basePath = storage_path('app/search/fts-index.sqlite');
         $tenantPath = $manager->tenantDatabasePath($basePath);
 
-        $this->assertStringNotContainsString('app/fts/app/fts', $tenantPath);
+        $this->assertStringNotContainsString('app/search/app/search', $tenantPath);
         $this->assertStringContainsString('tenants/acme/', $tenantPath);
     }
 }

@@ -2,18 +2,18 @@
 
 namespace Moaines\IllumiSearch\Engines;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Exceptions\FtsException;
-use Moaines\IllumiSearch\FtsResult;
+use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
+use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\SnippetService;
 use SQLite3;
 
-class SqliteFtsEngine implements FtsEngine
+class SqliteEngine implements Engine
 {
-    private const META_TABLE = '_fts_meta';
+    private const META_TABLE = '_search_meta';
 
-    private const CONFIG_TABLE = '_fts_config';
+    private const CONFIG_TABLE = '_search_config';
 
     private ?SQLite3 $db = null;
 
@@ -73,14 +73,14 @@ class SqliteFtsEngine implements FtsEngine
         if ($this->db === null) {
             $this->db = new SQLite3($this->databasePath);
 
-            if (filter_var(config('fts.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
+            if (filter_var(config('illumi-search.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
                 $this->db->exec('PRAGMA journal_mode=WAL');
             }
-            $this->db->exec('PRAGMA synchronous='.config('fts.fts5.synchronous', 'NORMAL'));
-            $this->db->exec('PRAGMA cache_size='.config('fts.fts5.cache_size_kb', -64000));
-            $this->db->exec('PRAGMA temp_store='.config('fts.fts5.temp_store', 'MEMORY'));
-            $this->db->exec('PRAGMA busy_timeout='.config('fts.fts5.busy_timeout', 5000));
-            $this->db->exec('PRAGMA mmap_size='.config('fts.fts5.mmap_size', 0));
+            $this->db->exec('PRAGMA synchronous='.config('illumi-search.fts5.synchronous', 'NORMAL'));
+            $this->db->exec('PRAGMA cache_size='.config('illumi-search.fts5.cache_size_kb', -64000));
+            $this->db->exec('PRAGMA temp_store='.config('illumi-search.fts5.temp_store', 'MEMORY'));
+            $this->db->exec('PRAGMA busy_timeout='.config('illumi-search.fts5.busy_timeout', 5000));
+            $this->db->exec('PRAGMA mmap_size='.config('illumi-search.fts5.mmap_size', 0));
 
             $this->ensureMetaTable();
         }
@@ -149,19 +149,19 @@ class SqliteFtsEngine implements FtsEngine
 
         $options = [];
 
-        $tokenizerDef = config('fts.fts5.tokenizer', 'unicode61');
+        $tokenizerDef = config('illumi-search.fts5.tokenizer', 'unicode61');
         $options[] = "tokenize='{$tokenizerDef}'";
 
         if (! empty($prefixLengths)) {
             $options[] = "prefix='".implode(' ', $prefixLengths)."'";
         }
 
-        $detail = config('fts.fts5.detail', 'full');
+        $detail = config('illumi-search.fts5.detail', 'full');
         if ($detail !== 'full') {
             $options[] = "detail={$detail}";
         }
 
-        $columnsize = config('fts.fts5.columnsize', 1);
+        $columnsize = config('illumi-search.fts5.columnsize', 1);
         if ((int) $columnsize === 0) {
             $options[] = 'columnsize=0';
         }
@@ -173,9 +173,9 @@ class SqliteFtsEngine implements FtsEngine
 
         // Set runtime FTS5 options (automerge, crisismerge, pgsz)
         $runtimeKeys = [
-            'automerge' => config('fts.fts5.automerge', 4),
-            'crisismerge' => config('fts.fts5.crisismerge', 16),
-            'pgsz' => config('fts.fts5.pgsz', 1000),
+            'automerge' => config('illumi-search.fts5.automerge', 4),
+            'crisismerge' => config('illumi-search.fts5.crisismerge', 16),
+            'pgsz' => config('illumi-search.fts5.pgsz', 1000),
         ];
 
         foreach ($runtimeKeys as $key => $value) {
@@ -268,7 +268,7 @@ class SqliteFtsEngine implements FtsEngine
 
     /**
      * @param  array<class-string>  $modelClasses
-     * @return list<FtsResult>
+     * @return Result>
      */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array
     {
@@ -340,7 +340,7 @@ class SqliteFtsEngine implements FtsEngine
         }
 
         return array_map(
-            fn ($r) => FtsResult::make(
+            fn ($r) => Result::make(
                 modelClass: $r['modelClass'],
                 modelId: $r['modelId'],
                 rank: $r['rank'],
@@ -529,7 +529,7 @@ class SqliteFtsEngine implements FtsEngine
         $suggestions = [];
 
         try {
-            $vocabLimit = config('fts.spellcheck.vocab_limit', 1000);
+            $vocabLimit = config('illumi-search.spellcheck.vocab_limit', 1000);
             $prefix = mb_substr($term, 0, 2);
             $stmt = $this->db()->prepare(
                 "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}"
@@ -628,7 +628,7 @@ class SqliteFtsEngine implements FtsEngine
         $escaped = [];
         $this->ensureOperatorsProbed();
         $this->applyOperatorConfig();
-        $operatorsConfig = config('fts.operators.enabled');
+        $operatorsConfig = config('illumi-search.operators.enabled');
 
         foreach ($terms as $term) {
             if (empty($term)) {
@@ -714,7 +714,7 @@ class SqliteFtsEngine implements FtsEngine
             // Can't probe — fallback to basics
         }
 
-        // Save raw list before config filtering (for fts:doctor)
+        // Save raw list before config filtering (for illumi-search:doctor)
         static::$rawSupportedOperators = static::$supportedOperators;
     }
 
@@ -724,7 +724,7 @@ class SqliteFtsEngine implements FtsEngine
      */
     protected function applyOperatorConfig(): void
     {
-        $allowed = config('fts.operators.enabled');
+        $allowed = config('illumi-search.operators.enabled');
 
         // Reset to raw probed list before applying config
         static::$supportedOperators = static::$rawSupportedOperators;
@@ -817,7 +817,7 @@ class SqliteFtsEngine implements FtsEngine
         ];
 
         if (! in_array($name, $safe, true)) {
-            throw new FtsException("Unsupported or unsafe PRAGMA: {$name}");
+            throw new IllumiSearchException("Unsupported or unsafe PRAGMA: {$name}");
         }
 
         return $this->db()->querySingle("PRAGMA {$name}");

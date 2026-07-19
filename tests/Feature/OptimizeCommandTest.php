@@ -2,17 +2,17 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class OptimizeCommandTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
     }
 
     public function test_optimize_succeeds_with_existing_database(): void
@@ -43,7 +43,7 @@ class OptimizeCommandTest extends TestCase
             $this->engine->upsert('App\Models\Post', $i, ['title' => "post $i", 'body' => 'content']);
         }
 
-        $this->artisan('fts:optimize')
+        $this->artisan('illumi-search:optimize')
             ->expectsOutputToContain('Database:')
             ->expectsOutputToContain('VACUUM')
             ->assertSuccessful();

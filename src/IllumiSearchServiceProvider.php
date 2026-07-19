@@ -4,19 +4,19 @@ namespace Moaines\IllumiSearch;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Moaines\IllumiSearch\Console\Commands\FtsCheckCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsDiscoverFilamentCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsDoctorCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsOptimizeCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsRebuildCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsSearchCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsStatusCommand;
-use Moaines\IllumiSearch\Console\Commands\FtsSyncCommand;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Console\Commands\CheckCommand;
+use Moaines\IllumiSearch\Console\Commands\DiscoverFilamentCommand;
+use Moaines\IllumiSearch\Console\Commands\DoctorCommand;
+use Moaines\IllumiSearch\Console\Commands\OptimizeCommand;
+use Moaines\IllumiSearch\Console\Commands\RebuildCommand;
+use Moaines\IllumiSearch\Console\Commands\SearchCommand;
+use Moaines\IllumiSearch\Console\Commands\StatusCommand;
+use Moaines\IllumiSearch\Console\Commands\SyncCommand;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
-use Moaines\IllumiSearch\Exceptions\FtsException;
-use Moaines\IllumiSearch\Exceptions\FtsExtensionMissingException;
+use Moaines\IllumiSearch\Engines\SqliteEngine;
+use Moaines\IllumiSearch\Exceptions\ExtensionMissingException;
+use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
 use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Text\StemmingTextProcessor;
@@ -26,14 +26,14 @@ class IllumiSearchServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/fts.php', 'fts');
+        $this->mergeConfigFrom(__DIR__.'/../config/illumi-search.php', 'illumi-search');
 
         $this->app->singleton(TenantManager::class, function () {
             return new TenantManager;
         });
 
-        $this->app->singleton(FtsEngine::class, function ($app) {
-            $path = $app['config']->get('fts.database_path', 'app/fts/fts-index.sqlite');
+        $this->app->singleton(Engine::class, function ($app) {
+            $path = $app['config']->get('illumi-search.database_path', 'app/search/search-index.sqlite');
             $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
 
             // Apply tenant isolation if enabled
@@ -49,7 +49,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
                 }
             }
 
-            $engine = new SqliteFtsEngine(
+            $engine = new SqliteEngine(
                 databasePath: $fullPath,
                 snippets: $app->make(SnippetService::class),
             );
@@ -59,7 +59,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(TextProcessor::class, function () {
-            $processor = config('fts.fts5.processor', 'unicode');
+            $processor = config('illumi-search.fts5.processor', 'unicode');
 
             return $processor === 'stemming'
                 ? new StemmingTextProcessor
@@ -68,11 +68,11 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
         $this->app->singleton(SnippetService::class);
 
-        $this->app->bind(FtsSpellcheck::class, function ($app) {
-            return new FtsSpellcheck($app->make(FtsEngine::class));
+        $this->app->bind(Spellcheck::class, function ($app) {
+            return new Spellcheck($app->make(Engine::class));
         });
 
-        $this->app->alias(FtsEngine::class, 'illumi-search.engine');
+        $this->app->alias(Engine::class, 'illumi-search.engine');
         $this->app->alias(TextProcessor::class, 'illumi-search.text-processor');
     }
 
@@ -82,19 +82,19 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/fts.php' => config_path('fts.php'),
-            ], 'fts-config');
+                __DIR__.'/../config/illumi-search.php' => config_path('illumi-search.php'),
+            ], 'illumi-search-config');
         }
 
         $this->commands([
-            FtsRebuildCommand::class,
-            FtsSyncCommand::class,
-            FtsCheckCommand::class,
-            FtsSearchCommand::class,
-            FtsStatusCommand::class,
-            FtsDiscoverFilamentCommand::class,
-            FtsOptimizeCommand::class,
-            FtsDoctorCommand::class,
+            RebuildCommand::class,
+            SyncCommand::class,
+            CheckCommand::class,
+            SearchCommand::class,
+            StatusCommand::class,
+            DiscoverFilamentCommand::class,
+            OptimizeCommand::class,
+            DoctorCommand::class,
         ]);
 
         $this->registerApiRoutes();
@@ -103,15 +103,15 @@ class IllumiSearchServiceProvider extends ServiceProvider
     protected function validateRequirements(): void
     {
         if (! extension_loaded('sqlite3')) {
-            throw new FtsExtensionMissingException('sqlite3');
+            throw new ExtensionMissingException('sqlite3');
         }
 
         if (! extension_loaded('intl')) {
-            throw new FtsExtensionMissingException('intl');
+            throw new ExtensionMissingException('intl');
         }
 
         if (! extension_loaded('mbstring')) {
-            throw new FtsExtensionMissingException('mbstring');
+            throw new ExtensionMissingException('mbstring');
         }
 
         try {
@@ -119,21 +119,21 @@ class IllumiSearchServiceProvider extends ServiceProvider
             $db->exec('CREATE VIRTUAL TABLE _fts_validation_test USING fts5(content)');
             $db->close();
         } catch (\Exception $e) {
-            throw FtsException::fts5NotAvailable();
+            throw IllumiSearchException::fts5NotAvailable();
         }
     }
 
     protected function registerApiRoutes(): void
     {
-        if (! config('fts.api.enabled', false)) {
+        if (! config('illumi-search.api.enabled', false)) {
             return;
         }
 
         Route::middleware([
             'api',
-            'throttle:'.config('fts.api.rate_limit', 30).',1',
+            'throttle:'.config('illumi-search.api.rate_limit', 30).',1',
         ])
-            ->prefix(config('fts.api.prefix', 'api/search'))
+            ->prefix(config('illumi-search.api.prefix', 'api/search'))
             ->group(function () {
                 Route::get('/', SearchApiController::class);
             });

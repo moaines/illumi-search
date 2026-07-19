@@ -2,14 +2,14 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class RebuildCommandTest extends TestCase
 {
     public function test_rebuild_no_model_without_force_prompts_confirmation(): void
     {
-        $this->artisan('fts:rebuild')
+        $this->artisan('illumi-search:rebuild')
             ->expectsConfirmation('This will rebuild ALL indexed models. Continue?', 'no')
             ->expectsOutput('Rebuild cancelled.')
             ->assertSuccessful();
@@ -17,14 +17,14 @@ class RebuildCommandTest extends TestCase
 
     public function test_rebuild_with_force_succeeds(): void
     {
-        $this->artisan('fts:rebuild --force')
+        $this->artisan('illumi-search:rebuild --force')
             ->expectsOutput('Rebuild complete.')
             ->assertSuccessful();
     }
 
     public function test_rebuild_cleans_orphan_index_tables(): void
     {
-        $engine = app(FtsEngine::class);
+        $engine = app(Engine::class);
 
         // Create an orphan FTS table for a class that does NOT use Searchable
         $orphanModelClass = 'App\\Models\\DeletedModel';
@@ -34,7 +34,7 @@ class RebuildCommandTest extends TestCase
         $this->assertContains($orphanTable, $engine->listIndexTables());
 
         // Rebuild — only processes models with the Searchable trait, should clean orphan
-        $this->artisan('fts:rebuild --force')
+        $this->artisan('illumi-search:rebuild --force')
             ->assertSuccessful();
 
         // Orphan table should be removed after rebuild
@@ -56,7 +56,7 @@ class RebuildCommandTest extends TestCase
             'body' => 'Content',
         ]));
 
-        $manager = app(\Moaines\IllumiSearch\FtsIndexManager::class);
+        $manager = app(\Moaines\IllumiSearch\IndexManager::class);
 
         $startedModels = [];
         $manager->rebuild(

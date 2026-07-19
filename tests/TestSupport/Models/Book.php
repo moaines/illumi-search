@@ -15,7 +15,7 @@ class Book extends Model
 
     public $timestamps = true;
 
-    protected array $ftsSearchable = [
+    protected array $searchable = [
         'title' => ['weight' => 3],
         'body' => ['weight' => 1],
         'author.name' => ['weight' => 1],

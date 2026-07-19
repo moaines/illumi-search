@@ -3,17 +3,17 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsFormatBytes;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasFormatBytes;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-class FtsOptimizeCommand extends Command
+class OptimizeCommand extends Command
 {
-    use HasFtsFormatBytes;
-    protected $signature = 'fts:optimize';
+    use HasFormatBytes;
+    protected $signature = 'illumi-search:optimize';
 
     protected $description = 'Optimize the FTS5 index (VACUUM + FTS5 merge)';
 
-    public function handle(FtsEngine $engine): int
+    public function handle(Engine $engine): int
     {
         $path = $engine->getDatabasePath();
 

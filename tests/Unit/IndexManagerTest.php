@@ -2,25 +2,25 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
-use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Engines\SqliteEngine;
+use Moaines\IllumiSearch\IndexManager;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-class FtsIndexManagerTest extends TestCase
+class IndexManagerTest extends TestCase
 {
-    private FtsIndexManager $manager;
+    private IndexManager $manager;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        config(['fts.model_paths' => [__DIR__ . '/../TestSupport/Models']]);
+        config(['illumi-search.model_paths' => [__DIR__ . '/../TestSupport/Models']]);
 
-        $this->manager = new FtsIndexManager(
-            $this->app->make(FtsEngine::class),
+        $this->manager = new IndexManager(
+            $this->app->make(Engine::class),
             app(TextProcessor::class),
         );
     }

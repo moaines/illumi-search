@@ -3,22 +3,22 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsFormatBytes;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasFormatBytes;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-class FtsStatusCommand extends Command
+class StatusCommand extends Command
 {
-    use HasFtsFormatBytes;
-    protected $signature = 'fts:status';
+    use HasFormatBytes;
+    protected $signature = 'illumi-search:status';
 
     protected $description = 'Show FTS5 index statistics';
 
-    public function handle(FtsEngine $engine): int
+    public function handle(Engine $engine): int
     {
         $path = $engine->getDatabasePath();
 
         if (! file_exists($path)) {
-            $this->warn('FTS database does not exist yet. Run "php artisan fts:rebuild" first.');
+            $this->warn('FTS database does not exist yet. Run "php artisan illumi-search:rebuild" first.');
 
             return Command::SUCCESS;
         }

@@ -3,11 +3,11 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-class FtsSearchCommand extends Command
+class SearchCommand extends Command
 {
-    protected $signature = 'fts:search
+    protected $signature = 'illumi-search:search
         {query : Search terms}
         {--models= : Comma-separated model classes (default: all indexed)}
         {--limit=10 : Max results}
@@ -17,7 +17,7 @@ class FtsSearchCommand extends Command
 
     protected $description = 'Search the FTS index';
 
-    public function handle(FtsEngine $engine): int
+    public function handle(Engine $engine): int
     {
         $query = $this->argument('query');
         $limit = (int) $this->option('limit');
@@ -48,7 +48,7 @@ class FtsSearchCommand extends Command
             $this->warn("No results for \"{$query}\"");
 
             if ($withSuggest && mb_strlen($query) > 2) {
-                $suggestions = app(\Moaines\IllumiSearch\FtsSpellcheck::class)
+                $suggestions = app(\Moaines\IllumiSearch\Spellcheck::class)
                     ->suggest($query, $modelClasses)
                     ->values()
                     ->toArray();
@@ -93,7 +93,7 @@ class FtsSearchCommand extends Command
             return [];
         }
 
-        return app(\Moaines\IllumiSearch\FtsSpellcheck::class)
+        return app(\Moaines\IllumiSearch\Spellcheck::class)
             ->suggest($query, $modelClasses)
             ->values()
             ->toArray();

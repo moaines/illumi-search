@@ -3,26 +3,27 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsFormatBytes;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
-use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasFormatBytes;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Engines\SqliteEngine;
 
-class FtsDoctorCommand extends Command
+class DoctorCommand extends Command
 {
-    use HasFtsFormatBytes;
-    protected $signature = 'fts:doctor';
+    use HasFormatBytes;
+
+    protected $signature = 'illumi-search:doctor';
 
     protected $description = 'Diagnose the FTS5 search environment';
 
     private bool $allOk = true;
 
-    public function handle(FtsEngine $engine): int
+    public function handle(Engine $engine): int
     {
         $this->info('🔍 FTS Environment Diagnostics');
         $this->newLine();
 
         $this->checkPhpExtensions();
-        $this->checkFts5Support();
+        $this->checkEngineSupport();
         $stats = $this->checkDatabase($engine);
         $this->checkIntegrity($engine, $stats);
         $this->showConfig();
@@ -44,38 +45,41 @@ class FtsDoctorCommand extends Command
         $this->line('1. PHP Extensions');
         foreach (['sqlite3', 'intl', 'mbstring', 'pdo_sqlite'] as $ext) {
             $loaded = extension_loaded($ext);
-            $this->line('   ' . ($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>') . " ext-{$ext}");
-            if (! $loaded) $this->allOk = false;
+            $this->line('   '.($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>')." ext-{$ext}");
+            if (! $loaded) {
+                $this->allOk = false;
+            }
         }
         $this->newLine();
     }
 
-    private function checkFts5Support(): void
+    private function checkEngineSupport(): void
     {
         $this->line('2. SQLite FTS5 Support');
         try {
             $db = new \SQLite3(':memory:');
-            $db->exec("CREATE VIRTUAL TABLE _fts_check USING fts5(content)");
+            $db->exec('CREATE VIRTUAL TABLE _fts_check USING fts5(content)');
             $version = \SQLite3::version();
-            $this->line('   <fg=green>✓</> FTS5 is available (SQLite ' . $version['versionString'] . ')');
+            $this->line('   <fg=green>✓</> FTS5 is available (SQLite '.$version['versionString'].')');
             $db->close();
         } catch (\Exception $e) {
-            $this->line('   <fg=red>✗</> FTS5 is NOT available: ' . $e->getMessage());
+            $this->line('   <fg=red>✗</> FTS5 is NOT available: '.$e->getMessage());
             $this->allOk = false;
         }
         $this->newLine();
     }
 
-    private function checkDatabase(FtsEngine $engine): array
+    private function checkDatabase(Engine $engine): array
     {
         $this->line('3. FTS Database');
         $dbPath = $engine->getDatabasePath();
 
         if (! file_exists($dbPath)) {
             $this->line('   <fg=yellow>⚠</> Database does not exist yet');
-            $this->line('   Path would be: ' . $dbPath);
-            $this->line('   Run <comment>php artisan fts:rebuild</comment> to create it');
+            $this->line('   Path would be: '.$dbPath);
+            $this->line('   Run <comment>php artisan illumi-search:rebuild</comment> to create it');
             $this->newLine();
+
             return [];
         }
 
@@ -85,11 +89,11 @@ class FtsDoctorCommand extends Command
         $isAbsolute = str_starts_with($dbPath, '/');
 
         $this->line("   <fg=green>✓</> Path: {$dbPath}");
-        $this->line("   <fg=green>✓</> Path type: " . ($isAbsolute ? 'absolute' : 'relative (via storage_path())'));
+        $this->line('   <fg=green>✓</> Path type: '.($isAbsolute ? 'absolute' : 'relative (via storage_path())'));
         $this->line("   <fg=green>✓</> Size: {$sizeHuman}");
         $this->line("   <fg=green>✓</> Free space on volume: {$freeHuman}");
-        $this->line('   ' . (is_readable($dbPath) ? '<fg=green>✓</> Readable' : '<fg=red>✗</> Not readable'));
-        $this->line('   ' . (is_writable($dbPath) ? '<fg=green>✓</> Writable' : '<fg=red>✗</> Not writable'));
+        $this->line('   '.(is_readable($dbPath) ? '<fg=green>✓</> Readable' : '<fg=red>✗</> Not readable'));
+        $this->line('   '.(is_writable($dbPath) ? '<fg=green>✓</> Writable' : '<fg=red>✗</> Not writable'));
 
         $stats = $engine->getIndexStats();
         if (! empty($stats)) {
@@ -99,16 +103,18 @@ class FtsDoctorCommand extends Command
                 $this->line("     - {$stat['model_class']}: {$stat['record_count']} records");
             }
         } else {
-            $this->line('   <fg=yellow>⚠</> No indexes found. Run php artisan fts:rebuild');
+            $this->line('   <fg=yellow>⚠</> No indexes found. Run php artisan illumi-search:rebuild');
         }
         $this->newLine();
 
         return $stats;
     }
 
-    private function checkIntegrity(FtsEngine $engine, array $stats): void
+    private function checkIntegrity(Engine $engine, array $stats): void
     {
-        if (empty($stats)) return;
+        if (empty($stats)) {
+            return;
+        }
 
         $this->line('3b. Integrity');
         foreach ($stats as $stat) {
@@ -123,10 +129,10 @@ class FtsDoctorCommand extends Command
     {
         $this->line('4. Configuration');
         $keys = [
-            'fts.indexing', 'fts.mode', 'fts.fts5.tokenizer', 'fts.fts5.processor',
-            'fts.fts5.detail', 'fts.fts5.synchronous', 'fts.fts5.temp_store',
-            'fts.fts5.columnsize', 'fts.fts5.wal', 'fts.fts5.busy_timeout',
-            'fts.tenancy.enabled', 'fts.authorization.enabled',
+            'illumi-search.indexing', 'illumi-search.mode', 'illumi-search.fts5.tokenizer', 'illumi-search.fts5.processor',
+            'illumi-search.fts5.detail', 'illumi-search.fts5.synchronous', 'illumi-search.fts5.temp_store',
+            'illumi-search.fts5.columnsize', 'illumi-search.fts5.wal', 'illumi-search.fts5.busy_timeout',
+            'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
         ];
         foreach ($keys as $key) {
             $value = config($key);
@@ -140,31 +146,31 @@ class FtsDoctorCommand extends Command
     {
         $this->line('4b. Config Validation');
         $rules = [
-            ['fts.mode', config('fts.mode'), ['basic', 'advanced']],
-            ['fts.indexing', config('fts.indexing'), ['queue', 'sync', 'manual']],
-            ['fts.fts5.processor', config('fts.fts5.processor'), ['unicode', 'stemming']],
-            ['fts.fts5.detail', config('fts.fts5.detail'), ['full', 'column', 'none']],
-            ['fts.fts5.synchronous', config('fts.fts5.synchronous'), ['NORMAL', 'FULL', 'OFF']],
-            ['fts.fts5.temp_store', config('fts.fts5.temp_store'), ['MEMORY', 'FILE', 'DEFAULT']],
-            ['fts.fts5.columnsize', config('fts.fts5.columnsize'), []],
-            ['fts.fts5.wal', config('fts.fts5.wal'), []],
-            ['fts.fts5.busy_timeout', config('fts.fts5.busy_timeout'), []],
+            ['illumi-search.mode', config('illumi-search.mode'), ['basic', 'advanced']],
+            ['illumi-search.indexing', config('illumi-search.indexing'), ['queue', 'sync', 'manual']],
+            ['illumi-search.fts5.processor', config('illumi-search.fts5.processor'), ['unicode', 'stemming']],
+            ['illumi-search.fts5.detail', config('illumi-search.fts5.detail'), ['full', 'column', 'none']],
+            ['illumi-search.fts5.synchronous', config('illumi-search.fts5.synchronous'), ['NORMAL', 'FULL', 'OFF']],
+            ['illumi-search.fts5.temp_store', config('illumi-search.fts5.temp_store'), ['MEMORY', 'FILE', 'DEFAULT']],
+            ['illumi-search.fts5.columnsize', config('illumi-search.fts5.columnsize'), []],
+            ['illumi-search.fts5.wal', config('illumi-search.fts5.wal'), []],
+            ['illumi-search.fts5.busy_timeout', config('illumi-search.fts5.busy_timeout'), []],
         ];
 
         foreach ($rules as [$key, $value, $accepted]) {
             $isValid = match ($key) {
-                'fts.fts5.columnsize' => in_array((int) $value, [0, 1], true),
-                'fts.fts5.wal' => is_bool($value),
-                'fts.fts5.busy_timeout' => is_numeric($value) && (int) $value >= 0,
+                'illumi-search.fts5.columnsize' => in_array((int) $value, [0, 1], true),
+                'illumi-search.fts5.wal' => is_bool($value),
+                'illumi-search.fts5.busy_timeout' => is_numeric($value) && (int) $value >= 0,
                 default => in_array($value, $accepted, true),
             };
 
-            $this->line('   ' . ($isValid ? '<fg=green>✓</>' : '<fg=red>✗</>') . " {$key} = " . json_encode($value));
+            $this->line('   '.($isValid ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$key} = ".json_encode($value));
 
             if (! $isValid) {
-                $expected = $key === 'fts.fts5.busy_timeout'
+                $expected = $key === 'illumi-search.fts5.busy_timeout'
                     ? 'must be a non-negative integer'
-                    : 'accepted: ' . implode('|', $accepted);
+                    : 'accepted: '.implode('|', $accepted);
                 $this->line("     <fg=yellow>⚠ Expected {$expected}</>");
                 $this->allOk = false;
             }
@@ -175,8 +181,8 @@ class FtsDoctorCommand extends Command
     private function checkOperators(): void
     {
         $this->line('5. FTS5 Operators');
-        $rawOps = SqliteFtsEngine::getRawSupportedOperators();
-        $allowedOps = SqliteFtsEngine::getSupportedOperators();
+        $rawOps = SqliteEngine::getRawSupportedOperators();
+        $allowedOps = SqliteEngine::getSupportedOperators();
 
         foreach (['AND', 'OR', 'NOT', 'NEAR'] as $op) {
             $sqlite = in_array($op, $rawOps, true);
@@ -186,7 +192,7 @@ class FtsDoctorCommand extends Command
                 $sqlite && ! $configOk => 'SQLite: ✓, Config: restricted',
                 default => 'SQLite: ✗, Config: —',
             };
-            $this->line('   ' . ($configOk ? '<fg=green>✓</>' : '<fg=red>✗</>') . " {$op} ({$note})");
+            $this->line('   '.($configOk ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$op} ({$note})");
         }
         $this->newLine();
     }

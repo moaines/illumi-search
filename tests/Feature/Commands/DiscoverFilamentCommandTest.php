@@ -102,7 +102,7 @@ class DiscoverFilamentCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->expectsOutputToContain('test-panel')
             ->assertSuccessful();
     }
@@ -120,7 +120,7 @@ class DiscoverFilamentCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->assertSuccessful();
     }
 
@@ -134,7 +134,7 @@ class DiscoverFilamentCommandTest extends TestCase
             };
         });
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->expectsOutputToContain('No Filament panel found')
             ->assertSuccessful();
     }
@@ -158,7 +158,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->expectsOutputToContain('title')
             ->assertSuccessful();
     }
@@ -187,7 +187,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->expectsOutputToContain('title')
             ->expectsOutputToContain('body')
             ->assertSuccessful();
@@ -246,7 +246,7 @@ class DiscoverFilamentCommandTest extends TestCase
         $resource::setModel($modelClass);
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:discover-filament')
+        $this->artisan('illumi-search:discover-filament')
             ->expectsOutputToContain('author.name')
             ->assertSuccessful();
     }
@@ -275,7 +275,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:discover-filament --format=json')
+        $this->artisan('illumi-search:discover-filament --format=json')
             ->assertSuccessful();
     }
 
@@ -303,8 +303,8 @@ class DiscoverFilamentCommandTest extends TestCase
 
         $this->mockFilamentWithResource($resource::class);
 
-        $this->artisan('fts:discover-filament')
-            ->expectsOutputToContain('$ftsSearchable')
+        $this->artisan('illumi-search:discover-filament')
+            ->expectsOutputToContain('$searchable')
             ->expectsOutputToContain("'extra' => ['weight' => 1]")
             ->assertSuccessful();
     }

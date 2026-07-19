@@ -96,7 +96,7 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_processor_is_bound_when_configured(): void
     {
-        config(['fts.fts5.processor' => 'stemming']);
+        config(['illumi-search.fts5.processor' => 'stemming']);
 
         $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
         $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
@@ -106,7 +106,7 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_french_removes_verb_endings(): void
     {
-        config(['fts.fts5.processor' => 'stemming']);
+        config(['illumi-search.fts5.processor' => 'stemming']);
 
         $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
         $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
@@ -122,7 +122,7 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_english_porter(): void
     {
-        config(['fts.fts5.processor' => 'stemming']);
+        config(['illumi-search.fts5.processor' => 'stemming']);
 
         $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
         $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
@@ -138,7 +138,7 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_falls_back_to_unicode_for_unknown_locale(): void
     {
-        config(['fts.fts5.processor' => 'stemming']);
+        config(['illumi-search.fts5.processor' => 'stemming']);
 
         $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
         $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);

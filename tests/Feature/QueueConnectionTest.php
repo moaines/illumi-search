@@ -25,8 +25,8 @@ class QueueConnectionTest extends TestCase
 
     public function test_queue_connection_is_read_and_applied(): void
     {
-        config(['fts.indexing' => 'queue']);
-        config(['fts.queue_connection' => 'sync']);
+        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.queue_connection' => 'sync']);
         Bus::fake();
 
         Post::forceCreate(['title' => 'test', 'body' => 'go']);
@@ -36,8 +36,8 @@ class QueueConnectionTest extends TestCase
 
     public function test_null_connection_uses_default_queue(): void
     {
-        config(['fts.indexing' => 'queue']);
-        config(['fts.queue_connection' => null]);
+        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.queue_connection' => null]);
         Bus::fake();
 
         Post::forceCreate(['title' => 'test', 'body' => 'go']);

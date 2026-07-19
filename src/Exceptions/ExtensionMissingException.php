@@ -2,7 +2,7 @@
 
 namespace Moaines\IllumiSearch\Exceptions;
 
-class FtsExtensionMissingException extends FtsException
+class ExtensionMissingException extends IllumiSearchException
 {
     public function __construct(string $extension)
     {

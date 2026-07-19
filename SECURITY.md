@@ -25,7 +25,7 @@ respective project.
 ## Security Considerations
 
 - Laravel FTS stores index data in a local SQLite file. Ensure the file is not
-  publicly accessible (default location: `storage/app/fts/fts-index.sqlite`).
+  publicly accessible (default location: `storage/app/search/fts-index.sqlite`).
 - The FTS index contains processed (normalized) copies of your model data.
   If you handle sensitive data, consider what columns are indexed in
   `$ftsSearchable` and whether snippets should be enabled.

@@ -91,20 +91,20 @@ class SnippetService
 
     public function resolveSnippetColumns(Model $model): ?array
     {
-        if (! method_exists($model, 'getFtsSearchableColumns')) {
+        if (! method_exists($model, 'getSearchableColumns')) {
             return null;
         }
 
-        $raw = $model->getFtsSearchableColumns();
+        $raw = $model->getSearchableColumns();
         if (empty($raw)) {
             return null;
         }
 
-        if (! method_exists($model, 'normalizeFtsSearchable')) {
+        if (! method_exists($model, 'normalizeSearchable')) {
             return null;
         }
 
-        $searchable = $model->normalizeFtsSearchable();
+        $searchable = $model->normalizeSearchable();
         $allowed = [];
 
         foreach ($searchable as $column => $config) {
@@ -187,8 +187,8 @@ class SnippetService
 
     private function snippetColumnValue(Model $model, string $col): string
     {
-        if (str_contains($col, '.') && method_exists($model, 'resolveFtsValue')) {
-            return $model->resolveFtsValue($col);
+        if (str_contains($col, '.') && method_exists($model, 'resolveSearchValue')) {
+            return $model->resolveSearchValue($col);
         }
 
         return $model->{$col} ?? '';

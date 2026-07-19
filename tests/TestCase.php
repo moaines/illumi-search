@@ -16,9 +16,9 @@ class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
-        $app['config']->set('fts.database_path', 'app/fts-test.sqlite');
-        $app['config']->set('fts.indexing', 'sync');
-        $app['config']->set('fts.fts5.prefix_lengths', [2, 3, 4]);
+        $app['config']->set('illumi-search.database_path', 'app/fts-test.sqlite');
+        $app['config']->set('illumi-search.indexing', 'sync');
+        $app['config']->set('illumi-search.fts5.prefix_lengths', [2, 3, 4]);
     }
 
     protected function setUp(): void

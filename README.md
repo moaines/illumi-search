@@ -44,7 +44,7 @@ composer require moaines/illumi-search
 - **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
 - **intl** extension (accent folding, CJK, Arabic, Cyrillic)
 - **mbstring** extension (multibyte string operations)
-- **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/fts/fts-index.sqlite')` and must point to a writable local directory.
+- **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/fts-index.sqlite')` and must point to a writable local directory.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ class Post extends Model
 ### 2. Build the index
 
 ```bash
-php artisan fts:rebuild
+php artisan illumi-search:rebuild
 ```
 
 ### 3. Search
@@ -88,7 +88,7 @@ $results = Fts::query('laravel')->model(Post::class)->get();
 - [Search (PHP)](#search-php)
 - [REST API](#rest-api)
 - [Artisan Commands](#artisan-commands)
-- [`fts:doctor`](#php-artisan-ftsdoctor)
+- [`illumi-search:doctor`](#php-artisan-ftsdoctor)
 - [How It Works](#how-it-works)
 - [Text Processing](#text-processing)
 - [CJK Support](#cjk-support)
@@ -167,7 +167,7 @@ php artisan vendor:publish --tag=fts-config
 
 | Env | Config key | Default | Possible values |
 |-----|-----------|---------|----------------|
-| `FTS_DATABASE_PATH` | `database_path` | `app/fts/fts-index.sqlite` | Relative to `storage_path()`, or absolute (starts with `/`) |
+| `FTS_DATABASE_PATH` | `database_path` | `app/search/fts-index.sqlite` | Relative to `storage_path()`, or absolute (starts with `/`) |
 | `FTS_MODE` | `mode` | `advanced` | `basic` (simple wildcards), `advanced` (boolean, phrase, NEAR) |
 | `FTS_INDEXING` | `indexing` | `queue` | `queue` (async via jobs), `sync` (immediate), `manual` (commands only) |
 | `FTS_QUEUE_CONNECTION` | `queue_connection` | `null` (default queue) | Any queue name (`sync`, `redis`, `database`, etc.) |
@@ -190,7 +190,7 @@ php artisan vendor:publish --tag=fts-config
 | `FTS_MMAP_SIZE` | `fts5.mmap_size` | `0` (disabled) | 0 = off, `67108864` (64 MB), `268435456` (256 MB). ⚠️ Incompatible with NFS/Docker mounts |
 | `FTS_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
 | `FTS_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
-| `FTS_TENANCY_DIRECTORY` | `tenancy.directory` | `app/fts/tenants` | Relative to `storage_path()` |
+| `FTS_TENANCY_DIRECTORY` | `tenancy.directory` | `app/search/tenants` | Relative to `storage_path()` |
 | `FTS_SPELLCHECK_VOCAB_LIMIT` | `spellcheck.vocab_limit` | `1000` | Max terms loaded from vocab table |
 | `FTS_OPERATORS` | `operators.enabled` | `null` | `null` (auto‑detect), `['AND', 'OR', 'NOT']`, `[]` |
 | — | `max_related_values` | `100` | Max related model values for dot‑notation columns |
@@ -206,7 +206,7 @@ Control which FTS5 query operators are allowed in advanced mode.
 | `['AND']` | Only `AND` is allowed; `OR`, `NOT`, `NEAR` treated as regular terms |
 | `[]` | All operators disabled — every term is treated as a search keyword |
 
-Operators are auto-detected at runtime. Run `php artisan fts:doctor` to see which operators your SQLite build supports vs. which are enabled by config.
+Operators are auto-detected at runtime. Run `php artisan illumi-search:doctor` to see which operators your SQLite build supports vs. which are enabled by config.
 
 ### Publish config
 
@@ -214,7 +214,7 @@ Operators are auto-detected at runtime. Run `php artisan fts:doctor` to see whic
 php artisan vendor:publish --tag=fts-config
 ```
 
-This publishes `config/fts.php` where you can override any setting. Use `.env` variables for values that differ between environments (local, staging, production).
+This publishes `config/illumi-search.php` where you can override any setting. Use `.env` variables for values that differ between environments (local, staging, production).
 
 ### 1. Minimal
 
@@ -279,7 +279,7 @@ Note: dots (`.`) and arrows (`->`) in column names are automatically converted t
 
 When the relation returns a collection (`hasMany`, `belongsToMany`), values are concatenated with a space. The maximum number of related values is controlled by `max_related_values` in config (default: 100). Null relations return an empty string silently.
 
-Relations are eager-loaded during `fts:rebuild` to avoid N+1 queries. Validation warnings are emitted during rebuild for dot-notation columns pointing to non-existent relation methods.
+Relations are eager-loaded during `illumi-search:rebuild` to avoid N+1 queries. Validation warnings are emitted during rebuild for dot-notation columns pointing to non-existent relation methods.
 
 ### 3. With locale and snippet
 
@@ -428,7 +428,7 @@ $suggestions = $spellcheck
     ->suggest('laravell', [Post::class]);
 ```
 
-The vocab tables are created automatically when `fts:rebuild` runs (alongside each FTS5 table).
+The vocab tables are created automatically when `illumi-search:rebuild` runs (alongside each FTS5 table).
 
 ### Pagination
 
@@ -550,7 +550,7 @@ curl "/api/search?q=laravel&models=Post,Comment&limit=5&suggest=1"
 
 ### Rate limiting
 
-Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `config('fts.api.rate_limit')`.
+Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `config('illumi-search.api.rate_limit')`.
 
 ---
 
@@ -590,10 +590,10 @@ Isolate search indexes per tenant. Each tenant gets its own SQLite file.
 ### Configuration
 
 ```php
-// config/fts.php
+// config/illumi-search.php
 'tenancy' => [
     'enabled' => env('FTS_TENANCY', false),
-    'directory' => 'app/fts/tenants',
+    'directory' => 'app/search/tenants',
 ],
 ```
 
@@ -612,10 +612,10 @@ $this->app->resolving(TenantManager::class, function (TenantManager $manager) {
 
 The SQLite files are stored in:
 ```
-storage/app/fts/tenants/{tenant_id}/fts-index.sqlite
+storage/app/search/tenants/{tenant_id}/fts-index.sqlite
 ```
 
-When tenancy is disabled (default), the path is `storage/app/fts/fts-index.sqlite` as usual.
+When tenancy is disabled (default), the path is `storage/app/search/fts-index.sqlite` as usual.
 
 > **Note:** The `FtsEngine` is a singleton within a single request. If you switch tenants mid-request (e.g., in a queue job processing multiple tenants), you must manually clear the engine instance. In a standard HTTP request lifecycle, this is not an issue since the engine is resolved once per request.
 
@@ -715,7 +715,7 @@ Each `FtsResult` has an `authorized` boolean (default `true`). When authorizatio
 
 ### SQLite file protection
 
-The FTS5 index is stored in `storage/app/fts/fts-index.sqlite` by default. Laravel's `storage/` directory is already protected from web access, but ensure:
+The FTS5 index is stored in `storage/app/search/fts-index.sqlite` by default. Laravel's `storage/` directory is already protected from web access, but ensure:
 
 - The file is **not** committed to version control (it's in `.gitignore` by default)
 - File permissions restrict access to the web server user only (`chmod 600`)
@@ -740,7 +740,7 @@ Results can be filtered through Laravel Policies or Spatie/Shield permissions. S
 
 ## Artisan Commands
 
-### `php artisan fts:rebuild`
+### `php artisan illumi-search:rebuild`
 
 Drop and recreate all FTS5 tables, then repopulate from Eloquent models.
 
@@ -752,7 +752,7 @@ Options:
   --vacuum            Run VACUUM after rebuilding
 ```
 
-### `php artisan fts:sync`
+### `php artisan illumi-search:sync`
 
 Incremental sync of changed records.
 
@@ -762,7 +762,7 @@ Options:
   --since=DATE   Only records updated after date
 ```
 
-### `php artisan fts:check`
+### `php artisan illumi-search:check`
 
 Detect schema drift between model declarations and index.
 
@@ -775,12 +775,12 @@ Detect schema drift between model declarations and index.
 +---------------------+---------+----------------------+--------+
 ```
 
-### `php artisan fts:status`
+### `php artisan illumi-search:status`
 
 Index statistics.
 
 ```
-FTS Database: storage/app/fts/fts-index.sqlite
+FTS Database: storage/app/search/fts-index.sqlite
 Size: 12.4 MB
 Total indexed records: 6,804
 
@@ -789,12 +789,12 @@ App\Models\Post          1,234     2026-07-05 12:00:00
 App\Models\Comment       5,678     2026-07-05 12:00:00
 ```
 
-### `php artisan fts:optimize`
+### `php artisan illumi-search:optimize`
 
 Run VACUUM and FTS5 merge optimization to reclaim space and improve performance.
 
 ```
-FTS Database: storage/app/fts/fts-index.sqlite
+FTS Database: storage/app/search/fts-index.sqlite
 Size before: 14.2 MB
 
 Running VACUUM...
@@ -805,14 +805,14 @@ Space saved: 1.8 MB
 Tables optimized: 2
 ```
 
-### `php artisan fts:search`
+### `php artisan illumi-search:search`
 
 Search the index directly from the command line.
 
 ```bash
-php artisan fts:search "laravel"
-php artisan fts:search "laravel" --models=Post,Comment --limit=5 --json
-php artisan fts:search "laravel" --suggest     # with spellcheck
+php artisan illumi-search:search "laravel"
+php artisan illumi-search:search "laravel" --models=Post,Comment --limit=5 --json
+php artisan illumi-search:search "laravel" --suggest     # with spellcheck
 ```
 
 Options:
@@ -825,7 +825,7 @@ Options:
 | `--json` | Output as JSON (for scripting) |
 | `--suggest` | Include spellcheck suggestions when no results |
 
-### `php artisan fts:doctor`
+### `php artisan illumi-search:doctor`
 
 Diagnose the FTS5 environment — extensions, FTS5 support, database health, configuration, and per-table integrity checks.
 
@@ -844,7 +844,7 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
  ✓ FTS5 is available (SQLite 3.52.0)
 
 3. FTS Database
- ✓ Path: storage/app/fts/fts-index.sqlite
+ ✓ Path: storage/app/search/fts-index.sqlite
  ✓ Size: 12.4 MB
  ✓ Readable / Writable
 
@@ -868,14 +868,14 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
 ✅ All checks passed
 ```
 
-### `php artisan fts:discover-filament`
+### `php artisan illumi-search:discover-filament`
 
 Analyze Filament panel Resources to discover `$ftsSearchable` columns for your models.
 
 ```bash
-php artisan fts:discover-filament
-php artisan fts:discover-filament --panel=admin
-php artisan fts:discover-filament --format=json
+php artisan illumi-search:discover-filament
+php artisan illumi-search:discover-filament --panel=admin
+php artisan illumi-search:discover-filament --format=json
 ```
 
 The command reads `getGloballySearchableAttributes()` from each Resource. If the Resource does not override this method, it falls back to `$recordTitleAttribute`. Discovery includes a default weight heuristic: the record title attribute gets weight 3, other columns get weight 1.
@@ -903,7 +903,7 @@ Requires Filament to be installed. Gracefully handles missing panels, resources 
 │  ┌──────────────────────▼────────────────────────────┐  │
 │  │              SqliteFtsEngine                       │  │
 │  │  ┌─────────────────────────────────────────────┐  │  │
-│  │  │  storage/app/fts/fts-index.sqlite            │  │  │
+│  │  │  storage/app/search/fts-index.sqlite            │  │  │
 │  │  │  ┌───────────────────────────────────────┐  │  │  │
 │  │  │  │  idx_posts (FTS5 virtual table)       │  │  │  │
 │  │  │  │  idx_comments (FTS5 virtual table)    │  │  │  │
@@ -988,7 +988,7 @@ Covered Unicode ranges:
 On `saved` / `deleted`, dispatch a job to keep the index in sync asynchronously.
 
 ```php
-// config/fts.php
+// config/illumi-search.php
 'indexing' => 'queue',
 ```
 
@@ -1002,7 +1002,7 @@ Update the index immediately in the same request. Best for small datasets or tes
 
 ### Manual
 
-No auto-indexing. Use `php artisan fts:rebuild` and `php artisan fts:sync` explicitly.
+No auto-indexing. Use `php artisan illumi-search:rebuild` and `php artisan illumi-search:sync` explicitly.
 
 ```php
 'indexing' => 'manual',
@@ -1010,7 +1010,7 @@ No auto-indexing. Use `php artisan fts:rebuild` and `php artisan fts:sync` expli
 
 ### Lazy Rebuild (batch + queue)
 
-For large datasets, `fts:rebuild` can index the first N records synchronously and dispatch queue jobs for the rest. This prevents timeouts on big tables while still providing immediate search results for the initial batch.
+For large datasets, `illumi-search:rebuild` can index the first N records synchronously and dispatch queue jobs for the rest. This prevents timeouts on big tables while still providing immediate search results for the initial batch.
 
 ```env
 FTS_REBUILD_BATCH_SIZE=500
@@ -1020,10 +1020,10 @@ Or pass `--batch-size` to the command:
 
 ```bash
 # Index first 500 records now, queue the rest
-php artisan fts:rebuild --batch-size=500
+php artisan illumi-search:rebuild --batch-size=500
 
 # Override config for a specific run
-php artisan fts:rebuild --batch-size=1000
+php artisan illumi-search:rebuild --batch-size=1000
 ```
 
 Output example:
@@ -1066,19 +1066,19 @@ When a model using the `Searchable` trait is saved, deleted, or restored:
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `fts:rebuild` | Full rebuild from scratch | `php artisan fts:rebuild` |
-| `fts:rebuild --model=Post` | Rebuild a single model | `php artisan fts:rebuild --model="App\Models\Post"` |
-| `fts:rebuild --batch-size=500` | Batch sync + queue for large tables | `php artisan fts:rebuild --batch-size=500` |
-| `fts:rebuild --vacuum` | Rebuild + VACUUM | `php artisan fts:rebuild --vacuum` |
-| `fts:sync` | Incremental sync | `php artisan fts:sync` |
-| `fts:sync --since="2026-01-15"` | Sync since a specific date | `php artisan fts:sync --since="2026-01-15"` |
-| `fts:sync --since="2026-01-15 14:30:00"` | Sync since date+time | `php artisan fts:sync --since="2026-01-15 14:30:00"` |
-| `fts:sync --model=Comment` | Sync a single model | `php artisan fts:sync --model="App\Models\Comment"` |
-| `fts:doctor` | Full health check | `php artisan fts:doctor` |
-| `fts:optimize` | Merge segments + VACUUM | `php artisan fts:optimize` |
-| `fts:search` | Search from CLI | `php artisan fts:search "laravel"` |
-| `fts:search --models=Post` | Search specific models | `php artisan fts:search "php" --models=Post,Comment` |
-| `fts:search --json` | Search as JSON | `php artisan fts:search "laravel" --json` |
+| `illumi-search:rebuild` | Full rebuild from scratch | `php artisan illumi-search:rebuild` |
+| `illumi-search:rebuild --model=Post` | Rebuild a single model | `php artisan illumi-search:rebuild --model="App\Models\Post"` |
+| `illumi-search:rebuild --batch-size=500` | Batch sync + queue for large tables | `php artisan illumi-search:rebuild --batch-size=500` |
+| `illumi-search:rebuild --vacuum` | Rebuild + VACUUM | `php artisan illumi-search:rebuild --vacuum` |
+| `illumi-search:sync` | Incremental sync | `php artisan illumi-search:sync` |
+| `illumi-search:sync --since="2026-01-15"` | Sync since a specific date | `php artisan illumi-search:sync --since="2026-01-15"` |
+| `illumi-search:sync --since="2026-01-15 14:30:00"` | Sync since date+time | `php artisan illumi-search:sync --since="2026-01-15 14:30:00"` |
+| `illumi-search:sync --model=Comment` | Sync a single model | `php artisan illumi-search:sync --model="App\Models\Comment"` |
+| `illumi-search:doctor` | Full health check | `php artisan illumi-search:doctor` |
+| `illumi-search:optimize` | Merge segments + VACUUM | `php artisan illumi-search:optimize` |
+| `illumi-search:search` | Search from CLI | `php artisan illumi-search:search "laravel"` |
+| `illumi-search:search --models=Post` | Search specific models | `php artisan illumi-search:search "php" --models=Post,Comment` |
+| `illumi-search:search --json` | Search as JSON | `php artisan illumi-search:search "laravel" --json` |
 
 ---
 
@@ -1107,7 +1107,7 @@ Full FTS5 query syntax:
 | Boolean | `laravel AND vuejs NOT react` | AND/OR/NOT operators |
 | Proximity | `laravel NEAR/5 vuejs` | terms within 5 words¹ |
 
-> ¹ Available operators are auto-detected at runtime. Run `php artisan fts:doctor` to see which are available. Restrict with `config('fts.operators.enabled')` (see [Configuration](#configuration)). NEAR is unsupported in some SQLite builds — when unsupported, it's automatically converted to AND.
+> ¹ Available operators are auto-detected at runtime. Run `php artisan illumi-search:doctor` to see which are available. Restrict with `config('illumi-search.operators.enabled')` (see [Configuration](#configuration)). NEAR is unsupported in some SQLite builds — when unsupported, it's automatically converted to AND.
 
 ---
 
@@ -1127,7 +1127,7 @@ pint                                        # Code style
 
 ```
 illumi-search/
-├── config/fts.php
+├── config/illumi-search.php
 ├── src/
 │   ├── Contracts/          # FtsEngine, TextProcessor interfaces
 │   ├── Engines/            # SqliteFtsEngine
@@ -1150,7 +1150,7 @@ illumi-search/
 ## Limitations
 
 - **Cloud object storage not supported.** The FTS5 index is a SQLite database file and must reside on a local filesystem. S3, GCS, or any HTTP-based storage driver cannot be used — `database_path` always resolves to a local path. See [Requirements](#requirements).
-- **Ephemeral environments.** On serverless platforms (Laravel Vapor, Kubernetes without persistent volumes), the index file is lost on redeploy. Use an absolute `FTS_DATABASE_PATH` pointing to a mounted persistent volume, or re-run `php artisan fts:rebuild` after each deploy.
+- **Ephemeral environments.** On serverless platforms (Laravel Vapor, Kubernetes without persistent volumes), the index file is lost on redeploy. Use an absolute `FTS_DATABASE_PATH` pointing to a mounted persistent volume, or re-run `php artisan illumi-search:rebuild` after each deploy.
 - **Multi-server setups.** SQLite handles concurrent reads well but does not support concurrent writes from multiple processes over NFS. Use a single-writer strategy or consider an external search service for horizontal scaling.
 
 ---
@@ -1162,7 +1162,7 @@ illumi-search/
 ### v1.11.0
 
 - **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `FTS_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
-- **CLI search.** New `php artisan fts:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
+- **CLI search.** New `php artisan illumi-search:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
 - **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `FtsIndexManager::rebuild()`, and `SqliteFtsEngine::escapeQuery()` into focused private methods.
 
 ### v1.10.0
@@ -1180,7 +1180,7 @@ illumi-search/
 - **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` shrinks the FTS index ~30% (total DB reduction is smaller — document content is unchanged).
 - **Merge tuning.** New `fts.fts5.automerge`, `fts.fts5.crisismerge`, and `fts.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
 - **`integrityCheck()`.** New method on `FtsEngine` interface. Performs FTS5 integrity-check on each indexed table.
-- **`fts:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).
+- **`illumi-search:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).
 - **Optimized `enrichWithSnippets()`.** Snippet loading now uses `SELECT` only for columns declared in `$ftsSearchable`, eager-loads relations for dot-notation columns, and detects virtual attributes via `Schema::hasColumn()`.
 
 ### v1.8.0
@@ -1191,7 +1191,7 @@ illumi-search/
 
 ### v1.7.0
 
-- **Real-time progress bars.** `fts:rebuild` and `fts:sync` now display a per-model progress bar with current/max count and elapsed time.
+- **Real-time progress bars.** `illumi-search:rebuild` and `illumi-search:sync` now display a per-model progress bar with current/max count and elapsed time.
 - **Eager-loaded relations.** Dot-notation columns (`writer.name`, `comments.body`) are now eager-loaded during chunks, eliminating N+1 queries on rebuild and sync.
 
 ### v1.6.0
@@ -1202,31 +1202,31 @@ illumi-search/
 
 ### v1.5.0
 
-- **Auto-cleanup orphaned tables.** `fts:rebuild` now removes index tables for models that no longer use the `Searchable` trait.
+- **Auto-cleanup orphaned tables.** `illumi-search:rebuild` now removes index tables for models that no longer use the `Searchable` trait.
 - **New methods on `FtsEngine` interface:** `tableName()`, `listIndexTables()`, `dropIndexTable()`.
 
 ### v1.4.2
 
-- **`fts:discover-filament` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
+- **`illumi-search:discover-filament` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
 
 ### v1.4.1
 
-- **`fts:discover-filament` CLI fallback.** Falls back to the first available panel when `getCurrentPanel()` returns null (running in CLI).
+- **`illumi-search:discover-filament` CLI fallback.** Falls back to the first available panel when `getCurrentPanel()` returns null (running in CLI).
 
 ### v1.4.0
 
-- **`fts:discover-filament` command.** Analyzes Filament panel Resources and discovers `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
+- **`illumi-search:discover-filament` command.** Analyzes Filament panel Resources and discovers `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
 
 ### v1.3.0
 
 - **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
-- **`validateFtsSearchable()`.** Emits warnings during `fts:rebuild` for dot-notation columns referencing non-existent relations.
+- **`validateFtsSearchable()`.** Emits warnings during `illumi-search:rebuild` for dot-notation columns referencing non-existent relations.
 
 ### v1.2.0
 
 - **Absolute database path.** `FTS_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
-- **`--vacuum` flag.** `php artisan fts:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.
-- **`fts:doctor` improvements.** Displays path type (absolute/relative) and free disk space.
+- **`--vacuum` flag.** `php artisan illumi-search:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.
+- **`illumi-search:doctor` improvements.** Displays path type (absolute/relative) and free disk space.
 - **Optional snippets.** `search()` accepts `$withSnippets` parameter. Set to `false` to skip Eloquent model loading when snippets are not needed.
 - **Model discovery cache.** `discoverModels()` caches results in memory within the same request — no redundant filesystem scans.
 - **Events.** `RebuildComplete` and `ModelIndexed` events are dispatched during rebuild.
@@ -1234,7 +1234,7 @@ illumi-search/
 - **`sync()` respects custom timestamps.** Uses `$model->getUpdatedAtColumn()` instead of hardcoded `updated_at`.
 - **Operator reset.** `SqliteFtsEngine::resetOperators()` allows resetting operator state between tests (avoids static state leakage).
 - **`FtsSpellcheck` per-instance.** Changed from `singleton` to `bind` — `maxDistance`/`maxSuggestions` no longer leak between callers.
-- **Removed unused `--mode` option** from `fts:rebuild` command.
+- **Removed unused `--mode` option** from `illumi-search:rebuild` command.
 - **`escapeQuery()` with cache.** Repeated calls with the same query + mode reuse the cached result.
 - **Deduplicated `extractTerms()`** — now shared via `HasQueryTerms` trait.
 - **Fixed `normalize()` dead branch.** `Normalizer::normalize()` failure now returns the original text instead of an empty string.

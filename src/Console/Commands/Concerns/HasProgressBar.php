@@ -4,7 +4,7 @@ namespace Moaines\IllumiSearch\Console\Commands\Concerns;
 
 use Symfony\Component\Console\Helper\ProgressBar;
 
-trait HasFtsProgressBar
+trait HasProgressBar
 {
     protected function startProgressBar(?ProgressBar &$pb, string $modelClass, int $total): void
     {

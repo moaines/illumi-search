@@ -2,9 +2,9 @@
 
 namespace Moaines\IllumiSearch\Contracts;
 
-use Moaines\IllumiSearch\FtsResult;
+use Moaines\IllumiSearch\Result;
 
-interface FtsEngine
+interface Engine
 {
     /**
      * Insert or replace a single document in the FTS index.
@@ -32,7 +32,7 @@ interface FtsEngine
      *
      * @example $results = $engine->search('laravel', [Post::class], 10)
      *
-     * @return FtsResult[]
+     * @return Result[]
      */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array;
 

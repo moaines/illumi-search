@@ -4,15 +4,15 @@ namespace Moaines\IllumiSearch\Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Tests\TestCase;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestSupport\Processors\PorterStemmerProcessor;
-use Moaines\IllumiSearch\Tests\TestCase;
 
 class CustomProcessorTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
@@ -25,14 +25,14 @@ class CustomProcessorTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
     }
 
     public function test_model_can_define_custom_processor(): void
     {
         $model = new class extends Post
         {
-            public function ftsTextProcessor(): ?string
+            public function searchTextProcessor(): ?string
             {
                 return PorterStemmerProcessor::class;
             }

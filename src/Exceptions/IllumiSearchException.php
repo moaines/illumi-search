@@ -4,7 +4,7 @@ namespace Moaines\IllumiSearch\Exceptions;
 
 use Exception;
 
-class FtsException extends Exception
+class IllumiSearchException extends Exception
 {
     public static function extensionMissing(string $extension): self
     {
@@ -41,7 +41,7 @@ class FtsException extends Exception
     public static function indexCorrupted(string $path, string $message): self
     {
         return new self(sprintf(
-            'FTS index at "%s" appears corrupted: %s. Run "php artisan fts:rebuild" to fix.',
+            'FTS index at "%s" appears corrupted: %s. Run "php artisan illumi-search:rebuild" to fix.',
             $path,
             $message
         ));

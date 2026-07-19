@@ -5,7 +5,7 @@ namespace Moaines\IllumiSearch\Tests\Feature;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Searchable;
 use Moaines\IllumiSearch\Support\SnippetService;
@@ -35,13 +35,13 @@ class SearchableConfigTest extends TestCase
 
             protected $table = 'test_models';
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
             ];
         };
 
-        $normalized = $model->normalizeFtsSearchable();
+        $normalized = $model->normalizeSearchable();
 
         $this->assertArrayHasKey('title', $normalized);
         $this->assertArrayHasKey('body', $normalized);
@@ -57,13 +57,13 @@ class SearchableConfigTest extends TestCase
 
             protected $table = 'test_models';
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => true,
             ];
         };
 
-        $normalized = $model->normalizeFtsSearchable();
+        $normalized = $model->normalizeSearchable();
 
         $this->assertArrayHasKey('body', $normalized);
         $this->assertEquals([], $normalized['body']);
@@ -77,13 +77,13 @@ class SearchableConfigTest extends TestCase
 
             protected $table = 'test_models';
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3],
                 'author',
             ];
         };
 
-        $normalized = $model->normalizeFtsSearchable();
+        $normalized = $model->normalizeSearchable();
 
         $this->assertArrayHasKey('title', $normalized);
         $this->assertArrayHasKey('author', $normalized);
@@ -98,7 +98,7 @@ class SearchableConfigTest extends TestCase
 
             protected $table = 'test_models';
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3, 'locale' => 'de'],
                 'body' => ['weight' => 1, 'locale' => 'fr'],
             ];
@@ -109,7 +109,7 @@ class SearchableConfigTest extends TestCase
 
         $processed = $model->processDocument($model, $global);
 
-        // processDocument calls normalizeFtsSearchable internally
+        // processDocument calls normalizeSearchable internally
         $this->assertIsString($processed['title']);
         $this->assertIsString($processed['body']);
     }
@@ -122,7 +122,7 @@ class SearchableConfigTest extends TestCase
 
             protected $table = 'test_models';
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3, 'snippet' => false],
                 'body' => ['weight' => 1, 'snippet' => true],
             ];
@@ -141,8 +141,8 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_selects_only_needed_columns(): void
     {
-        config(['fts.indexing' => 'manual']);
-        $engine = $this->app->make(FtsEngine::class);
+        config(['illumi-search.indexing' => 'manual']);
+        $engine = $this->app->make(Engine::class);
 
         $modelClass = new class extends Model
         {
@@ -152,7 +152,7 @@ class SearchableConfigTest extends TestCase
 
             protected $fillable = ['title', 'body', 'unused'];
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
             ];
@@ -167,8 +167,8 @@ class SearchableConfigTest extends TestCase
 
         $cls = get_class($modelClass);
         $engine->createTable($cls, ['title', 'body']);
-        $engine->upsert($cls, $instance->id, $instance->toFtsDocument());
-        $engine->upsert($cls, $instance2->id, $instance2->toFtsDocument());
+        $engine->upsert($cls, $instance->id, $instance->toSearchDocument());
+        $engine->upsert($cls, $instance2->id, $instance2->toSearchDocument());
 
         $results = $engine->search('interesting', [$cls], 10, withSnippets: true);
 
@@ -178,11 +178,11 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_with_dot_notation_relation(): void
     {
-        config(['fts.indexing' => 'manual']);
+        config(['illumi-search.indexing' => 'manual']);
         // The enrichWithSnippets eager-loads relation columns for dot-notation.
         // This is tested more thoroughly in SearchableTraitTest.
         // Here we just verify the engine produces results with snippets enabled.
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
 
         $model = new class extends Model
         {
@@ -192,7 +192,7 @@ class SearchableConfigTest extends TestCase
 
             protected $fillable = ['title', 'body'];
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
             ];
@@ -201,7 +201,7 @@ class SearchableConfigTest extends TestCase
         $model::create(['title' => 'Search Term Found', 'body' => 'This is a longer text body that contains the search term somewhere in the middle to properly test the snippet extraction functionality.']);
         $cls = get_class($model);
         $engine->createTable($cls, ['title', 'body']);
-        $model::all()->each(fn ($m) => $engine->upsert($cls, $m->id, $m->toFtsDocument()));
+        $model::all()->each(fn ($m) => $engine->upsert($cls, $m->id, $m->toSearchDocument()));
 
         $results = $engine->search('Search Term', [$cls], 10, withSnippets: true);
 
@@ -211,7 +211,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_with_virtual_accessor(): void
     {
-        config(['fts.indexing' => 'manual']);
+        config(['illumi-search.indexing' => 'manual']);
         Schema::create('virtual_models', function (Blueprint $table) {
             $table->id();
             $table->string('first_name');
@@ -229,7 +229,7 @@ class SearchableConfigTest extends TestCase
 
             public $timestamps = true;
 
-            protected array $ftsSearchable = [
+            protected array $searchable = [
                 'fullname' => ['weight' => 3],
             ];
 
@@ -241,10 +241,10 @@ class SearchableConfigTest extends TestCase
 
         $instance = $modelClass::create(['first_name' => 'Victor', 'last_name' => 'Hugo']);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $cls = get_class($modelClass);
         $engine->createTable($cls, ['fullname']);
-        $engine->upsert($cls, $instance->id, $instance->toFtsDocument());
+        $engine->upsert($cls, $instance->id, $instance->toSearchDocument());
 
         $results = $engine->search('Victor', [$cls], 10, withSnippets: true);
 
@@ -253,9 +253,9 @@ class SearchableConfigTest extends TestCase
 
     public function test_create_table_with_detail_column(): void
     {
-        config(['fts.fts5.detail' => 'column']);
+        config(['illumi-search.fts5.detail' => 'column']);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -263,9 +263,9 @@ class SearchableConfigTest extends TestCase
 
     public function test_create_table_with_detail_none(): void
     {
-        config(['fts.fts5.detail' => 'none']);
+        config(['illumi-search.fts5.detail' => 'none']);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -273,7 +273,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_integrity_check_passes_on_valid_table(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $result = $engine->integrityCheck(Post::class);
@@ -283,7 +283,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_integrity_check_fails_on_missing_table(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
 
         $result = $engine->integrityCheck('App\\Models\\NonExistent');
 
@@ -292,7 +292,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_database_opens_with_pragmas(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -300,9 +300,9 @@ class SearchableConfigTest extends TestCase
 
     public function test_wal_mode_can_be_disabled(): void
     {
-        config(['fts.fts5.wal' => false]);
+        config(['illumi-search.fts5.wal' => false]);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -310,9 +310,9 @@ class SearchableConfigTest extends TestCase
 
     public function test_cache_size_can_be_configured(): void
     {
-        config(['fts.fts5.cache_size_kb' => -32000]);
+        config(['illumi-search.fts5.cache_size_kb' => -32000]);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -320,7 +320,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_wal_mode_is_active(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title']);
 
         $verify = new \SQLite3($engine->getDatabasePath());
@@ -332,9 +332,9 @@ class SearchableConfigTest extends TestCase
 
     public function test_columnsize_0_creates_table_without_docsize(): void
     {
-        config(['fts.fts5.columnsize' => 0]);
+        config(['illumi-search.fts5.columnsize' => 0]);
 
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $this->assertTrue($engine->tableExists(Post::class));
@@ -342,7 +342,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_engine_has_generic_methods(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
 
         $this->assertTrue(method_exists($engine, 'upsert'));
         $this->assertTrue(method_exists($engine, 'delete'));
@@ -358,7 +358,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_engine_has_sqlite_specific_methods(): void
     {
-        $engine = $this->app->make(FtsEngine::class);
+        $engine = $this->app->make(Engine::class);
 
         $this->assertTrue(method_exists($engine, 'createTable'));
         $this->assertTrue(method_exists($engine, 'dropTable'));

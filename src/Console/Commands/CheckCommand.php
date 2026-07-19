@@ -3,15 +3,15 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\IndexManager;
 
-class FtsCheckCommand extends Command
+class CheckCommand extends Command
 {
-    protected $signature = 'fts:check';
+    protected $signature = 'illumi-search:check';
 
     protected $description = 'Check FTS5 index schema status for all searchable models';
 
-    public function handle(FtsIndexManager $manager): int
+    public function handle(IndexManager $manager): int
     {
         $checks = $manager->checkSchema();
 
@@ -48,12 +48,12 @@ class FtsCheckCommand extends Command
 
         if ($hasDrift) {
             $this->newLine();
-            $this->warn('Some models have schema drift. Run "php artisan fts:rebuild --model=..." to re-index.');
+            $this->warn('Some models have schema drift. Run "php artisan illumi-search:rebuild --model=..." to re-index.');
         }
 
         if ($hasMissing) {
             $this->newLine();
-            $this->warn('Some models have no index yet. Run "php artisan fts:rebuild" to create them.');
+            $this->warn('Some models have no index yet. Run "php artisan illumi-search:rebuild" to create them.');
         }
 
         if (! $hasDrift && ! $hasMissing) {

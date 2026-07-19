@@ -2,26 +2,26 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
-use Moaines\IllumiSearch\Facades\Fts;
-use Moaines\IllumiSearch\FtsQueryBuilder;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
+use Moaines\IllumiSearch\QueryBuilder;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-class FtsQueryBuilderTest extends TestCase
+class QueryBuilderTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
     }
 
     public function test_basic_query(): void
     {
         $this->indexPost(1, 'hello world', 'test body');
 
-        $results = Fts::query('hello')->model('App\Models\Post')->get();
+        $results = IllumiSearch::query('hello')->model('App\Models\Post')->get();
 
         $this->assertCount(1, $results);
         $this->assertEquals('hello world', $results[0]->title);
@@ -32,7 +32,7 @@ class FtsQueryBuilderTest extends TestCase
         $this->indexPost(1, 'hello post', 'body');
         $this->indexComment(1, 'hello comment', 'author');
 
-        $results = Fts::query('hello')
+        $results = IllumiSearch::query('hello')
             ->model('App\Models\Post')
             ->get();
 
@@ -45,7 +45,7 @@ class FtsQueryBuilderTest extends TestCase
         $this->indexPost(2, 'test b', '');
         $this->indexPost(3, 'test c', '');
 
-        $results = Fts::query('test')->model('App\Models\Post')->limit(2)->get();
+        $results = IllumiSearch::query('test')->model('App\Models\Post')->limit(2)->get();
 
         $this->assertCount(2, $results);
     }
@@ -54,25 +54,25 @@ class FtsQueryBuilderTest extends TestCase
     {
         $this->indexPost(1, 'hello world', 'body');
 
-        $results = Fts::query('hello')->model('App\Models\Post')->mode('basic')->get();
+        $results = IllumiSearch::query('hello')->model('App\Models\Post')->mode('basic')->get();
 
         $this->assertCount(1, $results);
     }
 
     public function test_query_returns_empty_for_no_query(): void
     {
-        $results = Fts::query('')->get();
+        $results = IllumiSearch::query('')->get();
         $this->assertCount(0, $results);
     }
 
     public function test_query_builder_is_fluent(): void
     {
-        $builder = Fts::query('test')
+        $builder = IllumiSearch::query('test')
             ->model('App\Models\Post')
             ->mode('advanced')
             ->limit(5);
 
-        $this->assertInstanceOf(FtsQueryBuilder::class, $builder);
+        $this->assertInstanceOf(QueryBuilder::class, $builder);
     }
 
     public function test_paginate(): void
@@ -81,7 +81,7 @@ class FtsQueryBuilderTest extends TestCase
             $this->indexPost($i, "test post {$i}", 'body');
         }
 
-        $paginator = Fts::query('test')->model('App\Models\Post')->paginate(2);
+        $paginator = IllumiSearch::query('test')->model('App\Models\Post')->paginate(2);
 
         $this->assertEquals(5, $paginator->total());
         $this->assertCount(2, $paginator->items());
@@ -93,7 +93,7 @@ class FtsQueryBuilderTest extends TestCase
         $this->indexPost(1, 'hello alpha', 'body');
         $this->indexPost(2, 'hello beta', 'body');
 
-        $count = Fts::query('hello')->model('App\Models\Post')->count();
+        $count = IllumiSearch::query('hello')->model('App\Models\Post')->count();
 
         $this->assertEquals(2, $count);
     }
@@ -104,8 +104,8 @@ class FtsQueryBuilderTest extends TestCase
             $this->indexPost($i, "test post {$i}", 'body');
         }
 
-        $page1 = Fts::query('test')->model('App\Models\Post')->paginate(2, page: 1);
-        $page2 = Fts::query('test')->model('App\Models\Post')->paginate(2, page: 2);
+        $page1 = IllumiSearch::query('test')->model('App\Models\Post')->paginate(2, page: 1);
+        $page2 = IllumiSearch::query('test')->model('App\Models\Post')->paginate(2, page: 2);
 
         $this->assertCount(2, $page1->items());
         $this->assertCount(2, $page2->items());
@@ -117,10 +117,10 @@ class FtsQueryBuilderTest extends TestCase
     {
         $this->indexPost(1, 'hello world', 'body');
 
-        $builder = Fts::query('hello')->model('App\Models\Post');
+        $builder = IllumiSearch::query('hello')->model('App\Models\Post');
 
         // engine is resolved lazily — setting it via the setter should work
-        $this->assertInstanceOf(\Moaines\IllumiSearch\FtsQueryBuilder::class, $builder->engine($this->engine));
+        $this->assertInstanceOf(\Moaines\IllumiSearch\QueryBuilder::class, $builder->engine($this->engine));
     }
 
     private function indexPost(int $id, string $title, string $body): void

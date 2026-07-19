@@ -4,15 +4,15 @@ namespace Moaines\IllumiSearch\Facades;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
-use Moaines\IllumiSearch\FtsQueryBuilder;
-use Moaines\IllumiSearch\FtsSpellcheck;
+use Moaines\IllumiSearch\QueryBuilder;
+use Moaines\IllumiSearch\Spellcheck;
 
 /**
- * @method static FtsQueryBuilder query(string $query)
+ * @method static QueryBuilder query(string $query)
  *
- * @see \Moaines\IllumiSearch\FtsQueryBuilder
+ * @see \Moaines\IllumiSearch\QueryBuilder
  */
-class Fts extends Facade
+class IllumiSearch extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
@@ -22,20 +22,20 @@ class Fts extends Facade
     /**
      * Start a new search query.
      *
-     * @example Fts::query('laravel')->model(Post::class)->get()
+     * @example IllumiSearch::query('laravel')->model(Post::class)->get()
      *
      * @param string $query The search terms
-     * @return FtsQueryBuilder
+     * @return QueryBuilder
      */
-    public static function query(string $query): FtsQueryBuilder
+    public static function query(string $query): QueryBuilder
     {
-        return app(FtsQueryBuilder::class)->query($query);
+        return app(QueryBuilder::class)->query($query);
     }
 
     /**
      * Get spelling suggestions for a query term.
      *
-     * @example Fts::didYouMean('laravell', [Post::class])
+     * @example IllumiSearch::didYouMean('laravell', [Post::class])
      *
      * @param string $query The (potentially misspelled) search term
      * @param array $modelClasses Optional model classes to scope suggestions
@@ -43,6 +43,6 @@ class Fts extends Facade
      */
     public static function didYouMean(string $query, array $modelClasses = []): Collection
     {
-        return app(FtsSpellcheck::class)->suggest($query, $modelClasses);
+        return app(Spellcheck::class)->suggest($query, $modelClasses);
     }
 }

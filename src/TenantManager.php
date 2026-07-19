@@ -26,7 +26,7 @@ class TenantManager
 
     public function enabled(): bool
     {
-        return config('fts.tenancy.enabled', false) && $this->resolver !== null;
+        return config('illumi-search.tenancy.enabled', false) && $this->resolver !== null;
     }
 
     public function tenantDatabasePath(string $basePath): string
@@ -41,9 +41,9 @@ class TenantManager
             return $basePath;
         }
 
-        $dir = config('fts.tenancy.directory', 'app/fts/tenants');
+        $dir = config('illumi-search.tenancy.directory', 'app/search/tenants');
         $filename = basename($basePath);
 
-        return storage_path($dir . '/' . $tenantId . '/' . $filename);
+        return storage_path($dir.'/'.$tenantId.'/'.$filename);
     }
 }

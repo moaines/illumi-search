@@ -3,14 +3,14 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsProgressBar;
-use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasProgressBar;
+use Moaines\IllumiSearch\IndexManager;
 
-class FtsRebuildCommand extends Command
+class RebuildCommand extends Command
 {
-    use HasFtsProgressBar;
+    use HasProgressBar;
 
-    protected $signature = 'fts:rebuild
+    protected $signature = 'illumi-search:rebuild
         {--model=* : Specific model classes to rebuild (multiple allowed)}
         {--force : Skip confirmation prompt}
         {--vacuum : Run VACUUM after rebuilding (slower but reclaims disk space)}
@@ -18,7 +18,7 @@ class FtsRebuildCommand extends Command
 
     protected $description = 'Rebuild the FTS5 search index from scratch';
 
-    public function handle(FtsIndexManager $manager): int
+    public function handle(IndexManager $manager): int
     {
         $models = $this->option('model');
 

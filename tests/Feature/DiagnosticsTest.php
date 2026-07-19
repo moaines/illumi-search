@@ -2,18 +2,18 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\IllumiSearch\Contracts\FtsEngine;
-use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class DiagnosticsTest extends TestCase
 {
-    protected FtsEngine $engine;
+    protected Engine $engine;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->engine = app(FtsEngine::class);
+        $this->engine = app(Engine::class);
         $this->engine->createTable(\Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class, ['title', 'body']);
     }
 
@@ -41,7 +41,7 @@ class DiagnosticsTest extends TestCase
 
     public function test_get_pragma_unsafe_throws(): void
     {
-        $this->expectException(FtsException::class);
+        $this->expectException(IllumiSearchException::class);
 
         $this->engine->getPragma('writable_schema');
     }

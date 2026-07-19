@@ -5,18 +5,18 @@ namespace Moaines\IllumiSearch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Events\ModelIndexed;
 use Moaines\IllumiSearch\Events\RebuildComplete;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
 
-class FtsIndexManager
+class IndexManager
 {
     private static ?Collection $cachedModels = null;
 
     public function __construct(
-        private readonly FtsEngine $engine,
+        private readonly Engine $engine,
         private readonly TextProcessor $processor,
     ) {}
 
@@ -28,7 +28,7 @@ class FtsIndexManager
 
         $models = collect();
 
-        $paths = config('fts.model_paths', [app_path('Models')]);
+        $paths = config('illumi-search.model_paths', [app_path('Models')]);
 
         foreach ($paths as $path) {
             if (! is_dir($path)) {
@@ -61,7 +61,7 @@ class FtsIndexManager
             ? collect($modelClasses)
             : $this->discoverModels();
 
-        $batchSize ??= (int) config('fts.rebuild_batch_size', 0);
+        $batchSize ??= (int) config('illumi-search.rebuild_batch_size', 0);
         $results = [];
 
         foreach ($models as $modelClass) {
@@ -98,23 +98,23 @@ class FtsIndexManager
         try {
             /** @var Model $instance */
             $instance = new $modelClass;
-            $columns = $instance->getFtsSearchableColumns();
+            $columns = $instance->getSearchableColumns();
 
             if (empty($columns)) {
                 return ['model' => $modelClass, 'status' => 'skipped', 'message' => 'No searchable columns'];
             }
 
             $warningMessages = [];
-            foreach ($instance->validateFtsSearchable() as $w) {
+            foreach ($instance->validateSearchable() as $w) {
                 $warningMessages[] = ['model' => $modelClass, 'status' => 'warning', 'message' => $w];
             }
 
             $this->engine->dropTable($modelClass);
-            $this->engine->createTable($modelClass, array_keys($columns), config('fts.fts5.prefix_lengths', [2, 3, 4]));
+            $this->engine->createTable($modelClass, array_keys($columns), config('illumi-search.fts5.prefix_lengths', [2, 3, 4]));
 
             $totalRecords = $modelClass::count();
             $keyName = (new $modelClass)->getKeyName();
-            $relations = $instance->ftsRelationsForRebuild();
+            $relations = $instance->relationsForRebuild();
             $syncCount = 0;
             $queuedCount = 0;
 
@@ -164,7 +164,7 @@ class FtsIndexManager
                 modelClass: $modelClass,
                 lastId: $lastId,
                 limit: $take,
-            )->onConnection(config('fts.queue_connection'));
+            )->onConnection(config('illumi-search.queue_connection'));
 
             $queuedCount += $take;
             $lastId += $take;
@@ -255,7 +255,7 @@ class FtsIndexManager
 
                 $count = 0;
                 $total = (clone $query)->count();
-                $relations = $instance->ftsRelationsForRebuild();
+                $relations = $instance->relationsForRebuild();
 
                 $progress?->__invoke('startModel', $modelClass, $total);
 
@@ -294,7 +294,7 @@ class FtsIndexManager
 
             /** @var Model $instance */
             $instance = new $modelClass;
-            $declaredColumns = array_keys($instance->getFtsSearchableColumns());
+            $declaredColumns = array_keys($instance->getSearchableColumns());
             sort($declaredColumns);
 
             $exists = $this->engine->tableExists($modelClass);

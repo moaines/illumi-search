@@ -6,15 +6,15 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
-use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\IndexManager;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class LazyIndexingTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
@@ -27,7 +27,7 @@ class LazyIndexingTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
     }
 
     private function createPost(int $id, string $title, string $body = ''): void
@@ -48,7 +48,7 @@ class LazyIndexingTest extends TestCase
 
         Bus::fake();
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $results = $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 100, // larger than dataset → all sync
@@ -72,7 +72,7 @@ class LazyIndexingTest extends TestCase
 
         Bus::fake();
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $results = $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 2, // only 2 sync, rest queued
@@ -94,7 +94,7 @@ class LazyIndexingTest extends TestCase
 
         Bus::fake();
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $results = $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 0, // 0 = always sync all
@@ -113,7 +113,7 @@ class LazyIndexingTest extends TestCase
 
         Bus::fake();
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $results = $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 2, // equal to dataset → no queue needed
@@ -133,7 +133,7 @@ class LazyIndexingTest extends TestCase
 
         Bus::fake();
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $results = $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 50, // 50 synced, 300 remaining
@@ -151,7 +151,7 @@ class LazyIndexingTest extends TestCase
         $this->createPost(1, 'hello world', 'test content');
         $this->createPost(2, 'foo bar', 'lorem ipsum');
 
-        $manager = $this->app->make(FtsIndexManager::class);
+        $manager = $this->app->make(IndexManager::class);
         $manager->rebuild(
             modelClasses: [Post::class],
             batchSize: 1, // batch of 1

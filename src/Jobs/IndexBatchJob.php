@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Throwable;
 
@@ -25,7 +25,7 @@ class IndexBatchJob implements ShouldQueue
         private readonly int $limit,
     ) {}
 
-    public function handle(FtsEngine $engine, TextProcessor $global): void
+    public function handle(Engine $engine, TextProcessor $global): void
     {
         $model = new $this->modelClass;
         $keyName = $model->getKeyName();

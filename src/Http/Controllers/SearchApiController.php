@@ -5,12 +5,12 @@ namespace Moaines\IllumiSearch\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
-use Moaines\IllumiSearch\FtsSpellcheck;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Spellcheck;
 
 class SearchApiController extends Controller
 {
-    public function __invoke(SearchApiRequest $request, FtsEngine $engine): JsonResponse
+    public function __invoke(SearchApiRequest $request, Engine $engine): JsonResponse
     {
         $query = $request->input('q');
         $limit = $request->integer('limit', 10);
@@ -31,7 +31,7 @@ class SearchApiController extends Controller
         $suggestions = [];
 
         if ($withSuggest && empty($results) && mb_strlen($query) > 2) {
-            $suggestions = app(FtsSpellcheck::class)
+            $suggestions = app(Spellcheck::class)
                 ->suggest($query, $modelClasses)
                 ->values()
                 ->toArray();

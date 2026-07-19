@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 
 class DeleteIndexJob implements ShouldQueue
 {
@@ -20,7 +20,7 @@ class DeleteIndexJob implements ShouldQueue
         private readonly int|string $modelId,
     ) {}
 
-    public function handle(FtsEngine $engine): void
+    public function handle(Engine $engine): void
     {
         $engine->delete($this->modelClass, $this->modelId);
     }

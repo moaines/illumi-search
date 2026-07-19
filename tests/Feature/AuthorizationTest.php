@@ -6,13 +6,13 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class AuthorizationTest extends TestCase
 {
-    private FtsEngine $engine;
+    private Engine $engine;
 
     private const MODEL_CLASS = Post::class;
 
@@ -28,7 +28,7 @@ class AuthorizationTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(FtsEngine::class);
+        $this->engine = $this->app->make(Engine::class);
         $this->engine->createTable(self::MODEL_CLASS, ['title', 'body']);
     }
 
@@ -47,7 +47,7 @@ class AuthorizationTest extends TestCase
         $this->createPost(1, 'public post', 'content');
         $this->createPost(2, 'private post', 'content');
 
-        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\QueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->get();
@@ -67,7 +67,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\QueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)
@@ -89,7 +89,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\QueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)
@@ -102,7 +102,7 @@ class AuthorizationTest extends TestCase
     {
         $this->createPost(1, 'test post', 'content');
 
-        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\QueryBuilder::class)
             ->query('test')
             ->models([self::MODEL_CLASS])
             ->withAuthorization()
@@ -126,7 +126,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\QueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)
