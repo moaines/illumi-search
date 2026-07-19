@@ -44,7 +44,7 @@ composer require moaines/illumi-search
 - **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
 - **intl** extension (accent folding, CJK, Arabic, Cyrillic)
 - **mbstring** extension (multibyte string operations)
-- **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/fts-index.sqlite')` and must point to a writable local directory.
+- **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/search-index.sqlite')` and must point to a writable local directory.
 
 ## Quick Start
 
@@ -72,9 +72,9 @@ php artisan illumi-search:rebuild
 ### 3. Search
 
 ```php
-use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
 
-$results = Fts::query('laravel')->model(Post::class)->get();
+$results = IllumiSearch::query('laravel')->model(Post::class)->get();
 ```
 
 ---
@@ -88,7 +88,7 @@ $results = Fts::query('laravel')->model(Post::class)->get();
 - [Search (PHP)](#search-php)
 - [REST API](#rest-api)
 - [Artisan Commands](#artisan-commands)
-- [`illumi-search:doctor`](#php-artisan-ftsdoctor)
+- [`illumi-search:doctor`](#illumi-searchdoctor)
 - [How It Works](#how-it-works)
 - [Text Processing](#text-processing)
 - [CJK Support](#cjk-support)
@@ -156,7 +156,7 @@ Laravel auto-discovers the service provider and facade.
 Publish the config (optional):
 
 ```bash
-php artisan vendor:publish --tag=fts-config
+php artisan vendor:publish --tag=illumi-search-config
 ```
 
 ---
@@ -167,32 +167,32 @@ php artisan vendor:publish --tag=fts-config
 
 | Env | Config key | Default | Possible values |
 |-----|-----------|---------|----------------|
-| `FTS_DATABASE_PATH` | `database_path` | `app/search/fts-index.sqlite` | Relative to `storage_path()`, or absolute (starts with `/`) |
-| `FTS_MODE` | `mode` | `advanced` | `basic` (simple wildcards), `advanced` (boolean, phrase, NEAR) |
-| `FTS_INDEXING` | `indexing` | `queue` | `queue` (async via jobs), `sync` (immediate), `manual` (commands only) |
-| `FTS_QUEUE_CONNECTION` | `queue_connection` | `null` (default queue) | Any queue name (`sync`, `redis`, `database`, etc.) |
-| `FTS_REBUILD_BATCH_SIZE` | `rebuild_batch_size` | `0` (all sync) | `500`, `1000` — batch size before switching to queue jobs |
+| `ILLUMI_SEARCH_DATABASE_PATH` | `database_path` | `app/search/search-index.sqlite` | Relative to `storage_path()`, or absolute (starts with `/`) |
+| `ILLUMI_SEARCH_MODE` | `mode` | `advanced` | `basic` (simple wildcards), `advanced` (boolean, phrase, NEAR) |
+| `ILLUMI_SEARCH_INDEXING` | `indexing` | `queue` | `queue` (async via jobs), `sync` (immediate), `manual` (commands only) |
+| `ILLUMI_SEARCH_QUEUE_CONNECTION` | `queue_connection` | `null` (default queue) | Any queue name (`sync`, `redis`, `database`, etc.) |
+| `ILLUMI_SEARCH_REBUILD_BATCH_SIZE` | `rebuild_batch_size` | `0` (all sync) | `500`, `1000` — batch size before switching to queue jobs |
 | — | `max_results` | `50` | Any positive integer |
 | — | `model_paths` | `[app_path('Models')]` | Array of paths to scan for Searchable models |
-| `FTS_PROCESSOR` | `fts5.processor` | `unicode` | `unicode` (default), `stemming` (multi-language stemming) |
+| `ILLUMI_SEARCH_PROCESSOR` | `fts5.processor` | `unicode` | `unicode` (default), `stemming` (multi-language stemming) |
 | — | `fts5.tokenizer` | `unicode61` | `unicode61`, `ascii`, `porter`, `trigram`, `porter unicode61` |
 | — | `fts5.prefix_lengths` | `[2, 3, 4]` | E.g. `[2, 3, 4]` for prefix indexes |
-| `FTS_COLUMNSIZE` | `fts5.columnsize` | `1` | `1` (default), `0` (omit column sizes, saves ~10% space) |
+| `ILLUMI_SEARCH_COLUMNSIZE` | `fts5.columnsize` | `1` | `1` (default), `0` (omit column sizes, saves ~10% space) |
 | — | `fts5.detail` | `full` | `full` (default), `column` (+NEAR +phrase), `none` (term only) |
 | — | `fts5.automerge` | `4` | Segments before auto‑merge (0 = disable) |
 | — | `fts5.crisismerge` | `16` | Segments before forced merge |
 | — | `fts5.pgsz` | `1000` | Index page size in bytes |
-| `FTS_WAL` | `fts5.wal` | `true` | `true`, `false` (disable only on NFS) |
-| `FTS_CACHE_SIZE_KB` | `fts5.cache_size_kb` | `-64000` (64 MB) | Positive = pages, negative = kilobytes |
-| `FTS_SYNCHRONOUS` | `fts5.synchronous` | `NORMAL` | `NORMAL` (fast, safe with WAL), `FULL` (safest, slowest) |
-| `FTS_TEMP_STORE` | `fts5.temp_store` | `MEMORY` | `MEMORY` (fast), `FILE` (safe for low RAM) |
-| `FTS_BUSY_TIMEOUT` | `fts5.busy_timeout` | `5000` | Milliseconds (0 = no timeout, 1000–5000 recommended) |
-| `FTS_MMAP_SIZE` | `fts5.mmap_size` | `0` (disabled) | 0 = off, `67108864` (64 MB), `268435456` (256 MB). ⚠️ Incompatible with NFS/Docker mounts |
-| `FTS_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
-| `FTS_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
-| `FTS_TENANCY_DIRECTORY` | `tenancy.directory` | `app/search/tenants` | Relative to `storage_path()` |
-| `FTS_SPELLCHECK_VOCAB_LIMIT` | `spellcheck.vocab_limit` | `1000` | Max terms loaded from vocab table |
-| `FTS_OPERATORS` | `operators.enabled` | `null` | `null` (auto‑detect), `['AND', 'OR', 'NOT']`, `[]` |
+| `ILLUMI_SEARCH_WAL` | `fts5.wal` | `true` | `true`, `false` (disable only on NFS) |
+| `ILLUMI_SEARCH_CACHE_SIZE_KB` | `fts5.cache_size_kb` | `-64000` (64 MB) | Positive = pages, negative = kilobytes |
+| `ILLUMI_SEARCH_SYNCHRONOUS` | `fts5.synchronous` | `NORMAL` | `NORMAL` (fast, safe with WAL), `FULL` (safest, slowest) |
+| `ILLUMI_SEARCH_TEMP_STORE` | `fts5.temp_store` | `MEMORY` | `MEMORY` (fast), `FILE` (safe for low RAM) |
+| `ILLUMI_SEARCH_BUSY_TIMEOUT` | `fts5.busy_timeout` | `5000` | Milliseconds (0 = no timeout, 1000–5000 recommended) |
+| `ILLUMI_SEARCH_MMAP_SIZE` | `fts5.mmap_size` | `0` (disabled) | 0 = off, `67108864` (64 MB), `268435456` (256 MB). ⚠️ Incompatible with NFS/Docker mounts |
+| `ILLUMI_SEARCH_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
+| `ILLUMI_SEARCH_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
+| `ILLUMI_SEARCH_TENANCY_DIRECTORY` | `tenancy.directory` | `app/search/tenants` | Relative to `storage_path()` |
+| `ILLUMI_SEARCH_SPELLCHECK_VOCAB_LIMIT` | `spellcheck.vocab_limit` | `1000` | Max terms loaded from vocab table |
+| — | `operators.enabled` | `null` | `null` (auto‑detect), `['AND', 'OR', 'NOT']`, `[]` |
 | — | `max_related_values` | `100` | Max related model values for dot‑notation columns |
 
 ### Operators
@@ -211,24 +211,13 @@ Operators are auto-detected at runtime. Run `php artisan illumi-search:doctor` t
 ### Publish config
 
 ```bash
-php artisan vendor:publish --tag=fts-config
+php artisan vendor:publish --tag=illumi-search-config
 ```
 
 This publishes `config/illumi-search.php` where you can override any setting. Use `.env` variables for values that differ between environments (local, staging, production).
 
-### 1. Minimal
-
-Add the trait and list your columns:
-
-```php
-use Moaines\IllumiSearch\Searchable;
-
-class Post extends Model
-{
-    use Searchable;
-
-    protected array $searchable = ['title', 'body'];
-}
+```bash
+php artisan vendor:publish --tag=illumi-search-config
 ```
 
 ### 2. With weights
@@ -355,23 +344,23 @@ protected bool $syncOnSave = true;  // disable auto-indexing for this model
 ### Facade
 
 ```php
-use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
 ```
 
 ### Basic
 
 ```php
-$results = Fts::query('bonjour monde')->get();
+$results = IllumiSearch::query('bonjour')->get();
 ```
 
 ### Filter by model
 
 ```php
-$results = Fts::query('bonjour')
+$results = IllumiSearch::query('bonjour')
     ->model(Post::class)
     ->get();
 
-$results = Fts::query('bonjour')
+$results = IllumiSearch::query('bonjour')
     ->models([Post::class, Comment::class])
     ->get();
 ```
@@ -379,7 +368,7 @@ $results = Fts::query('bonjour')
 ### Limit and offset
 
 ```php
-$results = Fts::query('bonjour')
+$results = IllumiSearch::query('bonjour')
     ->model(Post::class)
     ->limit(10)
     ->offset(20)
@@ -389,11 +378,11 @@ $results = Fts::query('bonjour')
 ### Search mode
 
 ```php
-$results = Fts::query('bonjour')
+$results = IllumiSearch::query('bonjour')
     ->mode('advanced')  // column-specific, phrase, NEAR, prefix
     ->get();
 
-$results = Fts::query('bonjour')
+$results = IllumiSearch::query('bonjour')
     ->mode('basic')     // simple keyword + wildcard
     ->get();
 ```
@@ -401,7 +390,7 @@ $results = Fts::query('bonjour')
 ### Count
 
 ```php
-$count = Fts::query('bonjour')->count();
+$count = IllumiSearch::query('bonjour')->count();
 ```
 
 ### Spellcheck (Did you mean?)
@@ -409,13 +398,13 @@ $count = Fts::query('bonjour')->count();
 Suggest alternative spellings when a search returns few or no results. Uses FTS5 `%_vocab` tables with Levenshtein distance.
 
 ```php
-use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
 
 // Returns ['laravel'] for the misspelled query
-$suggestions = Fts::didYouMean('laravell');
+$suggestions = IllumiSearch::didYouMean('laravell');
 
 // Scope to specific models
-$suggestions = Fts::didYouMean('developpment', [Post::class]);
+$suggestions = IllumiSearch::didYouMean('developpment', [Post::class]);
 // Returns ['developpement']
 
 // Advanced usage with Spellcheck
@@ -433,7 +422,7 @@ The vocab tables are created automatically when `illumi-search:rebuild` runs (al
 ### Pagination
 
 ```php
-$paginator = Fts::query('bonjour')->paginate(15);
+$paginator = IllumiSearch::query('bonjour')->paginate(15);
 ```
 
 ### Result object
@@ -456,7 +445,7 @@ class Result {
 
 ### Laravel Scout
 
-This package does **not** provide a Scout driver — the built-in `Searchable` trait + `Fts` facade cover most search use cases without Scout's overhead.
+This package does **not** provide a Scout driver — the built-in `Searchable` trait + `IllumiSearch` facade cover most search use cases without Scout's overhead.
 
 If you need Scout integration (for compatibility with existing code), create a custom engine:
 
@@ -464,13 +453,13 @@ If you need Scout integration (for compatibility with existing code), create a c
 namespace App\Engines;
 
 use Laravel\Scout\Engines\Engine;
-use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
 
-class FtsScoutEngine extends Engine
+class IllumiSearchScoutEngine extends Engine
 {
     public function search(Builder $builder)
     {
-        $results = Fts::query($builder->query)
+        $results = IllumiSearch::query($builder->query)
             ->model($builder->model)
             ->get();
 
@@ -490,12 +479,12 @@ Register in `AppServiceProvider`:
 ```php
 use Laravel\Scout\EngineManager;
 
-$this->app->make(EngineManager::class)->extend('fts', function () {
-    return new \App\Engines\FtsScoutEngine;
+$this->app->make(EngineManager::class)->extend('illumi-search', function () {
+    return new \App\Engines\IllumiSearchScoutEngine;
 });
 ```
 
-Set `SCOUT_DRIVER=fts` in your `.env`.
+Set `SCOUT_DRIVER=illumi-search` in your `.env`.
 
 ---
 
@@ -506,7 +495,7 @@ Search endpoint for headless apps, mobile apps, or programmatic access.
 ### Enable
 
 ```env
-FTS_API_ENABLED=true
+ILLUMI_SEARCH_API_ENABLED=true
 ```
 
 ### Endpoint
@@ -550,7 +539,7 @@ curl "/api/search?q=laravel&models=Post,Comment&limit=5&suggest=1"
 
 ### Rate limiting
 
-Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `config('illumi-search.api.rate_limit')`.
+Default: 30 requests per minute. Configure with `ILLUMI_SEARCH_API_RATE_LIMIT` env or `config('illumi-search.api.rate_limit')`.
 
 ---
 
@@ -559,7 +548,7 @@ Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `con
 Inspect the FTS5 engine version, current PRAGMAs, run integrity checks, and read/write custom metadata.
 
 ```php
-use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Facades\IllumiSearch;
 use Moaines\IllumiSearch\Contracts\Engine;
 
 $engine = app(Engine::class);
@@ -612,10 +601,10 @@ $this->app->resolving(TenantManager::class, function (TenantManager $manager) {
 
 The SQLite files are stored in:
 ```
-storage/app/search/tenants/{tenant_id}/fts-index.sqlite
+ storage/app/search/tenants/{tenant_id}/search-index.sqlite
 ```
 
-When tenancy is disabled (default), the path is `storage/app/search/fts-index.sqlite` as usual.
+When tenancy is disabled (default), the path is `storage/app/search/search-index.sqlite` as usual.
 
 > **Note:** The `Engine` is a singleton within a single request. If you switch tenants mid-request (e.g., in a queue job processing multiple tenants), you must manually clear the engine instance. In a standard HTTP request lifecycle, this is not an issue since the engine is resolved once per request.
 
@@ -630,38 +619,7 @@ Filter search results by user permissions using Laravel's Gate/Policy system.
 ### Enable
 
 ```php
-$results = Fts::query('laravel')
-    ->model(Post::class)
-    ->withAuthorization()       // uses Auth::user()
-    ->get();
-
-// Or with an explicit user
-$results = Fts::query('laravel')
-    ->model(Post::class)
-    ->withAuthorization($admin)
-    ->get();
-```
-
-### With a Policy
-
-```php
-class PostPolicy
-{
-    public function view($user, Post $post): bool
-    {
-        return $user->id === $post->user_id;
-    }
-}
-```
-
-### With a Closure Gate
-
-```php
-Gate::define('view', function ($user, Post $post) {
-    return in_array($post->author, ['Jean Dupont', 'Marie Curie'], true);
-});
-
-$results = Fts::query('laravel')
+$results = IllumiSearch::query('laravel')
     ->model(Post::class)
     ->withAuthorization()
     ->get();
@@ -687,7 +645,7 @@ Gate::define('view', function ($user, Post $post) {
     return $user->hasPermissionTo('view posts');
 });
 
-$results = Fts::query('laravel')
+$results = IllumiSearch::query('laravel')
     ->model(Post::class)
     ->withAuthorization()
     ->get();
@@ -715,7 +673,7 @@ Each `Result` has an `authorized` boolean (default `true`). When authorization i
 
 ### SQLite file protection
 
-The FTS5 index is stored in `storage/app/search/fts-index.sqlite` by default. Laravel's `storage/` directory is already protected from web access, but ensure:
+The FTS5 index is stored in `storage/app/search/search-index.sqlite` by default. Laravel's `storage/` directory is already protected from web access, but ensure:
 
 - The file is **not** committed to version control (it's in `.gitignore` by default)
 - File permissions restrict access to the web server user only (`chmod 600`)
@@ -780,7 +738,7 @@ Detect schema drift between model declarations and index.
 Index statistics.
 
 ```
-FTS Database: storage/app/search/fts-index.sqlite
+Search Database: storage/app/search/search-index.sqlite
 Size: 12.4 MB
 Total indexed records: 6,804
 
@@ -794,7 +752,7 @@ App\Models\Comment       5,678     2026-07-05 12:00:00
 Run VACUUM and FTS5 merge optimization to reclaim space and improve performance.
 
 ```
-FTS Database: storage/app/search/fts-index.sqlite
+Search Database: storage/app/search/search-index.sqlite
 Size before: 14.2 MB
 
 Running VACUUM...
@@ -832,7 +790,7 @@ Diagnose the FTS5 environment — extensions, FTS5 support, database health, con
 The doctor command also runs FTS5's built-in `integrity-check` on each indexed table to detect corruption.
 
 ```
-🔍 FTS Environment Diagnostics
+🔍 Illumi Search Environment Diagnostics
 
 1. PHP Extensions
  ✓ ext-sqlite3
@@ -843,8 +801,8 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
 2. SQLite FTS5 Support
  ✓ FTS5 is available (SQLite 3.52.0)
 
-3. FTS Database
- ✓ Path: storage/app/search/fts-index.sqlite
+3. Search Database
+ ✓ Path: storage/app/search/search-index.sqlite
  ✓ Size: 12.4 MB
  ✓ Readable / Writable
 
@@ -854,9 +812,9 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
   Integrity:
   ✓ App\Models\Post
 
-4. Configuration
- fts.indexing = queue
- fts.mode = advanced
+ 4. Configuration
+  illumi-search.indexing = queue
+  illumi-search.mode = advanced
  ...
 
 5. FTS5 Operators
@@ -903,11 +861,11 @@ Requires Filament to be installed. Gracefully handles missing panels, resources 
 │  ┌──────────────────────▼────────────────────────────┐  │
 │  │              SqliteEngine                       │  │
 │  │  ┌─────────────────────────────────────────────┐  │  │
-│  │  │  storage/app/search/fts-index.sqlite            │  │  │
+│  │  │  storage/app/search/search-index.sqlite            │  │  │
 │  │  │  ┌───────────────────────────────────────┐  │  │  │
 │  │  │  │  idx_posts (FTS5 virtual table)       │  │  │  │
 │  │  │  │  idx_comments (FTS5 virtual table)    │  │  │  │
-│  │  │  │  _fts_meta (schema tracking)          │  │  │  │
+│   │  │  │  _search_meta (schema tracking)          │  │  │  │
 │  │  │  └───────────────────────────────────────┘  │  │  │
 │  │  └─────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────┘  │
@@ -1013,7 +971,7 @@ No auto-indexing. Use `php artisan illumi-search:rebuild` and `php artisan illum
 For large datasets, `illumi-search:rebuild` can index the first N records synchronously and dispatch queue jobs for the rest. This prevents timeouts on big tables while still providing immediate search results for the initial batch.
 
 ```env
-FTS_REBUILD_BATCH_SIZE=500
+ILLUMI_SEARCH_REBUILD_BATCH_SIZE=500
 ```
 
 Or pass `--batch-size` to the command:
@@ -1033,7 +991,7 @@ Output example:
   ✓ App\Models\Comment: 500 records indexed, 8700 dispatched to queue (total: 9200)
 ```
 
-The queued `IndexBatchJob` jobs process records in chunks of 100 each. Set `FTS_REBUILD_BATCH_SIZE=0` to always index everything synchronously (default).
+The queued `IndexBatchJob` jobs process records in chunks of 100 each. Set `ILLUMI_SEARCH_REBUILD_BATCH_SIZE=0` to always index everything synchronously (default).
 
 ---
 
@@ -1136,7 +1094,7 @@ illumi-search/
 │   ├── Http/Controllers/   # SearchApiController
 │   ├── Http/Requests/      # SearchApiRequest
 │   ├── Jobs/               # IndexModelJob, DeleteIndexJob, IndexBatchJob
-│   ├── Facades/Fts.php
+│   ├── Facades/IllumiSearch.php
 │   ├── QueryBuilder.php
 │   ├── Result.php
 │   ├── IndexManager.php
@@ -1150,7 +1108,7 @@ illumi-search/
 ## Limitations
 
 - **Cloud object storage not supported.** The FTS5 index is a SQLite database file and must reside on a local filesystem. S3, GCS, or any HTTP-based storage driver cannot be used — `database_path` always resolves to a local path. See [Requirements](#requirements).
-- **Ephemeral environments.** On serverless platforms (Laravel Vapor, Kubernetes without persistent volumes), the index file is lost on redeploy. Use an absolute `FTS_DATABASE_PATH` pointing to a mounted persistent volume, or re-run `php artisan illumi-search:rebuild` after each deploy.
+- **Ephemeral environments.** On serverless platforms (Laravel Vapor, Kubernetes without persistent volumes), the index file is lost on redeploy. Use an absolute `ILLUMI_SEARCH_DATABASE_PATH` pointing to a mounted persistent volume, or re-run `php artisan illumi-search:rebuild` after each deploy.
 - **Multi-server setups.** SQLite handles concurrent reads well but does not support concurrent writes from multiple processes over NFS. Use a single-writer strategy or consider an external search service for horizontal scaling.
 
 ---
@@ -1161,19 +1119,19 @@ illumi-search/
 
 ### v1.11.0
 
-- **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `FTS_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
+- **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `ILLUMI_SEARCH_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
 - **CLI search.** New `php artisan illumi-search:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
 - **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `IndexManager::rebuild()`, and `SqliteEngine::escapeQuery()` into focused private methods.
 
 ### v1.10.0
 
-- **Queue connection support.** Implemented `fts.queue_connection` (`FTS_QUEUE_CONNECTION`). Set a specific queue for FTS indexing jobs (e.g. `FTS_QUEUE_CONNECTION=database`). When `null` (default), uses the application's default queue connection.
-- **Multi-language stemming.** New text processor `stemming` (`FTS_PROCESSOR=stemming`) powered by [wamania/php-stemmer](https://github.com/wamania/php-stemmer). Stems words in 13 languages (en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi). Unknown languages fall back to unicode processing silently. Default: `unicode`.
+- **Queue connection support.** Implemented `illumi-search.queue_connection` (`ILLUMI_SEARCH_QUEUE_CONNECTION`). Set a specific queue for FTS indexing jobs (e.g. `ILLUMI_SEARCH_QUEUE_CONNECTION=database`). When `null` (default), uses the application's default queue connection.
+- **Multi-language stemming.** New text processor `stemming` (`ILLUMI_SEARCH_PROCESSOR=stemming`) powered by [wamania/php-stemmer](https://github.com/wamania/php-stemmer). Stems words in 13 languages (en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi). Unknown languages fall back to unicode processing silently. Default: `unicode`.
 - **Tokenizer options documented.** Built-in tokenizers: `unicode61` (default), `ascii`, `porter`, `trigram`. Porter can wrap any tokenizer (`porter unicode61`, `porter ascii`). Trigram enables substring matching (LIKE-style `%search%`).
 - **Column-size option.** New `fts.fts5.columnsize` config (`1` or `0`). Set to `0` to omit column size storage — saves ~10% disk space with slightly less accurate BM25 ranking. Default: `1`.
 - **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `Engine` for index introspection and health checks.
 - **Safe PRAGMA whitelist.** Only read-only PRAGMAs are allowed via `getPragma()` (journal_mode, cache_size, busy_timeout, synchronous, etc.).
-- **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`FTS_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `FTS_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.
+- **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`ILLUMI_SEARCH_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `ILLUMI_SEARCH_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.
 
 ### v1.9.0
 
@@ -1219,12 +1177,12 @@ illumi-search/
 
 ### v1.3.0
 
-- **Dot notation in `ftsSearchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
-- **`validateFtsSearchable()`.** Emits warnings during `illumi-search:rebuild` for dot-notation columns referencing non-existent relations.
+- **Dot notation in `searchable`.** Columns like `'writer.name'` and `'comments.body'` auto-resolve related model attributes. Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors. Null-safe, collection-safe, limited by `max_related_values` (default: 100).
+- **`validateSearchable()`.** Emits warnings during `illumi-search:rebuild` for dot-notation columns referencing non-existent relations.
 
 ### v1.2.0
 
-- **Absolute database path.** `FTS_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
+- **Absolute database path.** `ILLUMI_SEARCH_DATABASE_PATH` starting with `/` is used as-is (for persistent volumes on Vapor/K8s). Relative paths still resolve via `storage_path()`.
 - **`--vacuum` flag.** `php artisan illumi-search:rebuild --vacuum` runs VACUUM after rebuilding. Without the flag, VACUUM is skipped for faster rebuilds.
 - **`illumi-search:doctor` improvements.** Displays path type (absolute/relative) and free disk space.
 - **Optional snippets.** `search()` accepts `$withSnippets` parameter. Set to `false` to skip Eloquent model loading when snippets are not needed.
