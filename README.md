@@ -59,7 +59,7 @@ class Post extends Model
 {
     use Searchable;
 
-    protected array $ftsSearchable = ['title', 'body'];
+    protected array $searchable = ['title', 'body'];
 }
 ```
 
@@ -227,7 +227,7 @@ class Post extends Model
 {
     use Searchable;
 
-    protected array $ftsSearchable = ['title', 'body'];
+    protected array $searchable = ['title', 'body'];
 }
 ```
 
@@ -236,7 +236,7 @@ class Post extends Model
 Assign BM25 relevance multipliers to prioritize columns:
 
 ```php
-protected array $ftsSearchable = [
+protected array $searchable = [
     'title' => ['weight' => 3],  // 3× importance in ranking
     'body'  => ['weight' => 1],
 ];
@@ -252,11 +252,11 @@ Three syntaxes are accepted:
 
 ### 3. With dot notation
 
-Search across related model attributes without custom `toFtsDocument()` logic.
+Search across related model attributes without custom `toSearchDocument()` logic.
 Supports all Eloquent relationships (`belongsTo`, `hasOne`, `hasMany`, `belongsToMany`, `morphOne`, `morphMany`, `morphTo`) and custom accessors:
 
 ```php
-protected array $ftsSearchable = [
+protected array $searchable = [
     'title'            => ['weight' => 3],
     'body'             => ['weight' => 1],
     'writer.name'      => ['weight' => 1],   // belongsTo → Writer.name
@@ -291,7 +291,7 @@ Control the text language and which columns provide context previews:
 | `snippet` | `bool` | `true` | If `false`, excluded from result `<mark>` preview |
 
 ```php
-protected array $ftsSearchable = [
+protected array $searchable = [
     'title' => ['weight' => 3, 'locale' => 'fr', 'snippet' => false],
     'body'  => ['weight' => 1, 'locale' => 'fr', 'snippet' => true],
     'tags'  => ['snippet' => false],
@@ -303,10 +303,10 @@ protected array $ftsSearchable = [
 
 ### 4. Custom document mapping
 
-By default, values are read from model attributes. Override `toFtsDocument()` for computed or relational data:
+By default, values are read from model attributes. Override `toSearchDocument()` for computed or relational data:
 
 ```php
-public function toFtsDocument(): array
+public function toSearchDocument(): array
 {
     return [
         'title'  => $this->title,
@@ -335,7 +335,7 @@ class Post extends Model
 {
     use Searchable;
 
-    public function ftsTextProcessor(): ?string
+    public function searchTextProcessor(): ?string
     {
         return MyCustomProcessor::class;
     }
@@ -345,7 +345,7 @@ class Post extends Model
 ### Other options
 
 ```php
-protected bool $ftsSyncOnSave = true;  // disable auto-indexing for this model
+protected bool $syncOnSave = true;  // disable auto-indexing for this model
 ```
 
 ---
@@ -418,10 +418,10 @@ $suggestions = Fts::didYouMean('laravell');
 $suggestions = Fts::didYouMean('developpment', [Post::class]);
 // Returns ['developpement']
 
-// Advanced usage with FtsSpellcheck
-use Moaines\IllumiSearch\FtsSpellcheck;
+// Advanced usage with Spellcheck
+use Moaines\IllumiSearch\Spellcheck;
 
-$spellcheck = app(FtsSpellcheck::class);
+$spellcheck = app(Spellcheck::class);
 $suggestions = $spellcheck
     ->maxDistance(2)          // max Levenshtein distance (default: 2)
     ->maxSuggestions(5)       // max suggestions (default: 5)
@@ -439,7 +439,7 @@ $paginator = Fts::query('bonjour')->paginate(15);
 ### Result object
 
 ```php
-class FtsResult {
+class Result {
     public string $id;          // "App\Models\Post:42"
     public string $modelClass;
     public int|string $modelId;
@@ -452,7 +452,7 @@ class FtsResult {
 
 > The `$model` property gives access to the original Eloquent model attached during search. The model is excluded from `toArray()` and `__sleep()` — it's a transient runtime reference to avoid double queries.
 > 
-> When using Filament, the Resource's Global Search methods (`getGlobalSearchResultUrl()`, `getGlobalSearchResultDetails()`) take priority over `ftsUrl()` and `ftsCategory()` on the model.
+> When using Filament, the Resource's Global Search methods (`getGlobalSearchResultUrl()`, `getGlobalSearchResultDetails()`) take priority over `searchUrl()` and `searchCategory()` on the model.
 
 ### Laravel Scout
 
@@ -560,9 +560,9 @@ Inspect the FTS5 engine version, current PRAGMAs, run integrity checks, and read
 
 ```php
 use Moaines\IllumiSearch\Facades\Fts;
-use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\Engine;
 
-$engine = app(FtsEngine::class);
+$engine = app(Engine::class);
 
 // Engine version
 echo $engine->getEngineVersion();           // "SQLite 3.46.0 | FTS5"
@@ -592,7 +592,7 @@ Isolate search indexes per tenant. Each tenant gets its own SQLite file.
 ```php
 // config/illumi-search.php
 'tenancy' => [
-    'enabled' => env('FTS_TENANCY', false),
+    'enabled' => env('ILLUMI_SEARCH_TENANCY', false),
     'directory' => 'app/search/tenants',
 ],
 ```
@@ -617,7 +617,7 @@ storage/app/search/tenants/{tenant_id}/fts-index.sqlite
 
 When tenancy is disabled (default), the path is `storage/app/search/fts-index.sqlite` as usual.
 
-> **Note:** The `FtsEngine` is a singleton within a single request. If you switch tenants mid-request (e.g., in a queue job processing multiple tenants), you must manually clear the engine instance. In a standard HTTP request lifecycle, this is not an issue since the engine is resolved once per request.
+> **Note:** The `Engine` is a singleton within a single request. If you switch tenants mid-request (e.g., in a queue job processing multiple tenants), you must manually clear the engine instance. In a standard HTTP request lifecycle, this is not an issue since the engine is resolved once per request.
 
 > **Note:** The FTS5 vocab tables (used by spellcheck) are updated automatically by FTS5 when data is inserted or modified — no manual sync needed.
 
@@ -707,7 +707,7 @@ class PostPolicy
 
 ### Result flag
 
-Each `FtsResult` has an `authorized` boolean (default `true`). When authorization is enabled, unauthorized results are **removed** from the collection.
+Each `Result` has an `authorized` boolean (default `true`). When authorization is enabled, unauthorized results are **removed** from the collection.
 
 ---
 
@@ -726,7 +726,7 @@ The FTS5 index is stored in `storage/app/search/fts-index.sqlite` by default. La
 All searchable columns are eligible for context snippets by default. If a column contains sensitive data (PII, internal notes, secrets), disable snippets:
 
 ```php
-protected array $ftsSearchable = [
+protected array $searchable = [
     'email'         => ['snippet' => false],
     'internal_note' => ['snippet' => false],
 ];
@@ -870,7 +870,7 @@ The doctor command also runs FTS5's built-in `integrity-check` on each indexed t
 
 ### `php artisan illumi-search:discover-filament`
 
-Analyze Filament panel Resources to discover `$ftsSearchable` columns for your models.
+Analyze Filament panel Resources to discover `$searchable` columns for your models.
 
 ```bash
 php artisan illumi-search:discover-filament
@@ -897,11 +897,11 @@ Requires Filament to be installed. Gracefully handles missing panels, resources 
 │  ┌───────────────────────────────────────────────────┐  │
 │  │  Model with Searchable trait                       │  │
 │  │  - saved / deleted events                          │  │
-│  │  - toFtsDocument()                                 │  │
+│  │  - toSearchDocument()                                 │  │
 │  └──────────────────────┬────────────────────────────┘  │
 │                         │                                │
 │  ┌──────────────────────▼────────────────────────────┐  │
-│  │              SqliteFtsEngine                       │  │
+│  │              SqliteEngine                       │  │
 │  │  ┌─────────────────────────────────────────────┐  │  │
 │  │  │  storage/app/search/fts-index.sqlite            │  │  │
 │  │  │  ┌───────────────────────────────────────┐  │  │  │
@@ -927,7 +927,7 @@ Requires Filament to be installed. Gracefully handles missing panels, resources 
 ### Indexing flow
 
 ```
-Model saved → Job dispatched (or sync) → toFtsDocument()
+Model saved → Job dispatched (or sync) → toSearchDocument()
   → TextProcessor::process() → SQLite FTS5 INSERT
 ```
 
@@ -938,7 +938,7 @@ User types query → escapeQuery() → normalizeQuery()
   → FTS5 MATCH → BM25 ranking → enrichWithSnippets()
     → Load original Eloquent models
     → Extract context with <mark> highlighting
-    → Return FtsResult[]
+    → Return Result[]
 ```
 
 ---
@@ -1046,7 +1046,7 @@ When a model using the `Searchable` trait is saved, deleted, or restored:
 │  Model::save()  │───▶│  Eloquent Event  │───▶│  Queue Job       │
 │  Model::delete()│    │  (saved /        │    │  IndexModelJob   │
 │  Model::restore()│   │   deleted /      │    │  ─ or ─          │
-│                 │    │   restored)      │    │  syncToFts()     │
+│                 │    │   restored)      │    │  syncToSearch()     │
 └─────────────────┘    └──────────────────┘    └────────┬─────────┘
                                                          ▼
                                                 ┌──────────────────┐
@@ -1129,17 +1129,17 @@ pint                                        # Code style
 illumi-search/
 ├── config/illumi-search.php
 ├── src/
-│   ├── Contracts/          # FtsEngine, TextProcessor interfaces
-│   ├── Engines/            # SqliteFtsEngine
+│   ├── Contracts/          # Engine, TextProcessor interfaces
+│   ├── Engines/            # SqliteEngine
 │   ├── Text/               # UnicodeTextProcessor, StemmingTextProcessor
 │   ├── Console/Commands/   # rebuild, sync, search, check, status, doctor, discover-filament, optimize
 │   ├── Http/Controllers/   # SearchApiController
 │   ├── Http/Requests/      # SearchApiRequest
 │   ├── Jobs/               # IndexModelJob, DeleteIndexJob, IndexBatchJob
 │   ├── Facades/Fts.php
-│   ├── FtsQueryBuilder.php
-│   ├── FtsResult.php
-│   ├── FtsIndexManager.php
+│   ├── QueryBuilder.php
+│   ├── Result.php
+│   ├── IndexManager.php
 │   ├── Searchable.php      # Eloquent trait
 │   └── Exceptions/
 └── tests/
@@ -1163,7 +1163,7 @@ illumi-search/
 
 - **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `FTS_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
 - **CLI search.** New `php artisan illumi-search:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
-- **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `FtsIndexManager::rebuild()`, and `SqliteFtsEngine::escapeQuery()` into focused private methods.
+- **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `IndexManager::rebuild()`, and `SqliteEngine::escapeQuery()` into focused private methods.
 
 ### v1.10.0
 
@@ -1171,7 +1171,7 @@ illumi-search/
 - **Multi-language stemming.** New text processor `stemming` (`FTS_PROCESSOR=stemming`) powered by [wamania/php-stemmer](https://github.com/wamania/php-stemmer). Stems words in 13 languages (en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi). Unknown languages fall back to unicode processing silently. Default: `unicode`.
 - **Tokenizer options documented.** Built-in tokenizers: `unicode61` (default), `ascii`, `porter`, `trigram`. Porter can wrap any tokenizer (`porter unicode61`, `porter ascii`). Trigram enables substring matching (LIKE-style `%search%`).
 - **Column-size option.** New `fts.fts5.columnsize` config (`1` or `0`). Set to `0` to omit column size storage — saves ~10% disk space with slightly less accurate BM25 ranking. Default: `1`.
-- **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `FtsEngine` for index introspection and health checks.
+- **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `Engine` for index introspection and health checks.
 - **Safe PRAGMA whitelist.** Only read-only PRAGMAs are allowed via `getPragma()` (journal_mode, cache_size, busy_timeout, synchronous, etc.).
 - **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`FTS_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `FTS_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.
 
@@ -1179,15 +1179,15 @@ illumi-search/
 
 - **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` shrinks the FTS index ~30% (total DB reduction is smaller — document content is unchanged).
 - **Merge tuning.** New `fts.fts5.automerge`, `fts.fts5.crisismerge`, and `fts.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
-- **`integrityCheck()`.** New method on `FtsEngine` interface. Performs FTS5 integrity-check on each indexed table.
+- **`integrityCheck()`.** New method on `Engine` interface. Performs FTS5 integrity-check on each indexed table.
 - **`illumi-search:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).
-- **Optimized `enrichWithSnippets()`.** Snippet loading now uses `SELECT` only for columns declared in `$ftsSearchable`, eager-loads relations for dot-notation columns, and detects virtual attributes via `Schema::hasColumn()`.
+- **Optimized `enrichWithSnippets()`.** Snippet loading now uses `SELECT` only for columns declared in `$searchable`, eager-loads relations for dot-notation columns, and detects virtual attributes via `Schema::hasColumn()`.
 
 ### v1.8.0
 
-- **Snippet fix for dot-notation columns.** When a term matches in a relation (e.g. `comments.body`), the snippet now extracts text from the correct column via `resolveFtsValue()`. Chooses the column that actually contains the search term.
+- **Snippet fix for dot-notation columns.** When a term matches in a relation (e.g. `comments.body`), the snippet now extracts text from the correct column via `resolveSearchValue()`. Chooses the column that actually contains the search term.
 - **Orphaned meta cleanup.** `getIndexStats()` no longer crashes on orphaned meta entries. Cleans them up automatically.
-- **`resolveFtsValue()` made public.** Allows the engine to resolve dot-notation values for snippets.
+- **`resolveSearchValue()` made public.** Allows the engine to resolve dot-notation values for snippets.
 
 ### v1.7.0
 
@@ -1196,18 +1196,18 @@ illumi-search/
 
 ### v1.6.0
 
-- **Column name sanitization.** Dots (`.`), arrows (`->`), and dashes (`-`) in `$ftsSearchable` column names are now automatically converted to underscores (`_`) for FTS5. `'comments.body'` becomes `comments_body` in the index — FTS5 no longer rejects them.
-- **`ftsColumnName()` helper** on the Searchable trait.
+- **Column name sanitization.** Dots (`.`), arrows (`->`), and dashes (`-`) in `$searchable` column names are now automatically converted to underscores (`_`) for FTS5. `'comments.body'` becomes `comments_body` in the index — FTS5 no longer rejects them.
+- **`searchColumnName()` helper** on the Searchable trait.
 - **`sanitizeDocumentKeys()`** in the engine ensures all document keys are valid SQL identifiers.
 
 ### v1.5.0
 
 - **Auto-cleanup orphaned tables.** `illumi-search:rebuild` now removes index tables for models that no longer use the `Searchable` trait.
-- **New methods on `FtsEngine` interface:** `tableName()`, `listIndexTables()`, `dropIndexTable()`.
+- **New methods on `Engine` interface:** `tableName()`, `listIndexTables()`, `dropIndexTable()`.
 
 ### v1.4.2
 
-- **`illumi-search:discover-filament` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$ftsSearchable` snippet for each model.
+- **`illumi-search:discover-filament` shows PHP code block.** When columns are missing, the command now displays a copy-paste ready `$searchable` snippet for each model.
 
 ### v1.4.1
 
@@ -1215,7 +1215,7 @@ illumi-search/
 
 ### v1.4.0
 
-- **`illumi-search:discover-filament` command.** Analyzes Filament panel Resources and discovers `$ftsSearchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
+- **`illumi-search:discover-filament` command.** Analyzes Filament panel Resources and discovers `$searchable` columns with heuristic weights. Falls back to `$recordTitleAttribute` when `getGloballySearchableAttributes()` is null. Handles dot notation, virtual attributes, and missing panels gracefully. Outputs table or JSON.
 
 ### v1.3.0
 
@@ -1232,8 +1232,8 @@ illumi-search/
 - **Events.** `RebuildComplete` and `ModelIndexed` events are dispatched during rebuild.
 - **Batch jobs use `where(>)` instead of `offset()`.** No more shift on record deletion between queue jobs.
 - **`sync()` respects custom timestamps.** Uses `$model->getUpdatedAtColumn()` instead of hardcoded `updated_at`.
-- **Operator reset.** `SqliteFtsEngine::resetOperators()` allows resetting operator state between tests (avoids static state leakage).
-- **`FtsSpellcheck` per-instance.** Changed from `singleton` to `bind` — `maxDistance`/`maxSuggestions` no longer leak between callers.
+- **Operator reset.** `SqliteEngine::resetOperators()` allows resetting operator state between tests (avoids static state leakage).
+- **`Spellcheck` per-instance.** Changed from `singleton` to `bind` — `maxDistance`/`maxSuggestions` no longer leak between callers.
 - **Removed unused `--mode` option** from `illumi-search:rebuild` command.
 - **`escapeQuery()` with cache.** Repeated calls with the same query + mode reuse the cached result.
 - **Deduplicated `extractTerms()`** — now shared via `HasQueryTerms` trait.
