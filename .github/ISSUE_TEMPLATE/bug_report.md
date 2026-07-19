@@ -20,7 +20,7 @@ Steps to reproduce the behavior:
 **Environment:**
  - Laravel version: [e.g. 11.x]
  - PHP version: [e.g. 8.2]
- - laravel-fts version: [e.g. 1.8.0]
+ - illumi-search version: [e.g. 1.8.0]
 
 **Search details:**
  - Query: [e.g. "laravel"]

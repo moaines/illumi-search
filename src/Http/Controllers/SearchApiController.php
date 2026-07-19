@@ -1,12 +1,12 @@
 <?php
 
-namespace Moaines\LaravelFts\Http\Controllers;
+namespace Moaines\IllumiSearch\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Moaines\LaravelFts\Http\Requests\SearchApiRequest;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\FtsSpellcheck;
+use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\FtsSpellcheck;
 
 class SearchApiController extends Controller
 {

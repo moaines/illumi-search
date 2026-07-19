@@ -1,12 +1,12 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
 
 class FtsQueryBuilder
 {

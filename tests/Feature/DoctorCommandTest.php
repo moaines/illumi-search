@@ -1,8 +1,8 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class DoctorCommandTest extends TestCase
 {
@@ -17,7 +17,7 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_reports_existing_database(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
         $engine->createTable('App\Models\Post', ['title', 'body']);
         $engine->upsert('App\Models\Post', 1, ['title' => 'hello', 'body' => 'world']);
 

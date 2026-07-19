@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Concerns;
+namespace Moaines\IllumiSearch\Concerns;
 
 trait HasQueryTerms
 {

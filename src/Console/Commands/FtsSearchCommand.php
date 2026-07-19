@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Console\Commands;
+namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
 
 class FtsSearchCommand extends Command
 {
@@ -48,7 +48,7 @@ class FtsSearchCommand extends Command
             $this->warn("No results for \"{$query}\"");
 
             if ($withSuggest && mb_strlen($query) > 2) {
-                $suggestions = app(\Moaines\LaravelFts\FtsSpellcheck::class)
+                $suggestions = app(\Moaines\IllumiSearch\FtsSpellcheck::class)
                     ->suggest($query, $modelClasses)
                     ->values()
                     ->toArray();
@@ -93,7 +93,7 @@ class FtsSearchCommand extends Command
             return [];
         }
 
-        return app(\Moaines\LaravelFts\FtsSpellcheck::class)
+        return app(\Moaines\IllumiSearch\FtsSpellcheck::class)
             ->suggest($query, $modelClasses)
             ->values()
             ->toArray();

@@ -1,14 +1,14 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit\Jobs;
+namespace Moaines\IllumiSearch\Tests\Unit\Jobs;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Jobs\IndexBatchJob;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Jobs\IndexBatchJob;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class IndexBatchJobTest extends TestCase
 {

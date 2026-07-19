@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Illuminate\Support\Collection;
-use Moaines\LaravelFts\Concerns\HasQueryTerms;
-use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Concerns\HasQueryTerms;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
 
 class FtsSpellcheck
 {

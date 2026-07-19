@@ -1,13 +1,13 @@
 <?php
 
-namespace Moaines\LaravelFts\Jobs;
+namespace Moaines\IllumiSearch\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
 
 class DeleteIndexJob implements ShouldQueue
 {

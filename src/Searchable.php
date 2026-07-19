@@ -1,12 +1,12 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Illuminate\Database\Eloquent\Model;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Jobs\DeleteIndexJob;
-use Moaines\LaravelFts\Jobs\IndexModelJob;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
+use Moaines\IllumiSearch\Jobs\IndexModelJob;
 
 trait Searchable
 {

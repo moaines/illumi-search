@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Contracts;
+namespace Moaines\IllumiSearch\Contracts;
 
 interface TextProcessor
 {

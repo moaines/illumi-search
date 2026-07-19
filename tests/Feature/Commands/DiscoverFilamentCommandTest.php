@@ -1,13 +1,13 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature\Commands;
+namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
 use Filament\Panel;
 use Filament\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class DiscoverFilamentCommandTest extends TestCase
 {
@@ -73,7 +73,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
@@ -82,7 +82,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
             }
         };
 
@@ -143,7 +143,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
@@ -152,7 +152,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
             }
         };
 
@@ -167,7 +167,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -181,7 +181,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
             }
         };
 
@@ -211,7 +211,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public function author()
             {
-                return $this->belongsTo(\Moaines\LaravelFts\Tests\TestSupport\Models\Author::class, 'author_id');
+                return $this->belongsTo(\Moaines\IllumiSearch\Tests\TestSupport\Models\Author::class, 'author_id');
             }
         };
 
@@ -255,7 +255,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -269,7 +269,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
             }
         };
 
@@ -283,7 +283,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\LaravelFts\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -297,7 +297,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\LaravelFts\Tests\TestSupport\Models\Post::query();
+                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
             }
         };
 

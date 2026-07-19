@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts\Support;
+namespace Moaines\IllumiSearch\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Concerns\HasQueryTerms;
+use Moaines\IllumiSearch\Concerns\HasQueryTerms;
 
 class SnippetService
 {

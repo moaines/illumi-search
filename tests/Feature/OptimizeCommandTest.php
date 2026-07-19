@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class OptimizeCommandTest extends TestCase
 {

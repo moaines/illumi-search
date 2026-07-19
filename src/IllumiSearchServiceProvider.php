@@ -1,28 +1,28 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Moaines\LaravelFts\Console\Commands\FtsCheckCommand;
-use Moaines\LaravelFts\Console\Commands\FtsDiscoverFilamentCommand;
-use Moaines\LaravelFts\Console\Commands\FtsDoctorCommand;
-use Moaines\LaravelFts\Console\Commands\FtsOptimizeCommand;
-use Moaines\LaravelFts\Console\Commands\FtsRebuildCommand;
-use Moaines\LaravelFts\Console\Commands\FtsSearchCommand;
-use Moaines\LaravelFts\Console\Commands\FtsStatusCommand;
-use Moaines\LaravelFts\Console\Commands\FtsSyncCommand;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Engines\SqliteFtsEngine;
-use Moaines\LaravelFts\Exceptions\FtsException;
-use Moaines\LaravelFts\Exceptions\FtsExtensionMissingException;
-use Moaines\LaravelFts\Http\Controllers\SearchApiController;
-use Moaines\LaravelFts\Support\SnippetService;
-use Moaines\LaravelFts\Text\StemmingTextProcessor;
-use Moaines\LaravelFts\Text\UnicodeTextProcessor;
+use Moaines\IllumiSearch\Console\Commands\FtsCheckCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsDiscoverFilamentCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsDoctorCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsOptimizeCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsRebuildCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsSearchCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsStatusCommand;
+use Moaines\IllumiSearch\Console\Commands\FtsSyncCommand;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
+use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\Exceptions\FtsExtensionMissingException;
+use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
+use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Text\StemmingTextProcessor;
+use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
-class LaravelFtsServiceProvider extends ServiceProvider
+class IllumiSearchServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
@@ -72,8 +72,8 @@ class LaravelFtsServiceProvider extends ServiceProvider
             return new FtsSpellcheck($app->make(FtsEngine::class));
         });
 
-        $this->app->alias(FtsEngine::class, 'laravel-fts.engine');
-        $this->app->alias(TextProcessor::class, 'laravel-fts.text-processor');
+        $this->app->alias(FtsEngine::class, 'illumi-search.engine');
+        $this->app->alias(TextProcessor::class, 'illumi-search.text-processor');
     }
 
     public function boot(): void

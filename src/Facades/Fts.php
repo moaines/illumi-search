@@ -1,22 +1,22 @@
 <?php
 
-namespace Moaines\LaravelFts\Facades;
+namespace Moaines\IllumiSearch\Facades;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Facade;
-use Moaines\LaravelFts\FtsQueryBuilder;
-use Moaines\LaravelFts\FtsSpellcheck;
+use Moaines\IllumiSearch\FtsQueryBuilder;
+use Moaines\IllumiSearch\FtsSpellcheck;
 
 /**
  * @method static FtsQueryBuilder query(string $query)
  *
- * @see \Moaines\LaravelFts\FtsQueryBuilder
+ * @see \Moaines\IllumiSearch\FtsQueryBuilder
  */
 class Fts extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return 'laravel-fts.engine';
+        return 'illumi-search.engine';
     }
 
     /**

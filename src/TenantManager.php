@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Closure;
 

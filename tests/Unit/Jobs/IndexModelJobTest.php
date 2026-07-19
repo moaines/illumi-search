@@ -1,18 +1,18 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit\Jobs;
+namespace Moaines\IllumiSearch\Tests\Unit\Jobs;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Jobs\IndexModelJob;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Jobs\IndexModelJob;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class IndexModelJobTest extends TestCase
 {
-    private \Moaines\LaravelFts\Contracts\FtsEngine $engine;
+    private \Moaines\IllumiSearch\Contracts\FtsEngine $engine;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class IndexModelJobTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $this->engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
     }
 
     public function test_handle_upserts_model_to_engine(): void

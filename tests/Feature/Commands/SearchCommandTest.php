@@ -1,15 +1,15 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature\Commands;
+namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class SearchCommandTest extends TestCase
 {
     public function test_search_returns_results(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
         $engine->createTable(Post::class, ['title', 'body']);
         $engine->upsert(Post::class, 1, ['title' => 'laravel testing', 'body' => 'php unit']);
 
@@ -21,7 +21,7 @@ class SearchCommandTest extends TestCase
 
     public function test_search_json_format(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
         $engine->createTable(Post::class, ['title', 'body']);
         $engine->upsert(Post::class, 1, ['title' => 'laravel testing', 'body' => 'php unit']);
 

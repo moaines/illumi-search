@@ -1,8 +1,8 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\TestSupport\Processors;
+namespace Moaines\IllumiSearch\Tests\TestSupport\Processors;
 
-use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 
 class PorterStemmerProcessor implements TextProcessor
 {

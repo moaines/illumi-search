@@ -1,14 +1,14 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class AuthorizationTest extends TestCase
 {
@@ -47,7 +47,7 @@ class AuthorizationTest extends TestCase
         $this->createPost(1, 'public post', 'content');
         $this->createPost(2, 'private post', 'content');
 
-        $results = $this->app->make(\Moaines\LaravelFts\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->get();
@@ -67,7 +67,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\LaravelFts\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)
@@ -89,7 +89,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\LaravelFts\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)
@@ -102,7 +102,7 @@ class AuthorizationTest extends TestCase
     {
         $this->createPost(1, 'test post', 'content');
 
-        $results = $this->app->make(\Moaines\LaravelFts\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
             ->query('test')
             ->models([self::MODEL_CLASS])
             ->withAuthorization()
@@ -126,7 +126,7 @@ class AuthorizationTest extends TestCase
         $user = new User();
         $user->id = 1;
 
-        $results = $this->app->make(\Moaines\LaravelFts\FtsQueryBuilder::class)
+        $results = $this->app->make(\Moaines\IllumiSearch\FtsQueryBuilder::class)
             ->query('post')
             ->models([self::MODEL_CLASS])
             ->withAuthorization($user)

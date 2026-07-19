@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Exceptions\FtsException;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FtsExceptionTest extends TestCase
 {

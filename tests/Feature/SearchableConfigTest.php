@@ -1,17 +1,17 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Searchable;
-use Moaines\LaravelFts\Support\SnippetService;
-use Moaines\LaravelFts\Tests\TestCase;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Text\UnicodeTextProcessor;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Searchable;
+use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
 class SearchableConfigTest extends TestCase
 {

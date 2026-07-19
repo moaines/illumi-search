@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature\Commands;
+namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class RebuildCommandTest extends TestCase
 {
@@ -51,16 +51,16 @@ class RebuildCommandTest extends TestCase
             $table->timestamps();
         });
 
-        \Moaines\LaravelFts\Tests\TestSupport\Models\Post::withoutEvents(fn () => \Moaines\LaravelFts\Tests\TestSupport\Models\Post::forceCreate([
+        \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::withoutEvents(fn () => \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::forceCreate([
             'title' => 'Test',
             'body' => 'Content',
         ]));
 
-        $manager = app(\Moaines\LaravelFts\FtsIndexManager::class);
+        $manager = app(\Moaines\IllumiSearch\FtsIndexManager::class);
 
         $startedModels = [];
         $manager->rebuild(
-            modelClasses: [\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class],
+            modelClasses: [\Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class],
             progress: function (string $event, ...$args) use (&$startedModels) {
                 if ($event === 'startModel') {
                     $startedModels[] = $args[0];

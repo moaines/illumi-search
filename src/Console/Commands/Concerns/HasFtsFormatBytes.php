@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Console\Commands\Concerns;
+namespace Moaines\IllumiSearch\Console\Commands\Concerns;
 
 trait HasFtsFormatBytes
 {

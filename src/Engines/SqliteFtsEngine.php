@@ -1,12 +1,12 @@
 <?php
 
-namespace Moaines\LaravelFts\Engines;
+namespace Moaines\IllumiSearch\Engines;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Exceptions\FtsException;
-use Moaines\LaravelFts\FtsResult;
-use Moaines\LaravelFts\Support\SnippetService;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\FtsResult;
+use Moaines\IllumiSearch\Support\SnippetService;
 use SQLite3;
 
 class SqliteFtsEngine implements FtsEngine

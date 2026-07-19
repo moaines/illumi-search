@@ -1,8 +1,8 @@
-# Laravel FTS
+# Illumi Search
 
-[![Tests](https://github.com/moaines/laravel-fts/actions/workflows/tests.yml/badge.svg)](https://github.com/moaines/laravel-fts/actions)
+[![Tests](https://github.com/moaines/illumi-search/actions/workflows/tests.yml/badge.svg)](https://github.com/moaines/illumi-search/actions)
 [![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
-[![Packagist](https://img.shields.io/badge/Packagist-moaines%2Flaravel--fts-28a745?logo=composer)](https://packagist.org/packages/moaines/laravel-fts)
+[![Packagist](https://img.shields.io/badge/Packagist-moaines%2Fillumi--search-28a745?logo=composer)](https://packagist.org/packages/moaines/illumi-search)
 
 **Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + `ext-intl`.**
 BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
@@ -14,14 +14,14 @@ No external services. Just SQLite and PHP.
 Available in most hosting environments (DigitalOcean, Amezmo, Laravel Forge, — FTS5 is bundled with PHP).
 
 ```bash
-composer require moaines/laravel-fts
+composer require moaines/illumi-search
 ```
 
 ---
 
 ## Why?
 
-| | `LIKE %term%` | Laravel FTS |
+| | `LIKE %term%` | Illumi Search |
 |---|---|---|
 | Relevance ranking | None | BM25 |
 | Accent insensitive | No | Yes (intl) |
@@ -49,7 +49,7 @@ composer require moaines/laravel-fts
 Add the `Searchable` trait and list the columns to index:
 
 ```php
-use Moaines\LaravelFts\Searchable;
+use Moaines\IllumiSearch\Searchable;
 
 class Post extends Model
 {
@@ -68,7 +68,7 @@ php artisan fts:rebuild
 ### 3. Search
 
 ```php
-use Moaines\LaravelFts\Facades\Fts;
+use Moaines\IllumiSearch\Facades\Fts;
 
 $results = Fts::query('laravel')->model(Post::class)->get();
 ```
@@ -144,7 +144,7 @@ If everything shows ✅, you're ready to install.
 ## Installation
 
 ```bash
-composer require moaines/laravel-fts
+composer require moaines/illumi-search
 ```
 
 Laravel auto-discovers the service provider and facade.
@@ -217,7 +217,7 @@ This publishes `config/fts.php` where you can override any setting. Use `.env` v
 Add the trait and list your columns:
 
 ```php
-use Moaines\LaravelFts\Searchable;
+use Moaines\IllumiSearch\Searchable;
 
 class Post extends Model
 {
@@ -317,7 +317,7 @@ public function toFtsDocument(): array
 Override the text processing pipeline for this model:
 
 ```php
-use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 
 class MyCustomProcessor implements TextProcessor
 {
@@ -351,7 +351,7 @@ protected bool $ftsSyncOnSave = true;  // disable auto-indexing for this model
 ### Facade
 
 ```php
-use Moaines\LaravelFts\Facades\Fts;
+use Moaines\IllumiSearch\Facades\Fts;
 ```
 
 ### Basic
@@ -405,7 +405,7 @@ $count = Fts::query('bonjour')->count();
 Suggest alternative spellings when a search returns few or no results. Uses FTS5 `%_vocab` tables with Levenshtein distance.
 
 ```php
-use Moaines\LaravelFts\Facades\Fts;
+use Moaines\IllumiSearch\Facades\Fts;
 
 // Returns ['laravel'] for the misspelled query
 $suggestions = Fts::didYouMean('laravell');
@@ -415,7 +415,7 @@ $suggestions = Fts::didYouMean('developpment', [Post::class]);
 // Returns ['developpement']
 
 // Advanced usage with FtsSpellcheck
-use Moaines\LaravelFts\FtsSpellcheck;
+use Moaines\IllumiSearch\FtsSpellcheck;
 
 $spellcheck = app(FtsSpellcheck::class);
 $suggestions = $spellcheck
@@ -460,7 +460,7 @@ If you need Scout integration (for compatibility with existing code), create a c
 namespace App\Engines;
 
 use Laravel\Scout\Engines\Engine;
-use Moaines\LaravelFts\Facades\Fts;
+use Moaines\IllumiSearch\Facades\Fts;
 
 class FtsScoutEngine extends Engine
 {
@@ -555,8 +555,8 @@ Default: 30 requests per minute. Configure with `FTS_API_RATE_LIMIT` env or `con
 Inspect the FTS5 engine version, current PRAGMAs, run integrity checks, and read/write custom metadata.
 
 ```php
-use Moaines\LaravelFts\Facades\Fts;
-use Moaines\LaravelFts\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
 
 $engine = app(FtsEngine::class);
 
@@ -599,7 +599,7 @@ Register a resolver closure that returns a unique tenant ID:
 
 ```php
 // In AppServiceProvider::boot()
-use Moaines\LaravelFts\TenantManager;
+use Moaines\IllumiSearch\TenantManager;
 
 $this->app->resolving(TenantManager::class, function (TenantManager $manager) {
     $manager->setResolver(fn () => tenant()->id);  // your tenant ID
@@ -1122,7 +1122,7 @@ pint                                        # Code style
 ## Package Structure
 
 ```
-laravel-fts/
+illumi-search/
 ├── config/fts.php
 ├── src/
 │   ├── Contracts/          # FtsEngine, TextProcessor interfaces

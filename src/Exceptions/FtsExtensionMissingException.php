@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Exceptions;
+namespace Moaines\IllumiSearch\Exceptions;
 
 class FtsExtensionMissingException extends FtsException
 {

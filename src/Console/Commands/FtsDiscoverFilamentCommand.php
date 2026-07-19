@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Console\Commands;
+namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
@@ -106,7 +106,7 @@ class FtsDiscoverFilamentCommand extends Command
                 $short = class_basename($modelClass);
                 $this->line("<fg=yellow>Suggested code for {$modelClass}:</>");
                 $this->line('');
-                $this->line("  use Moaines\\LaravelFts\\Searchable;");
+                $this->line("  use Moaines\\IllumiSearch\\Searchable;");
                 $this->line('');
                 $this->line("  class {$short} extends Model");
                 $this->line("  {");
@@ -212,6 +212,6 @@ class FtsDiscoverFilamentCommand extends Command
 
     protected function usesSearchable(string $modelClass): bool
     {
-        return in_array('Moaines\\LaravelFts\\Searchable', class_uses_recursive($modelClass));
+        return in_array('Moaines\\IllumiSearch\\Searchable', class_uses_recursive($modelClass));
     }
 }

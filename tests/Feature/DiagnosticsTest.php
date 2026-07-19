@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Exceptions\FtsException;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Exceptions\FtsException;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class DiagnosticsTest extends TestCase
 {
@@ -14,7 +14,7 @@ class DiagnosticsTest extends TestCase
     {
         parent::setUp();
         $this->engine = app(FtsEngine::class);
-        $this->engine->createTable(\Moaines\LaravelFts\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $this->engine->createTable(\Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class, ['title', 'body']);
     }
 
     public function test_get_engine_version_returns_string(): void

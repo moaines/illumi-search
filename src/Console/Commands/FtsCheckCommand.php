@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Console\Commands;
+namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\LaravelFts\FtsIndexManager;
+use Moaines\IllumiSearch\FtsIndexManager;
 
 class FtsCheckCommand extends Command
 {

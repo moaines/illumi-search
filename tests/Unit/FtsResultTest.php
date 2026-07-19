@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Illuminate\Database\Eloquent\Model;
-use Moaines\LaravelFts\FtsResult;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\FtsResult;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FtsResultTest extends TestCase
 {

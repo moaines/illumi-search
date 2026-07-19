@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Http\Requests;
+namespace Moaines\IllumiSearch\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 

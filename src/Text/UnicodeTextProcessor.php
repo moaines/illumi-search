@@ -1,8 +1,8 @@
 <?php
 
-namespace Moaines\LaravelFts\Text;
+namespace Moaines\IllumiSearch\Text;
 
-use Moaines\LaravelFts\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Normalizer;
 
 class UnicodeTextProcessor implements TextProcessor

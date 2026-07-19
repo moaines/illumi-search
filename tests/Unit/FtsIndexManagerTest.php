@@ -1,13 +1,13 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Engines\SqliteFtsEngine;
-use Moaines\LaravelFts\FtsIndexManager;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
+use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FtsIndexManagerTest extends TestCase
 {

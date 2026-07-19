@@ -1,8 +1,8 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests;
+namespace Moaines\IllumiSearch\Tests;
 
-use Moaines\LaravelFts\LaravelFtsServiceProvider;
+use Moaines\IllumiSearch\IllumiSearchServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
@@ -10,7 +10,7 @@ class TestCase extends Orchestra
     protected function getPackageProviders($app): array
     {
         return [
-            LaravelFtsServiceProvider::class,
+            IllumiSearchServiceProvider::class,
         ];
     }
 

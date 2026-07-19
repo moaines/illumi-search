@@ -1,15 +1,15 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Moaines\LaravelFts\Facades\Fts;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FacadeFtsTest extends TestCase
 {
     public function test_did_you_mean_returns_collection(): void
     {
-        $engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
         $engine->createTable('App\Models\Post', ['title', 'body']);
         $engine->upsert('App\Models\Post', 1, ['title' => 'laravel', 'body' => 'php framework']);
 

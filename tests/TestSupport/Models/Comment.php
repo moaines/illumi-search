@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\TestSupport\Models;
+namespace Moaines\IllumiSearch\Tests\TestSupport\Models;
 
 use Illuminate\Database\Eloquent\Model;
 

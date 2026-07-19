@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\LaravelFts\Events;
+namespace Moaines\IllumiSearch\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 

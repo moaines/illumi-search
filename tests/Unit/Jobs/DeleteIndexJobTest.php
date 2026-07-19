@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit\Jobs;
+namespace Moaines\IllumiSearch\Tests\Unit\Jobs;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Jobs\DeleteIndexJob;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class DeleteIndexJobTest extends TestCase
 {

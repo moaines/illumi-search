@@ -1,8 +1,8 @@
 <?php
 
-namespace Moaines\LaravelFts\Contracts;
+namespace Moaines\IllumiSearch\Contracts;
 
-use Moaines\LaravelFts\FtsResult;
+use Moaines\IllumiSearch\FtsResult;
 
 interface FtsEngine
 {

@@ -1,24 +1,24 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Facades\Fts;
-use Moaines\LaravelFts\FtsIndexManager;
-use Moaines\LaravelFts\Jobs\IndexModelJob;
-use Moaines\LaravelFts\Jobs\DeleteIndexJob;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Author;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Book;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Comment;
-use Moaines\LaravelFts\Tests\TestSupport\Models\Post;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\FtsIndexManager;
+use Moaines\IllumiSearch\Jobs\IndexModelJob;
+use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Author;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Comment;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class SearchableTraitTest extends TestCase
 {
-    private \Moaines\LaravelFts\Contracts\FtsEngine $engine;
+    private \Moaines\IllumiSearch\Contracts\FtsEngine $engine;
 
     protected function setUp(): void
     {
@@ -31,7 +31,7 @@ class SearchableTraitTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(\Moaines\LaravelFts\Contracts\FtsEngine::class);
+        $this->engine = $this->app->make(\Moaines\IllumiSearch\Contracts\FtsEngine::class);
     }
 
     private function createPostIndex(): void
@@ -220,7 +220,7 @@ class SearchableTraitTest extends TestCase
     public function test_validate_fts_searchable_warns_on_missing_relation(): void
     {
         $model = new class extends \Illuminate\Database\Eloquent\Model {
-            use \Moaines\LaravelFts\Searchable;
+            use \Moaines\IllumiSearch\Searchable;
             protected array $ftsSearchable = ['inexistant.col'];
         };
 
@@ -305,7 +305,7 @@ class SearchableTraitTest extends TestCase
     public function test_fts_relations_ignores_plain_columns(): void
     {
         $model = new class extends \Illuminate\Database\Eloquent\Model {
-            use \Moaines\LaravelFts\Searchable;
+            use \Moaines\IllumiSearch\Searchable;
             protected array $ftsSearchable = ['title' => ['weight' => 3]];
         };
 
@@ -317,7 +317,7 @@ class SearchableTraitTest extends TestCase
     public function test_fts_relations_handles_nested_dot_notation(): void
     {
         $model = new class extends \Illuminate\Database\Eloquent\Model {
-            use \Moaines\LaravelFts\Searchable;
+            use \Moaines\IllumiSearch\Searchable;
             protected array $ftsSearchable = ['book.author.name' => ['weight' => 1]];
         };
 
@@ -329,7 +329,7 @@ class SearchableTraitTest extends TestCase
     public function test_fts_relations_handles_json_path(): void
     {
         $model = new class extends \Illuminate\Database\Eloquent\Model {
-            use \Moaines\LaravelFts\Searchable;
+            use \Moaines\IllumiSearch\Searchable;
             protected array $ftsSearchable = ['meta->rating' => ['weight' => 1]];
         };
 
@@ -341,7 +341,7 @@ class SearchableTraitTest extends TestCase
     public function test_fts_relations_deduplicates(): void
     {
         $model = new class extends \Illuminate\Database\Eloquent\Model {
-            use \Moaines\LaravelFts\Searchable;
+            use \Moaines\IllumiSearch\Searchable;
             protected array $ftsSearchable = [
                 'author.name' => ['weight' => 1],
                 'author.bio' => ['weight' => 1],

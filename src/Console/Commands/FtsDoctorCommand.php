@@ -1,11 +1,11 @@
 <?php
 
-namespace Moaines\LaravelFts\Console\Commands;
+namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
-use Moaines\LaravelFts\Console\Commands\Concerns\HasFtsFormatBytes;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Engines\SqliteFtsEngine;
+use Moaines\IllumiSearch\Console\Commands\Concerns\HasFtsFormatBytes;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
 
 class FtsDoctorCommand extends Command
 {

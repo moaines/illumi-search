@@ -3,8 +3,8 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/moaines/laravel-fts
-cd laravel-fts
+git clone https://github.com/moaines/illumi-search
+cd illumi-search
 composer install
 ```
 
@@ -45,4 +45,4 @@ See the [Multi-tenant](README.md#multi-tenant) section in the README for setup g
 
 ## Report Bugs / Feature Requests
 
-[GitHub Issues](https://github.com/moaines/laravel-fts/issues)
+[GitHub Issues](https://github.com/moaines/illumi-search/issues)

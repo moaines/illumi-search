@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\TenantManager;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\TenantManager;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class TenantManagerTest extends TestCase
 {

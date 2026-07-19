@@ -1,9 +1,9 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class TextProcessorTest extends TestCase
 {
@@ -98,18 +98,18 @@ class TextProcessorTest extends TestCase
     {
         config(['fts.fts5.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
 
-        $this->assertInstanceOf(\Moaines\LaravelFts\Text\StemmingTextProcessor::class, $processor);
+        $this->assertInstanceOf(\Moaines\IllumiSearch\Text\StemmingTextProcessor::class, $processor);
     }
 
     public function test_stemming_french_removes_verb_endings(): void
     {
         config(['fts.fts5.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
 
         $result = $processor->process('mangeais mangeant mangera', 'fr');
 
@@ -124,8 +124,8 @@ class TextProcessorTest extends TestCase
     {
         config(['fts.fts5.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
 
         $result = $processor->process('running runner runs', 'en');
 
@@ -140,8 +140,8 @@ class TextProcessorTest extends TestCase
     {
         config(['fts.fts5.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\LaravelFts\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\LaravelFts\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
 
         $result = $processor->process('hello world', 'xx');
 

@@ -1,19 +1,19 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Engines\SqliteFtsEngine;
-use Moaines\LaravelFts\Text\UnicodeTextProcessor;
-use Moaines\LaravelFts\LaravelFtsServiceProvider;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Engines\SqliteFtsEngine;
+use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
+use Moaines\IllumiSearch\IllumiSearchServiceProvider;
+use Moaines\IllumiSearch\Tests\TestCase;
 
-class LaravelFtsServiceProviderTest extends TestCase
+class IllumiSearchServiceProviderTest extends TestCase
 {
     public function test_provider_is_registered(): void
     {
-        $provider = $this->app->getProvider(LaravelFtsServiceProvider::class);
+        $provider = $this->app->getProvider(IllumiSearchServiceProvider::class);
 
         $this->assertNotNull($provider);
     }

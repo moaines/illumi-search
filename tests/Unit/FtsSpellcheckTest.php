@@ -1,10 +1,10 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\FtsSpellcheck;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\FtsSpellcheck;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FtsSpellcheckTest extends TestCase
 {

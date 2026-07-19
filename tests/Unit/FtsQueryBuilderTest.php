@@ -1,11 +1,11 @@
 <?php
 
-namespace Moaines\LaravelFts\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit;
 
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Facades\Fts;
-use Moaines\LaravelFts\FtsQueryBuilder;
-use Moaines\LaravelFts\Tests\TestCase;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Facades\Fts;
+use Moaines\IllumiSearch\FtsQueryBuilder;
+use Moaines\IllumiSearch\Tests\TestCase;
 
 class FtsQueryBuilderTest extends TestCase
 {
@@ -120,7 +120,7 @@ class FtsQueryBuilderTest extends TestCase
         $builder = Fts::query('hello')->model('App\Models\Post');
 
         // engine is resolved lazily — setting it via the setter should work
-        $this->assertInstanceOf(\Moaines\LaravelFts\FtsQueryBuilder::class, $builder->engine($this->engine));
+        $this->assertInstanceOf(\Moaines\IllumiSearch\FtsQueryBuilder::class, $builder->engine($this->engine));
     }
 
     private function indexPost(int $id, string $title, string $body): void

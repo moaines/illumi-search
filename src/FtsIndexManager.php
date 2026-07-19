@@ -1,15 +1,15 @@
 <?php
 
-namespace Moaines\LaravelFts;
+namespace Moaines\IllumiSearch;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
-use Moaines\LaravelFts\Contracts\FtsEngine;
-use Moaines\LaravelFts\Contracts\TextProcessor;
-use Moaines\LaravelFts\Events\ModelIndexed;
-use Moaines\LaravelFts\Events\RebuildComplete;
-use Moaines\LaravelFts\Jobs\IndexBatchJob;
+use Moaines\IllumiSearch\Contracts\FtsEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Events\ModelIndexed;
+use Moaines\IllumiSearch\Events\RebuildComplete;
+use Moaines\IllumiSearch\Jobs\IndexBatchJob;
 
 class FtsIndexManager
 {
@@ -91,7 +91,7 @@ class FtsIndexManager
             return ['model' => $modelClass, 'status' => 'error', 'message' => 'Class not found'];
         }
 
-        if (! in_array('Moaines\\LaravelFts\\Searchable', class_uses_recursive($modelClass))) {
+        if (! in_array('Moaines\\IllumiSearch\\Searchable', class_uses_recursive($modelClass))) {
             return ['model' => $modelClass, 'status' => 'skipped', 'message' => 'Not searchable'];
         }
 
@@ -341,7 +341,7 @@ class FtsIndexManager
             return false;
         }
 
-        return in_array('Moaines\\LaravelFts\\Searchable', class_uses_recursive($class));
+        return in_array('Moaines\\IllumiSearch\\Searchable', class_uses_recursive($class));
     }
 
     protected function getClassNameFromFile(string $path): ?string
