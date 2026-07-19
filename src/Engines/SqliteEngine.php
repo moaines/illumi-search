@@ -73,6 +73,8 @@ class SqliteEngine implements Engine
         if ($this->db === null) {
             $this->db = new SQLite3($this->databasePath);
 
+            $this->db->exec('PRAGMA busy_timeout='.config('illumi-search.fts5.busy_timeout', 15000));
+
             if (filter_var(config('illumi-search.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
                 $this->db->exec('PRAGMA journal_mode=WAL');
             }
