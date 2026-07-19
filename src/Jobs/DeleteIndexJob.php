@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Moaines\IllumiSearch\Contracts\Engine;
 
@@ -19,6 +20,11 @@ class DeleteIndexJob implements ShouldQueue
         private readonly string $modelClass,
         private readonly int|string $modelId,
     ) {}
+
+    public function middleware(): array
+    {
+        return [(new WithoutOverlapping($this->modelId))->shared()->releaseAfter(10)];
+    }
 
     public function handle(Engine $engine): void
     {
