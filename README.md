@@ -1105,6 +1105,18 @@ phpstan analyse                             # Static analysis
 pint                                        # Code style
 ```
 
+### Test coverage
+
+**216 tests** covering unit and feature suites, including:
+
+- `TextProcessor` — accent folding, CJK character separation, Korean, HTML stripping, invalid UTF-8 graceful fallback, Porter stemming for EN/FR
+- `Spellcheck` — Levenshtein-based suggestions with configurable distance and frequency ordering, exact-match exclusion, vocab limits
+- `Authorization` — policy-based result filtering, respect for `view`/`viewAny` gates, graceful fallback when no user is authenticated
+- `Multi-tenant isolation` — tenant-aware database paths, unique index per tenant, no cross-tenant data leakage
+- `Bad-query resilience` — unclosed quotes, hanging operators (`NOT`/`AND`/`OR` at start), invalid NEAR syntax, normal search still works after any malformed query
+- `Graceful degradation` — `isFts5Available()`, `getEngineVersion()` shows `(FTS5 unavailable)` when missing, `DoctorCommand` with actionable resolution steps
+- `Diagnostics & config` — `fullIntegrityCheck()` across all FTS5 tables, persistent config read/write via `_search_config`, unsafe PRAGMA rejection
+
 ---
 
 ## Package Structure

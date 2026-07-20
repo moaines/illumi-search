@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class SqliteEngineTest extends TestCase
@@ -372,5 +373,31 @@ class SqliteEngineTest extends TestCase
 
         $results = $this->engine->search('hello world', ['App\Models\Post'], 10, 0, 'raw');
         $this->assertCount(1, $results);
+    }
+
+    public function test_is_fts5_available_returns_true_when_fts5_present(): void
+    {
+        $this->assertTrue($this->engine->isFts5Available());
+    }
+
+    public function test_get_engine_version_contains_fts5(): void
+    {
+        $version = $this->engine->getEngineVersion();
+
+        $this->assertStringContainsString('SQLite', $version);
+        $this->assertStringContainsString('FTS5', $version);
+    }
+
+    public function test_create_table_throws_when_fts5_unavailable(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $prop = $ref->getProperty('fts5Available');
+        $prop->setAccessible(true);
+        $prop->setValue($this->engine, false);
+
+        $this->expectException(IllumiSearchException::class);
+        $this->expectExceptionMessage('FTS5 is not available');
+
+        $this->engine->createTable('App\Models\Other', ['title']);
     }
 }
