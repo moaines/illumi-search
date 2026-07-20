@@ -40,11 +40,16 @@ composer require moaines/illumi-search
 
 ## Requirements
 
-- **PHP** 8.2+
+- **PHP** 8.1+
 - **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
 - **intl** extension (accent folding, CJK, Arabic, Cyrillic)
 - **mbstring** extension (multibyte string operations)
 - **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/search-index.sqlite')` and must point to a writable local directory.
+
+> ⚠️ **FTS5 required** — `ext-sqlite3` is bundled with PHP, but some minimal Docker images or
+> older SQLite builds may not have FTS5 enabled. Run `php artisan illumi-search:doctor` to verify.
+> If FTS5 is missing, rebuild PHP/SQLite with `--enable-fts5` or `SQLITE_ENABLE_FTS5`.
+> Most Linux distributions: `apt install php-sqlite3` or `yum install php-sqlite3`.
 
 ## Quick Start
 
@@ -570,6 +575,9 @@ use Moaines\IllumiSearch\Facades\IllumiSearch;
 use Moaines\IllumiSearch\Contracts\Engine;
 
 $engine = app(Engine::class);
+
+// FTS5 availability
+echo $engine->isFts5Available() ? '✅ FTS5 ready' : '❌ FTS5 missing';  // bool
 
 // Engine version
 echo $engine->getEngineVersion();           // "SQLite 3.46.0 | FTS5"

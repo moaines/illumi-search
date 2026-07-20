@@ -27,6 +27,8 @@ class SqliteEngine implements Engine
 
     private array $cachedSafeQueries = [];
 
+    private bool $fts5Available = false;
+
     public static function resetOperators(): void
     {
         static::$operatorsProbed = false;
@@ -84,6 +86,8 @@ class SqliteEngine implements Engine
             $this->db->exec('PRAGMA busy_timeout='.config('illumi-search.fts5.busy_timeout', 15000));
             $this->db->exec('PRAGMA mmap_size='.config('illumi-search.fts5.mmap_size', 0));
 
+            $this->fts5Available = $this->probeFts5();
+
             $this->ensureMetaTable();
         }
 
@@ -133,6 +137,17 @@ class SqliteEngine implements Engine
 
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
+        $this->db();
+
+        if (! $this->fts5Available) {
+            throw new IllumiSearchException(
+                'FTS5 is not available in your SQLite build. '
+                .'Install or compile SQLite with FTS5 enabled '
+                .'(--enable-fts5 or SQLITE_ENABLE_FTS5). '
+                .'Run "php artisan illumi-search:doctor" for details.'
+            );
+        }
+
         $table = $this->tableName($modelClass);
 
         $contentColumns = [];
@@ -697,6 +712,13 @@ class SqliteEngine implements Engine
         }
         static::$operatorsProbed = true;
 
+        if (! $this->fts5Available) {
+            static::$supportedOperators = [];
+            static::$rawSupportedOperators = [];
+
+            return;
+        }
+
         try {
             $db = new SQLite3(':memory:');
             $db->exec('CREATE VIRTUAL TABLE _fts_probe USING fts5(content)');
@@ -807,7 +829,28 @@ class SqliteEngine implements Engine
     {
         $sqlite = $this->db()->querySingle('SELECT sqlite_version()');
 
+        if (! $this->fts5Available) {
+            return 'SQLite '.$sqlite.' (FTS5 unavailable)';
+        }
+
         return 'SQLite '.$sqlite.' | FTS5';
+    }
+
+    public function isFts5Available(): bool
+    {
+        return $this->fts5Available;
+    }
+
+    private function probeFts5(): bool
+    {
+        try {
+            $this->db->exec('CREATE VIRTUAL TABLE IF NOT EXISTS _fts_available_test USING fts5(content)');
+            $this->db->exec('DROP TABLE IF EXISTS _fts_available_test');
+
+            return true;
+        } catch (\Exception) {
+            return false;
+        }
     }
 
     public function getPragma(string $name): string|int|null

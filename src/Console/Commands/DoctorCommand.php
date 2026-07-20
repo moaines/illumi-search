@@ -64,6 +64,9 @@ class DoctorCommand extends Command
             $db->close();
         } catch (\Exception $e) {
             $this->line('   <fg=red>✗</> FTS5 is NOT available: '.$e->getMessage());
+            $this->line('   <fg=yellow>  → SQLite must be compiled with --enable-fts5 or SQLITE_ENABLE_FTS5</>');
+            $this->line('   <fg=yellow>  → Most distributions: apt install php-sqlite3 / yum install php-sqlite3</>');
+            $this->line('   <fg=yellow>  → Verify with: php -r "echo SQLite3::version()[\'versionString\'];"</>');
             $this->allOk = false;
         }
         $this->newLine();
