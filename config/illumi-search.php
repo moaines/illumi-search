@@ -44,7 +44,7 @@ return [
 
         'temp_store' => env('ILLUMI_SEARCH_TEMP_STORE', 'MEMORY'),
 
-        'busy_timeout' => env('ILLUMI_SEARCH_BUSY_TIMEOUT', 5000),
+        'busy_timeout' => env('ILLUMI_SEARCH_BUSY_TIMEOUT', 15000),
 
         'mmap_size' => env('ILLUMI_SEARCH_MMAP_SIZE', 0),
     ],

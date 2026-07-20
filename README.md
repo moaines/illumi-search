@@ -34,7 +34,7 @@ composer require moaines/illumi-search
 | Column weighting | No | Per-column weights |
 | Performance (10k+ rows) | Table scan | Inverted index |
 | PHP extension required | None | `ext-sqlite3` + `ext-intl` (bundled with PHP) |
-| Hosting compatibility | Any | ✅ Most providers (DigitalOcean, Amezmo, Forge)
+| Hosting compatibility | Any | ✅ Almost anywhere Laravel runs — PHP bundles both ext-sqlite3 and ext-intl
 
 ---
 
@@ -186,7 +186,7 @@ php artisan vendor:publish --tag=illumi-search-config
 | `ILLUMI_SEARCH_CACHE_SIZE_KB` | `fts5.cache_size_kb` | `-64000` (64 MB) | Positive = pages, negative = kilobytes |
 | `ILLUMI_SEARCH_SYNCHRONOUS` | `fts5.synchronous` | `NORMAL` | `NORMAL` (fast, safe with WAL), `FULL` (safest, slowest) |
 | `ILLUMI_SEARCH_TEMP_STORE` | `fts5.temp_store` | `MEMORY` | `MEMORY` (fast), `FILE` (safe for low RAM) |
-| `ILLUMI_SEARCH_BUSY_TIMEOUT` | `fts5.busy_timeout` | `5000` | Milliseconds (0 = no timeout, 1000–5000 recommended) |
+| `ILLUMI_SEARCH_BUSY_TIMEOUT` | `fts5.busy_timeout` | `15000` | Milliseconds (0 = no timeout, 5000–15000 recommended) |
 | `ILLUMI_SEARCH_MMAP_SIZE` | `fts5.mmap_size` | `0` (disabled) | 0 = off, `67108864` (64 MB), `268435456` (256 MB). ⚠️ Incompatible with NFS/Docker mounts |
 | `ILLUMI_SEARCH_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
 | `ILLUMI_SEARCH_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
@@ -270,7 +270,7 @@ When the relation returns a collection (`hasMany`, `belongsToMany`), values are 
 
 Relations are eager-loaded during `illumi-search:rebuild` to avoid N+1 queries. Validation warnings are emitted during rebuild for dot-notation columns pointing to non-existent relation methods.
 
-### 3. With locale and snippet
+### 4. With locale and snippet
 
 Control the text language and which columns provide context previews:
 
@@ -335,6 +335,24 @@ class Post extends Model
 
 ```php
 protected bool $syncOnSave = true;  // disable auto-indexing for this model
+```
+
+#### `searchColumnName(string $column): string`
+
+Get the sanitized FTS5 column name. Dots (`.`), arrows (`->`), and dashes (`-`) are converted to underscores (`_`):
+
+```php
+$model->searchColumnName('writer.name');  // 'writer_name'
+$model->searchColumnName('comments.body'); // 'comments_body'
+```
+
+#### `resolveSearchValue(string $column): string`
+
+Resolve a dot-notation column to its actual value on the model instance, traversing relations:
+
+```php
+$model->resolveSearchValue('writer.name');      // 'Jean Dupont'
+$model->resolveSearchValue('comments.body');    // 'Great book! Loved it. ...'
 ```
 
 ---
@@ -559,7 +577,7 @@ echo $engine->getEngineVersion();           // "SQLite 3.46.0 | FTS5"
 // Read-only PRAGMAs
 echo $engine->getPragma('journal_mode');    // "wal"
 echo $engine->getPragma('cache_size');      // -64000
-echo $engine->getPragma('busy_timeout');    // 5000
+echo $engine->getPragma('busy_timeout');    // 15000
 echo $engine->getPragma('page_size');       // 4096
 echo $engine->getPragma('page_count');      // 12345
 
@@ -567,7 +585,7 @@ echo $engine->getPragma('page_count');      // 12345
 $result = $engine->fullIntegrityCheck();
 // ['passed' => true, 'errors' => []]
 
-// Persistent config storage (stored in `_fts_config` table)
+// Persistent config storage (stored in `_search_config` table)
 $engine->setConfig('last_rebuild_at', now()->toIso8601String());
 $lastRebuild = $engine->getConfig('last_rebuild_at');
 ```
@@ -1121,22 +1139,22 @@ illumi-search/
 
 - **REST API.** New `/api/search` endpoint with rate limiting. Supports `?q=laravel&models=Post,Comment&limit=10&suggest=1`. Enable with `ILLUMI_SEARCH_API_ENABLED=true`. Compatible with comma-separated `&models=Post,Comment` and array `&models[]=Post&models[]=Comment` syntax.
 - **CLI search.** New `php artisan illumi-search:search` command. Search directly from the terminal with `--models`, `--limit`, `--mode`, `--json`, and `--suggest` options.
-- **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `FtsDoctorCommand::handle()`, `IndexManager::rebuild()`, and `SqliteEngine::escapeQuery()` into focused private methods.
+- **Code cleanup.** Removed 2 dead imports, extracted ProgressBar trait (eliminating 29 lines of duplication), deduplicated saved/restored event closures, split `DoctorCommand::handle()`, `IndexManager::rebuild()`, and `SqliteEngine::escapeQuery()` into focused private methods.
 
 ### v1.10.0
 
 - **Queue connection support.** Implemented `illumi-search.queue_connection` (`ILLUMI_SEARCH_QUEUE_CONNECTION`). Set a specific queue for FTS indexing jobs (e.g. `ILLUMI_SEARCH_QUEUE_CONNECTION=database`). When `null` (default), uses the application's default queue connection.
 - **Multi-language stemming.** New text processor `stemming` (`ILLUMI_SEARCH_PROCESSOR=stemming`) powered by [wamania/php-stemmer](https://github.com/wamania/php-stemmer). Stems words in 13 languages (en, fr, es, pt, de, it, ru, nl, sv, no, da, ro, ca, fi). Unknown languages fall back to unicode processing silently. Default: `unicode`.
 - **Tokenizer options documented.** Built-in tokenizers: `unicode61` (default), `ascii`, `porter`, `trigram`. Porter can wrap any tokenizer (`porter unicode61`, `porter ascii`). Trigram enables substring matching (LIKE-style `%search%`).
-- **Column-size option.** New `fts.fts5.columnsize` config (`1` or `0`). Set to `0` to omit column size storage — saves ~10% disk space with slightly less accurate BM25 ranking. Default: `1`.
+- **Column-size option.** New `illumi-search.fts5.columnsize` config (`1` or `0`). Set to `0` to omit column size storage — saves ~10% disk space with slightly less accurate BM25 ranking. Default: `1`.
 - **New diagnostics API.** `getEngineVersion()`, `getPragma()`, `fullIntegrityCheck()`, `getConfig()`, and `setConfig()` methods on `Engine` for index introspection and health checks.
 - **Safe PRAGMA whitelist.** Only read-only PRAGMAs are allowed via `getPragma()` (journal_mode, cache_size, busy_timeout, synchronous, etc.).
 - **WAL mode + performance PRAGMAs.** Enabled by default: WAL journal mode (concurrent reads/writes), `synchronous=NORMAL` (safe with WAL), 64 MB cache, in-memory temp storage, and 5s busy timeout. Optional mmap I/O (`ILLUMI_SEARCH_MMAP_SIZE`) for faster reads on large indexes — **disabled by default** (set `ILLUMI_SEARCH_MMAP_SIZE=1073741824` for 1 GB). ⚠️ mmap is incompatible with network filesystems (NFS, SMB) and some Docker/OCI mounts. Test thoroughly in production.
 
 ### v1.9.0
 
-- **FTS5 detail option.** New `fts.fts5.detail` config (`full`, `column`, or `none`). `column` shrinks the FTS index ~30% (total DB reduction is smaller — document content is unchanged).
-- **Merge tuning.** New `fts.fts5.automerge`, `fts.fts5.crisismerge`, and `fts.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
+- **FTS5 detail option.** New `illumi-search.fts5.detail` config (`full`, `column`, or `none`). `column` shrinks the FTS index ~30% (total DB reduction is smaller — document content is unchanged).
+- **Merge tuning.** New `illumi-search.fts5.automerge`, `illumi-search.fts5.crisismerge`, and `illumi-search.fts5.pgsz` config options for fine-grained control over index segment merging and page size.
 - **`integrityCheck()`.** New method on `Engine` interface. Performs FTS5 integrity-check on each indexed table.
 - **`illumi-search:doctor` integrity checks.** The doctor command now shows per-table integrity status (✅ or ❌).
 - **Optimized `enrichWithSnippets()`.** Snippet loading now uses `SELECT` only for columns declared in `$searchable`, eager-loads relations for dot-notation columns, and detects virtual attributes via `Schema::hasColumn()`.
