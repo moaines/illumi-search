@@ -1,7 +1,7 @@
 # Illumi Search
 
 [![Tests](https://github.com/moaines/illumi-search/actions/workflows/tests.yml/badge.svg)](https://github.com/moaines/illumi-search/actions)
-[![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
+[![PHP](https://img.shields.io/badge/PHP-8.1%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Fillumi--search-28a745?logo=composer)](https://packagist.org/packages/moaines/illumi-search)
 
 <p align="center">
@@ -15,7 +15,7 @@ auto-detected operator support with NEAR→AND fallback, spellcheck,
 multi-tenant isolation, authorization.
 Drop-in `Searchable` trait with queue/sync/lazy batch indexing.
 No external services. Just SQLite and PHP.
-Available in most hosting environments (DigitalOcean, Amezmo, Laravel Forge, — FTS5 is bundled with PHP).
+Available in most hosting environments — FTS5 is bundled with PHP.
 
 ```bash
 composer require moaines/illumi-search
