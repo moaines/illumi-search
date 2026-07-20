@@ -15,7 +15,6 @@ use Moaines\IllumiSearch\Console\Commands\SyncCommand;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
-use Moaines\IllumiSearch\Exceptions\ExtensionMissingException;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
 use Moaines\IllumiSearch\Support\SnippetService;
@@ -78,8 +77,6 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->validateRequirements();
-
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__.'/../config/illumi-search.php' => config_path('illumi-search.php'),
@@ -98,29 +95,6 @@ class IllumiSearchServiceProvider extends ServiceProvider
         ]);
 
         $this->registerApiRoutes();
-    }
-
-    protected function validateRequirements(): void
-    {
-        if (! extension_loaded('sqlite3')) {
-            throw new ExtensionMissingException('sqlite3');
-        }
-
-        if (! extension_loaded('intl')) {
-            throw new ExtensionMissingException('intl');
-        }
-
-        if (! extension_loaded('mbstring')) {
-            throw new ExtensionMissingException('mbstring');
-        }
-
-        try {
-            $db = new \SQLite3(':memory:');
-            $db->exec('CREATE VIRTUAL TABLE _fts_validation_test USING fts5(content)');
-            $db->close();
-        } catch (\Exception $e) {
-            throw IllumiSearchException::fts5NotAvailable();
-        }
     }
 
     protected function registerApiRoutes(): void

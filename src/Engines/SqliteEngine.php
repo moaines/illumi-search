@@ -713,9 +713,6 @@ class SqliteEngine implements Engine
         static::$operatorsProbed = true;
 
         if (! $this->fts5Available) {
-            static::$supportedOperators = [];
-            static::$rawSupportedOperators = [];
-
             return;
         }
 
@@ -844,8 +841,9 @@ class SqliteEngine implements Engine
     private function probeFts5(): bool
     {
         try {
-            $this->db->exec('CREATE VIRTUAL TABLE IF NOT EXISTS _fts_available_test USING fts5(content)');
-            $this->db->exec('DROP TABLE IF EXISTS _fts_available_test');
+            $db = new \SQLite3(':memory:');
+            $db->exec('CREATE VIRTUAL TABLE _fts_probe USING fts5(content)');
+            $db->close();
 
             return true;
         } catch (\Exception) {
