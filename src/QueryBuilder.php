@@ -233,8 +233,11 @@ class QueryBuilder
         $this->limit = $perPage;
         $this->offset = max(0, ($page - 1) * $perPage);
 
-        $total = $this->count();
         $results = $this->get();
+        $first = $results->first();
+        $total = $first instanceof \Moaines\IllumiSearch\Result
+            ? ($first->totalCount ?? $this->count())
+            : $this->count();
 
         return new Paginator(
             items: $results,

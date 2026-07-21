@@ -7,6 +7,16 @@ use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('illumi-search.stopwords', []);
+
+        $dbPath = storage_path('app/fts-test.sqlite');
+        @unlink($dbPath);
+    }
+
     protected function getPackageProviders($app): array
     {
         return [
@@ -19,14 +29,6 @@ class TestCase extends Orchestra
         $app['config']->set('illumi-search.database_path', 'app/fts-test.sqlite');
         $app['config']->set('illumi-search.indexing', 'sync');
         $app['config']->set('illumi-search.fts5.prefix_lengths', [2, 3, 4]);
-    }
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $dbPath = storage_path('app/fts-test.sqlite');
-        @unlink($dbPath);
     }
 
     protected function tearDown(): void

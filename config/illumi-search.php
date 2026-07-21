@@ -88,6 +88,6 @@ return [
     | Set to empty array to disable stopword filtering (default).
     |
     */
-    'stopwords' => [],
+    'stopwords' => ['en'],
 
 ];

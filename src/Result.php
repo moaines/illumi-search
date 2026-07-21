@@ -19,6 +19,7 @@ class Result implements Arrayable
         public readonly array $raw = [],
         public readonly bool $authorized = true,
         public readonly ?Model $model = null,
+        public readonly ?int $totalCount = null,
     ) {}
 
     /** @param array<string, mixed> $raw */
@@ -31,6 +32,7 @@ class Result implements Arrayable
         array $raw = [],
         bool $authorized = true,
         ?Model $model = null,
+        ?int $totalCount = null,
     ): self {
         return new self(
             id: "{$modelClass}:{$modelId}",
@@ -42,6 +44,7 @@ class Result implements Arrayable
             raw: $raw,
             authorized: $authorized,
             model: $model,
+            totalCount: $totalCount,
         );
     }
 
@@ -55,6 +58,7 @@ class Result implements Arrayable
             'title' => $this->title,
             'summary' => $this->summary,
             'authorized' => $this->authorized,
+            'total_count' => $this->totalCount,
             'raw' => $this->raw,
         ];
     }
@@ -63,7 +67,7 @@ class Result implements Arrayable
     {
         return [
             'id', 'modelClass', 'modelId', 'rank', 'title', 'summary',
-            'raw', 'authorized',
+            'raw', 'authorized', 'totalCount',
         ];
     }
 }

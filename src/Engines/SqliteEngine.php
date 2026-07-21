@@ -333,7 +333,7 @@ class SqliteEngine implements Engine
             $queryStart = microtime(true);
 
             try {
-                $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
+                $sql = "SELECT *, rank, COUNT(*) OVER () as total_count FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
                 $stmt = $this->db()->prepare($sql);
                 $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
                 $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
@@ -346,8 +346,13 @@ class SqliteEngine implements Engine
                 }
 
                 $modelResults = [];
+                $pageTotalCount = null;
 
                 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                    if ($pageTotalCount === null && isset($row['total_count'])) {
+                        $pageTotalCount = (int) $row['total_count'];
+                    }
+
                     $modelId = ctype_digit($row['model_id']) ? (int) $row['model_id'] : $row['model_id'];
                     $uniqueId = "{$modelClass}:{$modelId}";
 
@@ -364,6 +369,7 @@ class SqliteEngine implements Engine
                         'rank' => $row['rank'] ?? 0.0,
                         'title' => $row[$titleColumn] ?? $modelId,
                         'row' => $row,
+                        'totalCount' => $pageTotalCount,
                     ];
                 }
 
@@ -407,6 +413,7 @@ class SqliteEngine implements Engine
                 summary: $r['summary'] ?? null,
                 raw: $r['row'],
                 model: $r['eloquentModel'] ?? null,
+                totalCount: $r['totalCount'] ?? null,
             ),
             $results,
         );

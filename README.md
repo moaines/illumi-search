@@ -974,6 +974,8 @@ Enable stopword filtering by configuring language codes:
 
 The package includes word lists for **33 languages**: Arabic, Bulgarian, Catalan, Chinese, Croatian, Czech, Danish, Dutch, English, Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Malay, Norwegian, Persian, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Turkish, Ukrainian.
 
+> **Default:** `['en']` — English stopwords are enabled out of the box. Set to `[]` to disable filtering entirely.
+
 Words are filtered per-indexed-model based on the model's locale configuration. When no languages are configured (`stopwords: []`), filtering is disabled.
 
 > 💡 **Tip:** Filtering is applied after accent removal and lowercasing, so `"L'élève"` is correctly matched as `"leleve"` → stopword `"le"` is removed → `"eve"` remains in the index.
