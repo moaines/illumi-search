@@ -53,7 +53,15 @@ trait Searchable
 
     public function shouldSync(): bool
     {
-        return $this->syncOnSave ?? true;
+        if (! ($this->syncOnSave ?? true)) {
+            return false;
+        }
+
+        if (method_exists($this, 'trashed') && $this->trashed()) {
+            return false;
+        }
+
+        return true;
     }
 
     public function searchColumnName(string $column): string
