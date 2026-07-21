@@ -295,6 +295,10 @@ class IndexManager
             /** @var Model $instance */
             $instance = new $modelClass;
             $declaredColumns = array_keys($instance->getSearchableColumns());
+            $declaredColumns = array_map(
+                fn ($col) => $instance->searchColumnName($col),
+                $declaredColumns
+            );
             sort($declaredColumns);
 
             $exists = $this->engine->tableExists($modelClass);

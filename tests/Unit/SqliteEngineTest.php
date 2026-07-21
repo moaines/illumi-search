@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class SqliteEngineTest extends TestCase
@@ -414,5 +415,66 @@ class SqliteEngineTest extends TestCase
         $this->expectExceptionMessage('FTS5 is not available');
 
         $this->engine->createTable('App\Models\Other', ['title']);
+    }
+
+    public function test_dot_notation_search_returns_correct_results(): void
+    {
+        $this->engine->createTable(Book::class, ['title', 'body', 'author_name', 'comments_body', 'fullname']);
+
+        $this->engine->upsert(Book::class, 1, [
+            'title' => 'PHP pour les nuls',
+            'body' => 'Un livre sur PHP',
+            'author_name' => 'Jean Dupont',
+            'comments_body' => 'Excellent ouvrage',
+            'fullname' => 'PHP pour les nuls by Jean Dupont',
+        ]);
+
+        $this->engine->upsert(Book::class, 2, [
+            'title' => 'Laravel avancé',
+            'body' => 'Framework PHP',
+            'author_name' => 'Marie Martin',
+            'comments_body' => 'Très utile',
+            'fullname' => 'Laravel avancé by Marie Martin',
+        ]);
+
+        // Search via the dot-notation column (author.name → author_name)
+        $results = $this->engine->search('Dupont', [Book::class], 10);
+
+        $this->assertCount(1, $results, 'Search by author.name should find 1 book');
+        $this->assertEquals(1, $results[0]->modelId, 'Should find the book by Dupont');
+        $this->assertLessThan(0, $results[0]->rank, 'BM25 rank should be negative');
+    }
+
+    public function test_search_respects_offset_for_pagination(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'first post', 'body' => 'alpha content']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'second post', 'body' => 'beta content']);
+        $this->engine->upsert('App\Models\Post', 3, ['title' => 'third post', 'body' => 'gamma content']);
+
+        // Page 1: limit=2, offset=0
+        $page1 = $this->engine->search('content', ['App\Models\Post'], 2, 0);
+        $this->assertCount(2, $page1, 'Page 1 should have 2 results');
+
+        // Page 2: limit=2, offset=2 (skip page 1)
+        $page2 = $this->engine->search('content', ['App\Models\Post'], 2, 2);
+        $this->assertCount(1, $page2, 'Page 2 should have 1 remaining result');
+
+        // Both pages combined should cover all 3, no duplicates
+        $allIds = collect($page1)->pluck('modelId')->merge(collect($page2)->pluck('modelId'))->sort()->values();
+        $this->assertEquals([1, 2, 3], $allIds->toArray(), 'No duplicate IDs across pages');
+    }
+
+    public function test_snippets_do_not_crash_when_enabled(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, [
+            'title' => 'article about laravel',
+            'body' => 'Laravel is a PHP framework for web artisans.',
+        ]);
+
+        $withSnippets = $this->engine->search('laravel', ['App\Models\Post'], 10, 0, 'advanced', true);
+        $withoutSnippets = $this->engine->search('laravel', ['App\Models\Post'], 10, 0, 'advanced', false);
+
+        $this->assertCount(1, $withSnippets, 'Search with snippets enabled should not crash');
+        $this->assertCount(1, $withoutSnippets, 'Search with snippets disabled should work');
     }
 }
