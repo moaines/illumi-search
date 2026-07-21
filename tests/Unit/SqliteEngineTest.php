@@ -477,4 +477,135 @@ class SqliteEngineTest extends TestCase
         $this->assertCount(1, $withSnippets, 'Search with snippets enabled should not crash');
         $this->assertCount(1, $withoutSnippets, 'Search with snippets disabled should work');
     }
+
+    public function test_search_results_are_sorted_by_bm25_rank_ascending(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php programming', 'body' => 'learn php online']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'general', 'body' => 'php is a language']);
+
+        $results = $this->engine->search('php', ['App\Models\Post'], 10);
+
+        $this->assertCount(2, $results);
+        $this->assertLessThan(0, $results[0]->rank, 'BM25 rank should be negative');
+        $this->assertGreaterThanOrEqual($results[1]->rank, $results[0]->rank, 'Results sorted by rank descending (best first)');
+    }
+
+    public function test_exact_phrase_search_requires_all_words_consecutive(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php moderne', 'body' => 'about php 8']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'php 8', 'body' => 'php moderne explained here']);
+        $this->engine->upsert('App\Models\Post', 3, ['title' => 'something else', 'body' => 'no match']);
+
+        $results = $this->engine->search('"php moderne"', ['App\Models\Post'], 10, 0, 'advanced');
+
+        $this->assertCount(2, $results, 'Both posts containing the exact phrase should match');
+        $this->assertContains(1, array_map(fn ($r) => $r->modelId, $results), 'Post 1 contains exact phrase in title');
+        $this->assertContains(2, array_map(fn ($r) => $r->modelId, $results), 'Post 2 contains exact phrase in body');
+        $this->assertNotContains(3, array_map(fn ($r) => $r->modelId, $results), 'Post 3 does not contain the exact phrase');
+    }
+
+    public function test_search_without_query_returns_empty(): void
+    {
+        $results = $this->engine->search('', ['App\Models\Post'], 10);
+
+        $this->assertEmpty($results);
+    }
+
+    public function test_search_returns_bm25_ranks_for_all_matching_records(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'learning data science', 'body' => 'data analysis with python']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'advanced data', 'body' => 'big data and analytics']);
+        $this->engine->upsert('App\Models\Post', 3, ['title' => 'css layout', 'body' => 'flexbox and grid']);
+
+        $results = $this->engine->search('data', ['App\Models\Post'], 10);
+
+        $this->assertCount(2, $results, 'Only posts matching "data" should be returned');
+        $this->assertEquals([1, 2], array_map(fn ($r) => $r->modelId, $results), 'Only posts 1 and 2 should be found');
+        $this->assertNotContains(3, array_map(fn ($r) => $r->modelId, $results), 'Post 3 should not match');
+    }
+
+    public function test_basic_mode_adds_wildcard_but_returns_ranked_results(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php framework', 'body' => 'laravel and symfony']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'laravel guide', 'body' => 'php framework for web']);
+
+        $results = $this->engine->search('php', ['App\Models\Post'], 10, 0, 'basic');
+
+        $this->assertCount(2, $results);
+        $this->assertTrue(in_array(1, array_map(fn ($r) => $r->modelId, $results)), 'Post 1 should be found');
+        $this->assertTrue(in_array(2, array_map(fn ($r) => $r->modelId, $results)), 'Post 2 should be found');
+        foreach ($results as $r) {
+            $this->assertLessThan(0, $r->rank, 'All results should have BM25 rank');
+        }
+    }
+
+    public function test_vacuum_compacts_database(): void
+    {
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'test', 'body' => 'content']);
+        $this->engine->upsert('App\Models\Post', 2, ['title' => 'another', 'body' => 'data']);
+        $this->engine->delete('App\Models\Post', 2);
+
+        $sizeBefore = $this->engine->getDatabaseSize();
+        $this->engine->vacuum();
+
+        $this->assertNotNull($sizeBefore, 'Database size should be measurable');
+    }
+
+    public function test_table_exists_returns_true_for_existing_table(): void
+    {
+        $this->assertTrue($this->engine->tableExists('App\Models\Post'));
+    }
+
+    public function test_table_exists_returns_false_for_non_existent_table(): void
+    {
+        $this->assertFalse($this->engine->tableExists('App\Models\NonExistent'));
+    }
+
+    public function test_get_database_size_returns_positive_integer(): void
+    {
+        $size = $this->engine->getDatabaseSize();
+
+        $this->assertNotNull($size, 'Database size should not be null');
+        $this->assertGreaterThan(0, $size, 'Database size should be positive for non-empty DB');
+    }
+
+    public function test_pagination_across_three_pages(): void
+    {
+        for ($i = 1; $i <= 5; $i++) {
+            $this->engine->upsert('App\Models\Post', $i, ['title' => "post $i", 'body' => 'content to search']);
+        }
+
+        $page1 = $this->engine->search('search', ['App\Models\Post'], 2, 0);
+        $page2 = $this->engine->search('search', ['App\Models\Post'], 2, 2);
+        $page3 = $this->engine->search('search', ['App\Models\Post'], 2, 4);
+
+        $this->assertCount(2, $page1, 'Page 1 should have 2 results');
+        $this->assertCount(2, $page2, 'Page 2 should have 2 results');
+        $this->assertCount(1, $page3, 'Page 3 should have 1 remaining result');
+
+        $allIds = array_merge(
+            array_map(fn ($r) => $r->modelId, $page1),
+            array_map(fn ($r) => $r->modelId, $page2),
+            array_map(fn ($r) => $r->modelId, $page3),
+        );
+
+        sort($allIds);
+        $this->assertEquals([1, 2, 3, 4, 5], $allIds, 'All 5 posts distributed across pages without duplicates');
+    }
+
+    public function test_cross_model_search_ranks_by_bm25(): void
+    {
+        $this->engine->createTable('App\Models\Author', ['name', 'bio']);
+
+        $this->engine->upsert('App\Models\Post', 1, ['title' => 'php programming', 'body' => 'learn php online']);
+        $this->engine->upsert('App\Models\Author', 1, ['name' => 'php expert', 'bio' => 'writes about code']);
+
+        $results = $this->engine->search('php', ['App\Models\Post', 'App\Models\Author'], 10);
+
+        $this->assertCount(2, $results, 'Both models should match');
+        foreach ($results as $r) {
+            $this->assertLessThan(0, $r->rank, 'All cross-model results should have BM25 rank');
+        }
+        $this->assertTrue($results[0]->rank >= $results[1]->rank, 'Cross-model results sorted by rank (best first)');
+    }
 }

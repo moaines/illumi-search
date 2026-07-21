@@ -136,4 +136,25 @@ class AuthorizationTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
         $this->assertEquals(3, $results[1]->modelId);
     }
+
+    public function test_authorization_via_illumi_search_facade(): void
+    {
+        $this->createPost(1, 'visible post', 'public content');
+        $this->createPost(2, 'hidden post', 'classified');
+
+        Gate::define('view', function ($user, $post) {
+            return $post->getKey() === 1;
+        });
+
+        $user = new \Illuminate\Foundation\Auth\User();
+        $user->id = 1;
+
+        $results = \Moaines\IllumiSearch\Facades\IllumiSearch::query('post')
+            ->models([self::MODEL_CLASS])
+            ->withAuthorization($user)
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(1, $results->first()->modelId);
+    }
 }

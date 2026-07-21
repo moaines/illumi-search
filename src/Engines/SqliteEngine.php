@@ -320,7 +320,7 @@ class SqliteEngine implements Engine
             $queryStart = microtime(true);
 
             try {
-                $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank LIMIT :limit OFFSET :offset";
+                $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
                 $stmt = $this->db()->prepare($sql);
                 $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
                 $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
@@ -335,7 +335,7 @@ class SqliteEngine implements Engine
                 $modelResults = [];
 
                 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                    $modelId = $row['model_id'];
+                    $modelId = ctype_digit($row['model_id']) ? (int) $row['model_id'] : $row['model_id'];
                     $uniqueId = "{$modelClass}:{$modelId}";
 
                     if (isset($seenIds[$uniqueId])) {
@@ -375,7 +375,7 @@ class SqliteEngine implements Engine
         }
 
         // Sort by rank across all model classes
-        usort($results, fn ($a, $b) => $a['rank'] <=> $b['rank']);
+        usort($results, fn ($a, $b) => $b['rank'] <=> $a['rank']);
 
         $results = array_slice($results, 0, $limit);
 

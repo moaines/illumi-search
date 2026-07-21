@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature;
 
+use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Tests\TestCase;
 
@@ -80,5 +81,38 @@ class MultiTenantTest extends TestCase
 
         $this->assertStringNotContainsString('app/search/app/search', $tenantPath);
         $this->assertStringContainsString('tenants/acme/', $tenantPath);
+    }
+
+    public function test_data_isolation_between_tenants(): void
+    {
+        $tmpDir = sys_get_temp_dir();
+        $pathA = $tmpDir . '/illumi_test_tenant_a.sqlite';
+        $pathB = $tmpDir . '/illumi_test_tenant_b.sqlite';
+
+        @unlink($pathA);
+        @unlink($pathB);
+
+        $engineA = new SqliteEngine(databasePath: $pathA);
+        $engineB = new SqliteEngine(databasePath: $pathB);
+
+        $engineA->createTable('App\Models\Post', ['title', 'body']);
+        $engineB->createTable('App\Models\Post', ['title', 'body']);
+
+        $engineA->upsert('App\Models\Post', 1, ['title' => 'SECRET_A data', 'body' => 'only tenant A']);
+        $engineB->upsert('App\Models\Post', 1, ['title' => 'SECRET_B data', 'body' => 'only tenant B']);
+
+        $resultsA = $engineA->search('SECRET', ['App\Models\Post'], 10);
+        $resultsB = $engineB->search('SECRET', ['App\Models\Post'], 10);
+
+        $this->assertCount(1, $resultsA, 'Tenant A should find its own data');
+        $this->assertEquals(1, $resultsA[0]->modelId, 'Tenant A should find post 1');
+        $this->assertStringContainsString('SECRET_A', $resultsA[0]->title, 'Tenant A should get A data');
+
+        $this->assertCount(1, $resultsB, 'Tenant B should find its own data');
+        $this->assertEquals(1, $resultsB[0]->modelId, 'Tenant B should find post 1');
+        $this->assertStringContainsString('SECRET_B', $resultsB[0]->title, 'Tenant B should get B data, not A data');
+
+        @unlink($pathA);
+        @unlink($pathB);
     }
 }
