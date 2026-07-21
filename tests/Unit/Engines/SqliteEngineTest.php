@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\IllumiSearch\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;

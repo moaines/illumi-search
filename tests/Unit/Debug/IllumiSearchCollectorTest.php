@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\IllumiSearch\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit\Debug;
 
 use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Moaines\IllumiSearch\Tests\TestCase;

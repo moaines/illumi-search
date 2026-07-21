@@ -9,23 +9,17 @@ interface Engine
     /**
      * Insert or replace a single document in the FTS index.
      *
-     * @example $engine->upsert(Post::class, 1, ['title' => 'Hello', 'body' => 'World'])
-     *
      * @param array<string, string> $document
      */
     public function upsert(string $modelClass, int|string $modelId, array $document): void;
 
     /**
      * Remove a document from the FTS index.
-     *
-     * @example $engine->delete(Post::class, 1)
      */
     public function delete(string $modelClass, int|string $modelId): void;
 
     /**
      * Insert multiple documents in a single transaction.
-     *
-     * @example $engine->insertBatch(Post::class, [['model_id' => 1, 'document' => [...]], ...])
      *
      * @param array<int, array{model_id: int|string, document: array<string, string>}> $documents
      */
@@ -34,10 +28,7 @@ interface Engine
     /**
      * Search the FTS index and return ranked results.
      *
-     * @example $results = $engine->search('laravel', [Post::class], 10)
-     *
      * @param array<class-string> $modelClasses
-     *
      * @return Result[]
      */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array;
@@ -62,4 +53,63 @@ interface Engine
 
     /** Write a value to the config storage table. */
     public function setConfig(string $key, mixed $value): void;
+
+    /**
+     * Create an FTS index table for a model class.
+     *
+     * @param string[] $columns
+     * @param int[] $prefixLengths
+     */
+    public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void;
+
+    /** Drop an FTS index table for a model class. */
+    public function dropTable(string $modelClass): void;
+
+    /** Drop the underlying index table only (keep meta). */
+    public function dropIndexTable(string $modelClass): void;
+
+    /** Get the internal FTS table name for a model class. */
+    public function tableName(string $modelClass): string;
+
+    /** Check if an FTS table exists for a model class. */
+    public function tableExists(string $modelClass): bool;
+
+    /**
+     * List all FTS tables in the index database.
+     *
+     * @return string[]
+     */
+    public function listIndexTables(): array;
+
+    /** Run VACUUM on the database to reclaim space. */
+    public function vacuum(): void;
+
+    /** Get the filesystem path to the database file. */
+    public function getDatabasePath(): string;
+
+    /** Get the database file size in bytes, or null if not accessible. */
+    public function getDatabaseSize(): ?int;
+
+    /** Run an integrity check on a specific model's FTS table. */
+    public function integrityCheck(string $modelClass): bool;
+
+    /**
+     * Run a full integrity check, including data consistency.
+     *
+     * @return array{passed: bool, errors: string[]}
+     */
+    public function fullIntegrityCheck(): array;
+
+    /**
+     * Query the FTS5 vocabulary table for suggestions.
+     *
+     * @return string[]
+     */
+    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array;
+
+    /** Check if FTS5 is available in the SQLite build. */
+    public function isFts5Available(): bool;
+
+    /** Read a PRAGMA value from the connection. */
+    public function getPragma(string $name): string|int|null;
 }

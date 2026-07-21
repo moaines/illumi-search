@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch;
 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Moaines\IllumiSearch\Console\Commands\CheckCommand;
@@ -16,6 +17,8 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
+use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
+use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Text\FallbackTextProcessor;
@@ -41,13 +44,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
             $fullPath = $tenantManager->tenantDatabasePath($fullPath);
 
             $dir = dirname($fullPath);
-            if (! is_dir($dir)) {
-                try {
-                    mkdir($dir, 0755, true);
-                } catch (\Exception) {
-                    // Best-effort: will fail later with a clearer error
-                }
-            }
+            File::ensureDirectoryExists($dir);
 
             $engine = new SqliteEngine(
                 databasePath: $fullPath,

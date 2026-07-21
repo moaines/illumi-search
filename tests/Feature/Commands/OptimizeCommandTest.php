@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\IllumiSearch\Tests\Feature;
+namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestCase;

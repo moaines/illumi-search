@@ -27,6 +27,8 @@ class QueryBuilder
 
     private ?Authenticatable $user = null;
 
+    private ?int $totalCache = null;
+
     public function __construct(?Engine $engine = null)
     {
         $this->engine = $engine;
@@ -196,9 +198,20 @@ class QueryBuilder
      *
      * @return int<0, max>
      */
+    /**
+     * Get the total count of matching results without retrieving them.
+     *
+     * @example IllumiSearch::query('laravel')->model(Post::class)->count()
+     *
+     * @return int<0, max>
+     */
     public function count(): int
     {
-        return $this->resolveEngine()->count(
+        if ($this->totalCache !== null) {
+            return $this->totalCache;
+        }
+
+        return $this->totalCache = $this->resolveEngine()->count(
             query: $this->query,
             modelClasses: $this->resolveModelClasses(),
         );

@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Text;
 
+use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 
 trait HasTextHelpers
@@ -31,7 +32,7 @@ trait HasTextHelpers
 
     public function cleanWhitespace(string $text): string
     {
-        return preg_replace('/\s+/', ' ', $text) ?? $text;
+        return Str::squish($text);
     }
 
     public function stripHtml(string $text): string

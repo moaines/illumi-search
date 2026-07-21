@@ -388,7 +388,7 @@ class SqliteEngine implements Engine
         }
 
         // Sort by rank across all model classes
-        usort($results, fn ($a, $b) => $b['rank'] <=> $a['rank']);
+        $results = collect($results)->sortByDesc('rank')->values()->all();
 
         $results = array_slice($results, 0, $limit);
 

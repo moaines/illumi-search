@@ -1133,6 +1133,34 @@ Full FTS5 query syntax:
 
 ---
 
+## Custom Engine
+
+The `Engine` interface defines the contract for all search engine implementations. To create a custom engine:
+
+```php
+use Moaines\IllumiSearch\Contracts\Engine;
+
+class MyCustomEngine implements Engine
+{
+    public function upsert(string $modelClass, int|string $modelId, array $document): void { /* ... */ }
+    public function delete(string $modelClass, int|string $modelId): void { /* ... */ }
+    public function insertBatch(string $modelClass, array $documents): void { /* ... */ }
+    public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array { /* ... */ }
+    public function count(string $query, array $modelClasses): int { /* ... */ }
+    // ... see the full interface at src/Contracts/Engine.php for all 30+ methods
+}
+```
+
+Register your engine in a ServiceProvider:
+
+```php
+$this->app->singleton(Engine::class, fn () => new MyCustomEngine);
+```
+
+> ⚠️ **Breaking change (2.0.0):** The Engine interface was expanded in v2.0.0 to include all methods previously only available on `SqliteEngine`. Custom implementations must implement all new methods.
+
+---
+
 ## Testing
 
 ```bash
@@ -1192,6 +1220,19 @@ illumi-search/
 ## Changelog
 
 ### Unreleased
+
+### v2.0.0
+
+- **Breaking — Engine interface expanded.** All methods previously exclusive to `SqliteEngine` are now part of the `Engine` contract: `createTable`, `dropTable`, `dropIndexTable`, `tableName`, `tableExists`, `listIndexTables`, `vacuum`, `getDatabasePath`, `getDatabaseSize`, `integrityCheck`, `fullIntegrityCheck`, `queryVocab`, `isFts5Available`, `getPragma`. Custom Engine implementations must add these 16 methods.
+- **Stopwords filtering.** 33 language word lists built-in. Configure via `config('illumi-search.stopwords')` — array of language codes. Words are removed after accent folding and lowercasing for cleaner BM25 scoring.
+- **Fallback processor without ext-intl.** When `ext-intl` is not available, a `FallbackTextProcessor` using `symfony/string::ascii()` handles basic accent folding. `ext-intl` moved from `require` to `suggest` in composer.json.
+- **N+1 authorization fixed.** `filterAuthorized()` uses `findMany()` per model class instead of individual `find()` calls.
+- **Soft delete support.** `shouldSync()` now returns `false` for trashed models (those using `SoftDeletes` trait). Soft-deleted models are not indexed; restored models are re-indexed via the `restored` event.
+- **afterCommit for queue jobs.** `IndexModelJob` and `DeleteIndexJob` use `->afterCommit()` to prevent indexing when a DB transaction rolls back.
+- **PHPStan baseline reduced** from ~655 to 10 errors (~98% reduction).
+- **Laravel Debugbar integration.** New `IllumiSearchCollector` adds an *illumi-search* tab to the debug toolbar. Works automatically when `barryvdh/laravel-debugbar` is installed.
+- **256+ tests**, 524+ assertions.
+- **New `symfony/string` dependency** — required for the fallback text processor.
 
 ### v1.11.0
 

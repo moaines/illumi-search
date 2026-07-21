@@ -10,6 +10,12 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
 
+/**
+ * @method array<string, array{weight?: int, locale?: string, snippet?: array}> getSearchableColumns()
+ * @method array<string, string> processDocument(\Moaines\IllumiSearch\Contracts\TextProcessor $processor, string $locale = 'en')
+ * @method array relationsForRebuild()
+ * @method static void validateSearchable()
+ */
 trait Searchable
 {
     public static function bootSearchable(): void
@@ -117,11 +123,10 @@ trait Searchable
         $relations = [];
         foreach ($this->getSearchableColumns() as $key => $config) {
             $colName = is_string($config) ? $config : $key;
-            $firstDot = strpos($colName, '.');
-            if ($firstDot === false) {
+            $relPath = Str::beforeLast($colName, '.');
+            if ($relPath === $colName) {
                 continue;
             }
-            $relPath = substr($colName, 0, strrpos($colName, '.'));
             if (! in_array($relPath, $relations, true)) {
                 $relations[] = $relPath;
             }

@@ -372,4 +372,17 @@ class SearchableConfigTest extends TestCase
         $this->assertTrue(method_exists($engine, 'queryVocab'));
         $this->assertTrue(method_exists($engine, 'vacuum'));
     }
+
+    public function test_engine_interface_is_fully_implemented(): void
+    {
+        $interfaceMethods = (new \ReflectionClass(Engine::class))->getMethods();
+        $engine = $this->app->make(Engine::class);
+
+        foreach ($interfaceMethods as $method) {
+            $this->assertTrue(
+                method_exists($engine, $method->name),
+                "Engine implementation must implement '{$method->name}'() from the Engine interface",
+            );
+        }
+    }
 }

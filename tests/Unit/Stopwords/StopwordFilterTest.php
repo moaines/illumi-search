@@ -1,6 +1,6 @@
 <?php
 
-namespace Moaines\IllumiSearch\Tests\Unit;
+namespace Moaines\IllumiSearch\Tests\Unit\Stopwords;
 
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use PHPUnit\Framework\TestCase;

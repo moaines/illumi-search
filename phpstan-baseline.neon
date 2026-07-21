@@ -1,54 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/DoctorCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/DoctorCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:integrityCheck\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/DoctorCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/OptimizeCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
-			identifier: method.notFound
-			count: 2
-			path: src/Console/Commands/OptimizeCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabasePath\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/StatusCommand.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:getDatabaseSize\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Console/Commands/StatusCommand.php
-
-		-
-			message: '#^Class Moaines\\IllumiSearch\\SearchApiController not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/IllumiSearchServiceProvider.php
-
-		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:getSearchableColumns\(\)\.$#'
 			identifier: method.notFound
 			count: 1
@@ -73,49 +25,13 @@ parameters:
 			path: src/IndexManager.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:createTable\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Trait Moaines\\IllumiSearch\\Searchable has PHPDoc tag @method for method getSearchableColumns\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/IndexManager.php
+			path: src/Searchable.php
 
 		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:dropIndexTable\(\)\.$#'
-			identifier: method.notFound
+			message: '#^Trait Moaines\\IllumiSearch\\Searchable has PHPDoc tag @method for method relationsForRebuild\(\) return type with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:dropTable\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:listIndexTables\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:tableExists\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:tableName\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:vacuum\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/IndexManager.php
-
-		-
-			message: '#^Call to an undefined method Moaines\\IllumiSearch\\Contracts\\Engine\:\:queryVocab\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Spellcheck.php
+			path: src/Searchable.php
