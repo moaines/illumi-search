@@ -63,6 +63,7 @@ class QueryBuilder
      *
      * @example IllumiSearch::query('php')->models([Post::class, Comment::class])->get()
      */
+    /** @param array<class-string> $modelClasses */
     public function models(array $modelClasses): static
     {
         $this->modelClasses = $modelClasses;
@@ -149,6 +150,10 @@ class QueryBuilder
         return $results;
     }
 
+    /**
+     * @param Collection<int, Result> $results
+     * @return Collection<int, Result>
+     */
     protected function filterAuthorized(Collection $results): Collection
     {
         $user = $this->user ?? Auth::user();
@@ -157,7 +162,7 @@ class QueryBuilder
             return $results;
         }
 
-        $grouped = $results->groupBy->modelClass;
+        $grouped = $results->groupBy('modelClass');
         $models = [];
 
         foreach ($grouped as $class => $entries) {
@@ -236,6 +241,7 @@ class QueryBuilder
         return $this->engine;
     }
 
+    /** @return array<class-string> */
     private function resolveModelClasses(): array
     {
         if (! empty($this->modelClasses)) {

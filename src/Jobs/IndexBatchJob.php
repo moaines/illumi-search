@@ -18,6 +18,7 @@ class IndexBatchJob implements ShouldQueue
 
     public int $tries = 3;
 
+    /** @var int[] */
     public array $backoff = [5, 15, 30];
 
     public function __construct(
@@ -26,6 +27,7 @@ class IndexBatchJob implements ShouldQueue
         private readonly int $limit,
     ) {}
 
+    /** @return array<int, object> */
     public function middleware(): array
     {
         return [(new WithoutOverlapping($this->modelClass))->shared()->releaseAfter(30)];

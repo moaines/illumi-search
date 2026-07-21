@@ -13,13 +13,15 @@ use Moaines\IllumiSearch\Jobs\IndexBatchJob;
 
 class IndexManager
 {
-    private static ?Collection $cachedModels = null;
+    /** @var Collection<int, string>|null */
+    protected static ?Collection $cachedModels = null;
 
     public function __construct(
         private readonly Engine $engine,
         private readonly TextProcessor $processor,
     ) {}
 
+    /** @return Collection<int, string> */
     public function discoverModels(bool $refresh = false): Collection
     {
         if (static::$cachedModels !== null && ! $refresh) {
@@ -55,6 +57,10 @@ class IndexManager
         return static::$cachedModels;
     }
 
+    /**
+     * @param array<class-string>|null $modelClasses
+     * @return array<int, array<string, mixed>>
+     */
     public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false, ?\Closure $progress = null): array
     {
         $models = $modelClasses !== null
@@ -85,6 +91,7 @@ class IndexManager
         return $results;
     }
 
+    /** @return array{model: string, status: string, records?: int, queued?: int, total?: int, message?: string, warnings?: array<int, array{model: string, status: string, message: string}>} */
     private function rebuildModel(string $modelClass, int $batchSize, ?\Closure $progress): array
     {
         if (! class_exists($modelClass)) {
@@ -141,6 +148,7 @@ class IndexManager
         }
     }
 
+    /** @param string[] $relations */
     private function rebuildWithBatch(string $modelClass, int $batchSize, string $keyName, array $relations, ?\Closure $progress, int &$queuedCount): int
     {
         $records = $modelClass::query()
@@ -158,7 +166,7 @@ class IndexManager
 
         while ($syncCount + $queuedCount < $totalRecords) {
             $remaining = $totalRecords - ($syncCount + $queuedCount);
-            $take = min(100, $remaining);
+            $take = (int) min(100, $remaining);
 
             IndexBatchJob::dispatch(
                 modelClass: $modelClass,
@@ -173,6 +181,7 @@ class IndexManager
         return $syncCount;
     }
 
+    /** @param string[] $relations */
     private function rebuildSyncAll(string $modelClass, string $keyName, array $relations, ?\Closure $progress): int
     {
         $syncCount = 0;
@@ -188,9 +197,14 @@ class IndexManager
         return $syncCount;
     }
 
+    /**
+     * @param Collection<int, string> $models
+     * @param array<int, array<string, mixed>> $results
+     * @return array<int, array<string, mixed>>
+     */
     private function cleanupOrphans(Collection $models, array $results): array
     {
-        $processedTables = $models->map(fn ($cls) => $this->engine->tableName($cls))->toArray();
+        $processedTables = $models->map(fn (string $cls): string => $this->engine->tableName($cls))->toArray();
         $existingTables = $this->engine->listIndexTables();
         $internalSuffixes = ['_content', '_data', '_docsize', '_idx', '_config', '_vocab'];
 
@@ -211,6 +225,7 @@ class IndexManager
         return $results;
     }
 
+    /** @param \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model> $records */
     private function indexRecords($records, string $modelClass): int
     {
         $documents = [];
@@ -231,6 +246,10 @@ class IndexManager
         return $count;
     }
 
+    /**
+     * @param array<class-string>|null $modelClasses
+     * @return array<int, array{model: string, status: string, records?: int, message?: string}>
+     */
     public function sync(?array $modelClasses = null, ?\DateTimeInterface $since = null, ?\Closure $progress = null): array
     {
         $models = $modelClasses !== null
@@ -282,6 +301,7 @@ class IndexManager
         return $results;
     }
 
+    /** @return array<int, array{model: string, exists: bool, status: string, declared_columns: string[], indexed_columns: string[]}> */
     public function checkSchema(): array
     {
         $models = $this->discoverModels();
@@ -292,13 +312,13 @@ class IndexManager
                 continue;
             }
 
-            /** @var Model $instance */
             $instance = new $modelClass;
             $declaredColumns = array_keys($instance->getSearchableColumns());
             $declaredColumns = array_map(
-                fn ($col) => $instance->searchColumnName($col),
+                fn ($col) => /** @scrutinizer ignore-call */ $instance->searchColumnName($col),
                 $declaredColumns
             );
+            /** @var list<string> $declaredColumns */
             sort($declaredColumns);
 
             $exists = $this->engine->tableExists($modelClass);
@@ -334,6 +354,7 @@ class IndexManager
         return $checks;
     }
 
+    /** @return array<int, array{model_class: string, record_count: int, last_synced_at: ?string, columns: ?string}> */
     public function status(): array
     {
         return $this->engine->getIndexStats();

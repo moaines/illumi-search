@@ -5,8 +5,10 @@ namespace Moaines\IllumiSearch;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 
+/** @implements \Illuminate\Contracts\Support\Arrayable<string, mixed> */
 class Result implements Arrayable
 {
+    /** @param array<string, mixed> $raw */
     public function __construct(
         public readonly string $id,
         public readonly string $modelClass,
@@ -19,6 +21,7 @@ class Result implements Arrayable
         public readonly ?Model $model = null,
     ) {}
 
+    /** @param array<string, mixed> $raw */
     public static function make(
         string $modelClass,
         int|string $modelId,

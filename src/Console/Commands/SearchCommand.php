@@ -73,7 +73,7 @@ class SearchCommand extends Command
         foreach ($grouped as $model => $items) {
             $this->line("  <fg=yellow>{$model}</> (" . count($items) . ')');
             foreach ($items as $item) {
-                $title = $item->title ?? '(no title)';
+                $title = $item->title ?: '(no title)';
                 $this->line("    ✓ {$title}");
             }
             $this->newLine();
@@ -87,6 +87,11 @@ class SearchCommand extends Command
         return Command::SUCCESS;
     }
 
+    /**
+     * @param \Moaines\IllumiSearch\Result[] $results
+     * @param string[] $modelClasses
+     * @return string[]
+     */
     private function getSuggestions(bool $withSuggest, array $results, string $query, array $modelClasses): array
     {
         if (! $withSuggest || ! empty($results) || mb_strlen($query) <= 2) {

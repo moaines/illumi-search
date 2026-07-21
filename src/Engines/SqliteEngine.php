@@ -20,12 +20,15 @@ class SqliteEngine implements Engine
 
     private ?TextProcessor $textProcessor = null;
 
-    private static array $supportedOperators = ['AND', 'OR', 'NOT'];
+    /** @var list<string> */
+    protected static array $supportedOperators = ['AND', 'OR', 'NOT'];
 
-    private static array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
+    /** @var list<string> */
+    protected static array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
 
-    private static bool $operatorsProbed = false;
+    protected static bool $operatorsProbed = false;
 
+    /** @var array<string, string> */
     private array $cachedSafeQueries = [];
 
     private bool $fts5Available = false;
@@ -54,6 +57,10 @@ class SqliteEngine implements Engine
         return $this->databasePath;
     }
 
+    /**
+     * @param array<string, string> $document
+     * @return array<string, string>
+     */
     protected function sanitizeDocumentKeys(array $document): array
     {
         $sanitized = [];
@@ -147,6 +154,10 @@ class SqliteEngine implements Engine
         return $name;
     }
 
+    /**
+     * @param array<int|string, mixed> $columns
+     * @param int[] $prefixLengths
+     */
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
         $this->db();
@@ -236,6 +247,7 @@ class SqliteEngine implements Engine
         $stmt->execute();
     }
 
+    /** @param array<string, string> $document */
     public function upsert(string $modelClass, int|string $modelId, array $document): void
     {
         $table = $this->tableName($modelClass);
@@ -280,6 +292,7 @@ class SqliteEngine implements Engine
         $stmt->execute();
     }
 
+    /** @param array<int, array{model_id: int|string, document: array<string, string>}> $documents */
     public function insertBatch(string $modelClass, array $documents): void
     {
         $this->db()->exec('BEGIN TRANSACTION');
@@ -297,7 +310,7 @@ class SqliteEngine implements Engine
 
     /**
      * @param  array<class-string>  $modelClasses
-     * @return Result>
+     * @return Result[]
      */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array
     {
@@ -480,6 +493,7 @@ class SqliteEngine implements Engine
         $this->db()->exec("DROP TABLE IF EXISTS {$tableName}");
     }
 
+    /** @return array<class-string> */
     public function getIndexedModelClasses(): array
     {
         $result = $this->db()->query('SELECT model_class FROM '.self::META_TABLE);
@@ -492,6 +506,7 @@ class SqliteEngine implements Engine
         return $classes;
     }
 
+    /** @return array<int, array{model_class: string, record_count: int, last_synced_at: ?string, columns: ?string}> */
     public function getIndexStats(): array
     {
         $models = $this->getIndexedModelClasses();
@@ -535,6 +550,7 @@ class SqliteEngine implements Engine
         $this->db()->exec('VACUUM');
     }
 
+    /** @return array{vacuum: array{before: int, after: int}, tables_optimized: int} */
     public function optimize(): array
     {
 
@@ -564,6 +580,7 @@ class SqliteEngine implements Engine
         return $results;
     }
 
+    /** @return list<string> */
     public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
     {
         if (! $this->tableExists($modelClass)) {
@@ -617,6 +634,7 @@ class SqliteEngine implements Engine
         return array_slice(array_map(fn ($s) => $s['term'], $suggestions), 0, $limit);
     }
 
+    /** @param string[] $columns */
     protected function updateMeta(string $modelClass, int $version, array $columns): void
     {
         $stmt = $this->db()->prepare(sprintf(
@@ -797,11 +815,13 @@ class SqliteEngine implements Engine
         }
     }
 
+    /** @return list<string> */
     public static function getSupportedOperators(): array
     {
         return static::$supportedOperators;
     }
 
+    /** @return list<string> */
     public static function getRawSupportedOperators(): array
     {
         return static::$rawSupportedOperators;
@@ -820,6 +840,7 @@ class SqliteEngine implements Engine
         return $result;
     }
 
+    /** @param array<string, mixed> $row */
     protected function getTitleColumn(array $row): string
     {
         $priority = ['title', 'name', 'label', 'titre', 'nom'];
@@ -925,6 +946,7 @@ class SqliteEngine implements Engine
         return $this->db()->querySingle("PRAGMA {$name}");
     }
 
+    /** @return array{passed: bool, errors: string[]} */
     public function fullIntegrityCheck(): array
     {
         $errors = [];

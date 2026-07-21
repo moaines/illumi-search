@@ -62,6 +62,7 @@ trait HasTextHelpers
         return $text;
     }
 
+    /** @return string[] */
     private function getStopwordLanguages(): array
     {
         $config = config('illumi-search.stopwords', []);

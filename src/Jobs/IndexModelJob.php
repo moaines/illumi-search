@@ -18,6 +18,7 @@ class IndexModelJob implements ShouldQueue
 
     public int $tries = 3;
 
+    /** @var int[] */
     public array $backoff = [1, 5, 15];
 
     public function __construct(
@@ -25,6 +26,7 @@ class IndexModelJob implements ShouldQueue
         private readonly int|string $modelId,
     ) {}
 
+    /** @return array<int, object> */
     public function middleware(): array
     {
         return [(new WithoutOverlapping($this->modelId))->shared()->releaseAfter(10)];

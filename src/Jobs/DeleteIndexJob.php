@@ -21,6 +21,7 @@ class DeleteIndexJob implements ShouldQueue
         private readonly int|string $modelId,
     ) {}
 
+    /** @return array<int, object> */
     public function middleware(): array
     {
         return [(new WithoutOverlapping($this->modelId))->shared()->releaseAfter(10)];

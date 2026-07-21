@@ -79,6 +79,7 @@ class DoctorCommand extends Command
         $this->newLine();
     }
 
+    /** @return array<int, array{model_class: string, record_count: int, last_synced_at: ?string, columns: ?string}> */
     private function checkDatabase(Engine $engine): array
     {
         $this->line('3. FTS Database');
@@ -120,6 +121,7 @@ class DoctorCommand extends Command
         return $stats;
     }
 
+    /** @param array<int, array{model_class: string, record_count: int, last_synced_at: ?string, columns: ?string}> $stats */
     private function checkIntegrity(Engine $engine, array $stats): void
     {
         if (empty($stats)) {
@@ -199,7 +201,7 @@ class DoctorCommand extends Command
             $configOk = in_array($op, $allowedOps, true);
             $note = match (true) {
                 $configOk => 'SQLite: ✓, Config: allowed',
-                $sqlite && ! $configOk => 'SQLite: ✓, Config: restricted',
+                $sqlite => 'SQLite: ✓, Config: restricted',
                 default => 'SQLite: ✗, Config: —',
             };
             $this->line('   '.($configOk ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$op} ({$note})");

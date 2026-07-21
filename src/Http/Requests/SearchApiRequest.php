@@ -6,6 +6,7 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class SearchApiRequest extends FormRequest
 {
+    /** @return array<string, string> */
     public function rules(): array
     {
         return [

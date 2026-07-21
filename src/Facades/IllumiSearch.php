@@ -38,8 +38,8 @@ class IllumiSearch extends Facade
      * @example IllumiSearch::didYouMean('laravell', [Post::class])
      *
      * @param string $query The (potentially misspelled) search term
-     * @param array $modelClasses Optional model classes to scope suggestions
-     * @return Collection<string>
+     * @param string[] $modelClasses Optional model classes to scope suggestions
+     * @return Collection<int, string>
      */
     public static function didYouMean(string $query, array $modelClasses = []): Collection
     {

@@ -10,8 +10,13 @@ class SnippetService
 {
     use HasQueryTerms;
 
+    /** @var string[] */
     private array $defaultTextColumns = ['body', 'content', 'description', 'text', 'excerpt'];
 
+    /**
+     * @param array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>}> $results
+     * @return array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>, eloquentModel?: \Illuminate\Database\Eloquent\Model|null, summary?: string|null}>
+     */
     public function enrich(array $results, string $query): array
     {
         $grouped = [];
@@ -27,7 +32,7 @@ class SnippetService
         foreach ($grouped as $modelClass => &$entries) {
             $ids = array_column($entries, 'modelId');
 
-            if (! class_exists($modelClass) || empty($ids)) {
+            if (! class_exists($modelClass)) {
                 continue;
             }
 
@@ -89,6 +94,7 @@ class SnippetService
         return $enriched;
     }
 
+    /** @return string[]|null */
     public function resolveSnippetColumns(Model $model): ?array
     {
         if (! method_exists($model, 'getSearchableColumns')) {
@@ -117,6 +123,10 @@ class SnippetService
         return ! empty($allowed) ? $allowed : null;
     }
 
+    /**
+     * @param string[] $searchTerms
+     * @param string[]|null $snippetColumns
+     */
     private function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
     {
         $textColumns = $snippetColumns ?? $this->defaultTextColumns;
@@ -127,7 +137,7 @@ class SnippetService
         foreach ($textColumns as $col) {
             $value = $this->snippetColumnValue($model, $col);
 
-            if (! is_string($value) || strlen($value) <= 50) {
+            if (strlen($value) <= 50) {
                 continue;
             }
 
@@ -147,7 +157,7 @@ class SnippetService
         if ($sourceText === null) {
             foreach ($textColumns as $col) {
                 $value = $this->snippetColumnValue($model, $col);
-                if (is_string($value) && strlen($value) > 50) {
+                if (strlen($value) > 50) {
                     $sourceText = $value;
                     $bestPos = 0;
                     break;
@@ -194,6 +204,7 @@ class SnippetService
         return $model->{$col} ?? '';
     }
 
+    /** @return string[] */
     private function extractSearchTerms(string $query): array
     {
         return $this->extractQueryTerms($query);

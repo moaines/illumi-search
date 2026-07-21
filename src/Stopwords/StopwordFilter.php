@@ -4,7 +4,8 @@ namespace Moaines\IllumiSearch\Stopwords;
 
 class StopwordFilter
 {
-    private static array $loaded = [];
+    /** @var array<string, string[]> */
+    protected static array $loaded = [];
 
     private const FALLBACK_LOCALE = 'en';
 
@@ -22,6 +23,7 @@ class StopwordFilter
         return implode(' ', $filtered);
     }
 
+    /** @return string[] */
     public function load(string $locale): array
     {
         $lang = $this->resolveLanguage($locale);

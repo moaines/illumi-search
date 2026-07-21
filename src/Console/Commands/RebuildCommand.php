@@ -54,6 +54,7 @@ class RebuildCommand extends Command
                     'startModel' => $this->startProgressBar($pb, $args[0], $args[1]),
                     'advance' => $pb?->advance($args[0]),
                     'finishModel' => $this->finishProgressBar($pb),
+                    default => null,
                 };
             },
         );
@@ -75,6 +76,7 @@ class RebuildCommand extends Command
         return Command::SUCCESS;
     }
 
+    /** @param array{model: string, records?: int, queued?: int, total?: int, message?: string} $result */
     private function indexedResult(array $result): void
     {
         $msg = "  ✓ {$result['model']}: {$result['records']} records indexed";

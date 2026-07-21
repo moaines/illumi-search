@@ -3,7 +3,6 @@ parameters:
     paths:
         - src
     ignoreErrors:
-        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Model::getSearchableColumns\(\)#'
         - '#Trait .+ is used zero times and is not analysed#'
     excludePaths:
         - tests

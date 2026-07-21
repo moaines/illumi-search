@@ -7,10 +7,13 @@ use DebugBar\DataCollector\Renderable;
 
 class IllumiSearchCollector extends DataCollector implements Renderable
 {
+    /** @var list<string> */
     protected array $queries = [];
 
+    /** @var array<string, mixed>|null */
     protected ?array $engineInfo = null;
 
+    /** @param float[] $topScores */
     public function addQuery(
         string $matchQuery,
         string $table,
@@ -36,11 +39,15 @@ class IllumiSearchCollector extends DataCollector implements Renderable
         $this->queries[] = $duration > 1 ? "[{$duration}ms] ".implode(' — ', $parts) : implode(' — ', $parts);
     }
 
+    /** @param array<string, mixed> $info */
     public function setEngineInfo(array $info): void
     {
         $this->engineInfo = $info;
     }
 
+    /**
+     * @return array{count: int<0, max>, data: list<string>}
+     */
     public function collect(): array
     {
         $data = [];
@@ -69,6 +76,9 @@ class IllumiSearchCollector extends DataCollector implements Renderable
         return 'illumi-search';
     }
 
+    /**
+     * @return array<string, array{icon?: string, widget?: string, map: string, default?: mixed}>
+     */
     public function getWidgets(): array
     {
         return [

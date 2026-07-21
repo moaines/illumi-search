@@ -28,6 +28,7 @@ class DiscoverFilamentCommand extends Command
             return Command::SUCCESS;
         }
 
+        /** @var list<array{model: string, resource: string, column: string, weight: int, exists: string, notes: string}> $rows */
         $rows = [];
 
         foreach ($resources as $resource) {
@@ -127,6 +128,7 @@ class DiscoverFilamentCommand extends Command
         return Command::SUCCESS;
     }
 
+    /** @return ?string[] */
     protected function resolvePanelResources(): ?array
     {
         if (! class_exists(\Filament\Facades\Filament::class)) {
@@ -157,6 +159,7 @@ class DiscoverFilamentCommand extends Command
         return $panel->getResources();
     }
 
+    /** @return string[] */
     protected function resolveSearchableAttributes(string $resource): array
     {
         try {

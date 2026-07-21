@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Concerns;
 
 trait HasQueryTerms
 {
+    /** @return string[] */
     protected function extractQueryTerms(string $query): array
     {
         $cleaned = preg_replace('/[":()^*\-]/', ' ', $query);

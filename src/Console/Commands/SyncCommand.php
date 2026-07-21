@@ -41,6 +41,7 @@ class SyncCommand extends Command
                     'startModel' => $this->startProgressBar($pb, $args[0], $args[1]),
                     'advance' => $pb?->advance($args[0]),
                     'finishModel' => $this->finishProgressBar($pb),
+                    default => null,
                 };
             },
         );

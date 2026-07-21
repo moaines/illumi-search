@@ -8,7 +8,8 @@ use Wamania\Snowball\StemmerFactory;
 
 class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcessor
 {
-    private static array $stemmers = [];
+    /** @var array<string, \Wamania\Snowball\Stemmer\Stemmer> */
+    protected static array $stemmers = [];
 
     public function process(string $text, string $locale = 'en'): string
     {

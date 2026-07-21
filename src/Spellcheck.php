@@ -31,6 +31,10 @@ class Spellcheck
         return $this;
     }
 
+    /**
+     * @param string[] $modelClasses
+     * @return Collection<int, string>
+     */
     public function suggest(string $query, array $modelClasses = []): Collection
     {
         if (strlen(trim($query)) < 2) {
@@ -54,11 +58,16 @@ class Spellcheck
     /**
      * @return string[]
      */
+    /** @return string[] */
     protected function extractTerms(string $query): array
     {
         return $this->extractQueryTerms($query);
     }
 
+    /**
+     * @param string[] $modelClasses
+     * @return string[]
+     */
     protected function findSimilar(string $term, array $modelClasses): array
     {
         $modelClasses = ! empty($modelClasses)
