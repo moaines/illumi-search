@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\SnippetService;
@@ -28,6 +29,8 @@ class SqliteEngine implements Engine
     private array $cachedSafeQueries = [];
 
     private bool $fts5Available = false;
+
+    private ?IllumiSearchCollector $debugCollector = null;
 
     public static function resetOperators(): void
     {
@@ -89,6 +92,15 @@ class SqliteEngine implements Engine
             $this->fts5Available = $this->probeFts5();
 
             $this->ensureMetaTable();
+
+            if ($collector = $this->resolveDebugCollector()) {
+                $collector->setEngineInfo([
+                    'version' => 'SQLite '.$this->db->querySingle('SELECT sqlite_version()').' | FTS5',
+                    'tokenizer' => config('illumi-search.fts5.tokenizer', 'unicode61'),
+                    'indexed_records' => collect($this->getIndexStats())->sum('record_count'),
+                    'fts5_available' => $this->fts5Available,
+                ]);
+            }
         }
 
         return $this->db;
@@ -305,6 +317,7 @@ class SqliteEngine implements Engine
             }
 
             $table = $this->tableName($modelClass);
+            $queryStart = microtime(true);
 
             try {
                 $sql = "SELECT *, rank FROM {$table} WHERE {$table} MATCH :query ORDER BY rank LIMIT :limit OFFSET :offset";
@@ -319,6 +332,8 @@ class SqliteEngine implements Engine
                     continue;
                 }
 
+                $modelResults = [];
+
                 while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
                     $modelId = $row['model_id'];
                     $uniqueId = "{$modelClass}:{$modelId}";
@@ -330,13 +345,27 @@ class SqliteEngine implements Engine
 
                     $titleColumn = $this->getTitleColumn($row);
 
-                    $results[] = [
+                    $modelResults[] = [
                         'modelClass' => $modelClass,
                         'modelId' => $modelId,
                         'rank' => $row['rank'] ?? 0.0,
                         'title' => $row[$titleColumn] ?? $modelId,
                         'row' => $row,
                     ];
+                }
+
+                array_push($results, ...$modelResults);
+
+                if ($collector = $this->resolveDebugCollector()) {
+                    $collector->addQuery(
+                        matchQuery: $safeQuery,
+                        table: $table,
+                        modelClass: $modelClass,
+                        mode: $mode,
+                        resultCount: count($modelResults),
+                        durationMs: (microtime(true) - $queryStart) * 1000,
+                        topScores: array_slice(array_column($modelResults, 'rank'), 0, 3),
+                    );
                 }
             } catch (\Exception $e) {
                 report($e);
@@ -835,7 +864,11 @@ class SqliteEngine implements Engine
 
     public function isFts5Available(): bool
     {
-        return $this->fts5Available;
+        if ($this->db !== null) {
+            return $this->fts5Available;
+        }
+
+        return $this->probeFts5();
     }
 
     private function probeFts5(): bool
@@ -848,6 +881,32 @@ class SqliteEngine implements Engine
             return true;
         } catch (\Exception) {
             return false;
+        }
+    }
+
+    private function resolveDebugCollector(): ?IllumiSearchCollector
+    {
+        if ($this->debugCollector !== null) {
+            return $this->debugCollector;
+        }
+
+        if (! class_exists(\DebugBar\StandardDebugBar::class)) {
+            return $this->debugCollector = null;
+        }
+
+        try {
+            $debugbar = app('debugbar');
+
+            if (! $debugbar?->hasCollector('illumi-search')) {
+                $collector = new IllumiSearchCollector;
+                $debugbar->addCollector($collector);
+            }
+
+            $this->debugCollector = $debugbar?->getCollector('illumi-search');
+
+            return $this->debugCollector;
+        } catch (\Exception) {
+            return $this->debugCollector = null;
         }
     }
 

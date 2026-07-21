@@ -44,6 +44,7 @@ composer require moaines/illumi-search
 - **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
 - **intl** extension (accent folding, CJK, Arabic, Cyrillic)
 - **mbstring** extension (multibyte string operations)
+- **Optional:** [Laravel Debugbar](https://github.com/barryvdh/laravel-debugbar) (adds an FTS5 queries tab)
 - **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/search-index.sqlite')` and must point to a writable local directory.
 
 > ⚠️ **FTS5 required** — `ext-sqlite3` is bundled with PHP, but some minimal Docker images or
@@ -597,6 +598,21 @@ $result = $engine->fullIntegrityCheck();
 $engine->setConfig('last_rebuild_at', now()->toIso8601String());
 $lastRebuild = $engine->getConfig('last_rebuild_at');
 ```
+
+### Debugbar Integration
+
+illumi-search integrates with [Laravel Debugbar](https://github.com/barryvdh/laravel-debugbar) to display FTS5 queries directly in the debug toolbar.
+
+```bash
+composer require --dev barryvdh/laravel-debugbar
+```
+
+No configuration needed. Once installed, an **illumi-search** tab appears in the debugbar showing:
+
+- **Engine info** — version, tokenizer, total indexed records
+- **FTS5 queries** — `MATCH` statement, model class, result count, duration
+- **BM25 scores** — top 3 ranking scores per query
+- **Search mode** — advanced / basic / raw
 
 ---
 

@@ -380,6 +380,21 @@ class SqliteEngineTest extends TestCase
         $this->assertTrue($this->engine->isFts5Available());
     }
 
+    public function test_is_fts5_available_before_db_initialization(): void
+    {
+        $engine = new \Moaines\IllumiSearch\Engines\SqliteEngine(
+            databasePath: ':memory:',
+            snippets: app(\Moaines\IllumiSearch\Support\SnippetService::class),
+        );
+
+        $ref = new \ReflectionClass($engine);
+        $dbProp = $ref->getProperty('db');
+        $dbProp->setAccessible(true);
+
+        $this->assertNull($dbProp->getValue($engine), 'db should not be initialized yet');
+        $this->assertTrue($engine->isFts5Available(), 'isFts5Available should work without calling db()');
+    }
+
     public function test_get_engine_version_contains_fts5(): void
     {
         $version = $this->engine->getEngineVersion();
