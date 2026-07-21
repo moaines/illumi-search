@@ -228,12 +228,25 @@ trait Searchable
         return $processed;
     }
 
+    protected static array $checkedTables = [];
+
     public static function syncToSearch(Model $model): void
     {
         $engine = app(Engine::class);
         $global = app(TextProcessor::class);
-        $processed = static::processDocument($model, $global);
+        $class = $model::class;
 
-        $engine->upsert($model::class, $model->getKey(), $processed);
+        if (! isset(static::$checkedTables[$class])) {
+            static::$checkedTables[$class] = $engine->tableExists($class);
+        }
+
+        if (! static::$checkedTables[$class]) {
+            logger()->debug('illumi-search: skipped sync for {class} — FTS5 table not yet created.', ['class' => $class]);
+
+            return;
+        }
+
+        $processed = static::processDocument($model, $global);
+        $engine->upsert($class, $model->getKey(), $processed);
     }
 }
