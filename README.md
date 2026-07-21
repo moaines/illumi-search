@@ -977,6 +977,8 @@ The package includes word lists for **33 languages**: Arabic, Bulgarian, Catalan
 Words are filtered per-indexed-model based on the model's locale configuration. When no languages are configured (`stopwords: []`), filtering is disabled.
 
 > 💡 **Tip:** Filtering is applied after accent removal and lowercasing, so `"L'élève"` is correctly matched as `"leleve"` → stopword `"le"` is removed → `"eve"` remains in the index.
+>
+> *Word lists sourced from [Alir3z4/stop-words](https://github.com/Alir3z4/stop-words) — CC BY 4.0.*
 
 ---
 
