@@ -157,18 +157,20 @@ class QueryBuilder
             return $results;
         }
 
-        return $results->filter(function (Result $result) use ($user): bool {
-            $modelClass = $result->modelClass;
+        $grouped = $results->groupBy->modelClass;
+        $models = [];
 
-            if (! class_exists($modelClass)) {
-                return false;
+        foreach ($grouped as $class => $entries) {
+            if (! class_exists($class)) {
+                continue;
             }
 
-            try {
-                $model = $result->model ?? $modelClass::find($result->modelId);
-            } catch (\Exception) {
-                return false;
-            }
+            $ids = $entries->pluck('modelId')->unique()->values();
+            $models[$class] = $class::findMany($ids)->keyBy->getKey();
+        }
+
+        return $results->filter(function (Result $result) use ($user, $models): bool {
+            $model = $models[$result->modelClass][$result->modelId] ?? null;
 
             if ($model === null) {
                 return false;
@@ -213,8 +215,8 @@ class QueryBuilder
         $this->limit = $perPage;
         $this->offset = max(0, ($page - 1) * $perPage);
 
-        $results = $this->get();
         $total = $this->count();
+        $results = $this->get();
 
         return new Paginator(
             items: $results,

@@ -157,4 +157,23 @@ class AuthorizationTest extends TestCase
         $this->assertCount(1, $results);
         $this->assertEquals(1, $results->first()->modelId);
     }
+
+    public function test_authorization_with_non_sequential_ids(): void
+    {
+        $this->createPost(1, 'post visible', 'public');
+        $this->createPost(3, 'post hidden', 'secret'); // ID 2 skippé
+
+        Gate::define('view', fn ($user, $post) => $post->getKey() === 1);
+
+        $user = new \Illuminate\Foundation\Auth\User();
+        $user->id = 1;
+
+        $results = \Moaines\IllumiSearch\Facades\IllumiSearch::query('post')
+            ->models([self::MODEL_CLASS])
+            ->withAuthorization($user)
+            ->get();
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(1, $results->first()->modelId);
+    }
 }

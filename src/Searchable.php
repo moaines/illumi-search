@@ -25,7 +25,9 @@ trait Searchable
         $indexOnSave = function (Model $model) use ($indexing, $queue): void {
             if ($model->shouldSync()) {
                 if ($indexing === 'queue') {
-                    dispatch(new IndexModelJob($model::class, $model->getKey()))->onConnection($queue);
+                    dispatch(new IndexModelJob($model::class, $model->getKey()))
+                        ->afterCommit()
+                        ->onConnection($queue);
                 } else {
                     static::syncToSearch($model);
                 }
@@ -36,10 +38,11 @@ trait Searchable
 
         static::deleted(function (Model $model) use ($indexing, $queue) {
             if ($indexing === 'queue') {
-                dispatch(new DeleteIndexJob($model::class, $model->getKey()))->onConnection($queue);
+                dispatch(new DeleteIndexJob($model::class, $model->getKey()))
+                    ->afterCommit()
+                    ->onConnection($queue);
             } else {
-                $engine = app(Engine::class);
-                $engine->delete($model::class, $model->getKey());
+                app(Engine::class)->delete($model::class, $model->getKey());
             }
         });
 
