@@ -961,6 +961,23 @@ This ensures that `café`, `cafe`, and `Café` all match the same results.
 
 > **Fallback mode:** When `ext-intl` is not available on your system, a `FallbackTextProcessor` is used instead. It replaces `Transliterator` with Symfony's `UnicodeString::ascii()` which handles most Latin accents, Arabic tashkeel, and Cyrillic transliteration. CJK separation and HTML stripping remain identical. Run `php artisan illumi-search:doctor` to check which processor is active.
 
+### Stopwords
+
+Common words (le, la, les, the, and, of, etc.) can be filtered out during indexing to reduce index size and improve BM25 relevance.
+
+Enable stopword filtering by configuring language codes:
+
+```php
+// config/illumi-search.php
+'stopwords' => ['fr', 'en', 'ar'],
+```
+
+The package includes word lists for **33 languages**: Arabic, Bulgarian, Catalan, Chinese, Croatian, Czech, Danish, Dutch, English, Finnish, French, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian, Japanese, Korean, Malay, Norwegian, Persian, Polish, Portuguese, Romanian, Russian, Slovak, Slovenian, Spanish, Swedish, Turkish, Ukrainian.
+
+Words are filtered per-indexed-model based on the model's locale configuration. When no languages are configured (`stopwords: []`), filtering is disabled.
+
+> 💡 **Tip:** Filtering is applied after accent removal and lowercasing, so `"L'élève"` is correctly matched as `"leleve"` → stopword `"le"` is removed → `"eve"` remains in the index.
+
 ---
 
 ## CJK Support

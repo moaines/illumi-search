@@ -74,4 +74,20 @@ return [
         'prefix' => 'api/search',
         'rate_limit' => 30,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stopwords
+    |--------------------------------------------------------------------------
+    |
+    | List of language codes for stopword filtering. Words from these languages
+    | are removed from the text before indexing to reduce index size and improve
+    | BM25 relevance. Built-in word lists are provided for 33 languages.
+    |
+    | Example: ['fr', 'en', 'ar']
+    | Set to empty array to disable stopword filtering (default).
+    |
+    */
+    'stopwords' => [],
+
 ];

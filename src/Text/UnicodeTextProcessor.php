@@ -20,6 +20,7 @@ class UnicodeTextProcessor implements TextProcessor
         $text = $this->removeDiacritics($text);
         $text = $this->separateCjk($text);
         $text = $this->lowercase($text);
+        $text = $this->filterStopwords($text, $locale);
         $text = $this->cleanWhitespace($text);
 
         return trim($text);
