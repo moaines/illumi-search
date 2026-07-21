@@ -8,7 +8,7 @@
     <img src="art/banner_1024x640.png" alt="Illumi Search" width="800">
 </p>
 
-**Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + `ext-intl`.**
+**Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + optional `ext-intl`.**
 BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
 (Latin, CJK, Arabic, Cyrillic), per-column weights, boolean operators,
 auto-detected operator support with NEAR→AND fallback, spellcheck,
@@ -33,8 +33,8 @@ composer require moaines/illumi-search
 | Chinese / Japanese / Korean | No | Character-level tokenization |
 | Column weighting | No | Per-column weights |
 | Performance (10k+ rows) | Table scan | Inverted index |
-| PHP extension required | None | `ext-sqlite3` + `ext-intl` (bundled with PHP) |
-| Hosting compatibility | Any | ✅ Almost anywhere Laravel runs — PHP bundles both ext-sqlite3 and ext-intl
+| PHP extension required | None | `ext-sqlite3` + `ext-mbstring` (both bundled with PHP) |
+| Hosting compatibility | Any | ✅ Almost anywhere Laravel runs — PHP bundles ext-sqlite3 and ext-mbstring. `ext-intl` is optional (fallback processor handles basic accents).
 
 ---
 
@@ -42,7 +42,7 @@ composer require moaines/illumi-search
 
 - **PHP** 8.1+
 - **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
-- **intl** extension (accent folding, CJK, Arabic, Cyrillic)
+- **intl** extension *(optional, recommended)* — full Unicode normalization and advanced accent folding. Without it, a Symfony-based fallback processor handles basic accents.
 - **mbstring** extension (multibyte string operations)
 - **Optional:** [Laravel Debugbar](https://github.com/barryvdh/laravel-debugbar) (adds an FTS5 queries tab)
 - **Local persistent filesystem** — the FTS index is a SQLite file stored on disk. Cloud object storage (S3, GCS, etc.) is **not supported** because SQLite requires random-access writes and file locking that HTTP-based storage cannot provide. The index path defaults to `storage_path('app/search/search-index.sqlite')` and must point to a writable local directory.
@@ -115,7 +115,8 @@ $results = IllumiSearch::query('laravel')->model(Post::class)->get();
 |---|---|
 | PHP `^8.2` | ✅ |
 | `ext-sqlite3` (with FTS5) | ✅ |
-| `ext-intl` | ✅ |
+| `ext-mbstring` | ✅ |
+| `ext-intl` (optional) | ✅ — fallback processor active if missing |
 | `ext-mbstring` | ✅ |
 
 **FTS5 check** — the package validates at boot:
@@ -957,6 +958,8 @@ The `UnicodeTextProcessor` pipeline normalizes text before indexing and queries:
 | `cleanWhitespace()` | Collapse spaces | `a    b` → `a b` |
 
 This ensures that `café`, `cafe`, and `Café` all match the same results.
+
+> **Fallback mode:** When `ext-intl` is not available on your system, a `FallbackTextProcessor` is used instead. It replaces `Transliterator` with Symfony's `UnicodeString::ascii()` which handles most Latin accents, Arabic tashkeel, and Cyrillic transliteration. CJK separation and HTML stripping remain identical. Run `php artisan illumi-search:doctor` to check which processor is active.
 
 ---
 

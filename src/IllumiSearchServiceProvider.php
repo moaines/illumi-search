@@ -16,8 +16,9 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
-use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
+use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Text\FallbackTextProcessor;
 use Moaines\IllumiSearch\Text\StemmingTextProcessor;
 use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
@@ -60,9 +61,15 @@ class IllumiSearchServiceProvider extends ServiceProvider
         $this->app->singleton(TextProcessor::class, function () {
             $processor = config('illumi-search.fts5.processor', 'unicode');
 
-            return $processor === 'stemming'
-                ? new StemmingTextProcessor
-                : new UnicodeTextProcessor;
+            if ($processor === 'stemming') {
+                return extension_loaded('intl')
+                    ? new StemmingTextProcessor
+                    : new FallbackTextProcessor;
+            }
+
+            return extension_loaded('intl')
+                ? new UnicodeTextProcessor
+                : new FallbackTextProcessor;
         });
 
         $this->app->singleton(SnippetService::class);

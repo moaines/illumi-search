@@ -1,9 +1,9 @@
 {
     "name": "moaines/illumi-search",
-    "description": "SQLite FTS5 full-text search for Laravel with PHP-intl. BM25 ranking, search-as-you-type, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, spellcheck, multi-tenant, authorization. Searchable trait with queue/sync/lazy batch indexing. No external services.",
+    "description": "SQLite FTS5 full-text search for Laravel. BM25 ranking, search-as-you-type, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, spellcheck, multi-tenant, authorization. Searchable trait with queue/sync/lazy batch indexing. No external services.",
     "version": "1.11.0",
     "type": "library",
-    "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "intl"],
+    "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "string"],
     "license": "MIT",
     "authors": [
         {
@@ -14,11 +14,14 @@
     "require": {
         "php": "^8.1",
         "ext-sqlite3": "*",
-        "ext-intl": "*",
         "ext-mbstring": "*",
         "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+        "symfony/string": "^7.0 || ^8.0",
         "wamania/php-stemmer": "^4.0"
+    },
+    "suggest": {
+        "ext-intl": "Required for advanced Unicode normalization and CJK tokenization. Without it, a fallback processor using symfony/string is used."
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",

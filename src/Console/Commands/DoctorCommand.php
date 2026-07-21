@@ -43,12 +43,19 @@ class DoctorCommand extends Command
     private function checkPhpExtensions(): void
     {
         $this->line('1. PHP Extensions');
-        foreach (['sqlite3', 'intl', 'mbstring', 'pdo_sqlite'] as $ext) {
+        foreach (['sqlite3', 'mbstring', 'pdo_sqlite'] as $ext) {
             $loaded = extension_loaded($ext);
             $this->line('   '.($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>')." ext-{$ext}");
             if (! $loaded) {
                 $this->allOk = false;
             }
+        }
+
+        if (extension_loaded('intl')) {
+            $this->line('   <fg=green>✓</> ext-intl (full Unicode support)');
+        } else {
+            $this->line('   <fg=yellow>⚠</> ext-intl: missing (fallback accent processor active)');
+            $this->line('   <fg=yellow>  → Install php-intl for advanced Unicode normalization</>');
         }
         $this->newLine();
     }
