@@ -99,4 +99,15 @@ class FallbackTextProcessorTest extends TestCase
     {
         $this->assertEquals('hello', $this->processor->stripHtml('<b>hello</b>'));
     }
+
+    public function test_truncate_long_tokens(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+
+        $result = $this->processor->process($uuid);
+
+        $this->assertNotEmpty($result);
+        $this->assertLessThan(36, strlen($result));
+        $this->assertStringStartsWith('550e8400-e29b-41d4-a716-44', $result);
+    }
 }

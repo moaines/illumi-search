@@ -1,4 +1,4 @@
-# Illumi Search
+# Illumi Search — Multi-Engine FTS
 
 [![Tests](https://github.com/moaines/illumi-search/actions/workflows/tests.yml/badge.svg)](https://github.com/moaines/illumi-search/actions)
 [![PHP](https://img.shields.io/badge/PHP-8.1%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
@@ -8,14 +8,18 @@
     <img src="art/banner_1024x640.png" alt="Illumi Search" width="800">
 </p>
 
-**Full-text search for Laravel using PHP's `ext-sqlite3` (bundled with PHP) with FTS5 support + optional `ext-intl`.**
-BM25 ranking, search-as-you-type prefix indexing, multilingual accent folding
+**Full-text search for Laravel — works with SQLite FTS5 or MySQL 8.0+ FULLTEXT.**  
+BM25 relevance ranking, search-as-you-type prefix indexing, multilingual accent folding
 (Latin, CJK, Arabic, Cyrillic), per-column weights, boolean operators,
 auto-detected operator support with NEAR→AND fallback, spellcheck,
 multi-tenant isolation, authorization.
 Drop-in `Searchable` trait with queue/sync/lazy batch indexing.
-No external services. Just SQLite and PHP.
-Available in most hosting environments — FTS5 is bundled with PHP.
+No external services. No configuration.
+Available in most hosting environments — FTS5 is bundled with PHP, MySQL runs everywhere.
+
+```bash
+composer require moaines/illumi-search
+```
 
 ```bash
 composer require moaines/illumi-search
@@ -34,14 +38,16 @@ composer require moaines/illumi-search
 | Column weighting | No | Per-column weights |
 | Performance (10k+ rows) | Table scan | Inverted index |
 | PHP extension required | None | `ext-sqlite3` + `ext-mbstring` (both bundled with PHP) |
-| Hosting compatibility | Any | ✅ Almost anywhere Laravel runs — PHP bundles ext-sqlite3 and ext-mbstring. `ext-intl` is optional (fallback processor handles basic accents).
+| Database engine | — | **SQLite FTS5** (default) or **MySQL 8.0+ FULLTEXT** |
+| Hosting compatibility | Any | ✅ Almost anywhere Laravel runs — FTS5 is bundled with PHP, MySQL is universal.
 
 ---
 
 ## Requirements
 
 - **PHP** 8.1+
-- **SQLite3** extension (with FTS5 support, bundled with PHP 8+)
+- **SQLite3** extension (with FTS5 support, bundled with PHP 8+) — required for default `sqlite` driver
+- **MySQL 8.0+** (or MariaDB 10.5+) — optional, set `ILLUMI_SEARCH_DRIVER=mysql`
 - **intl** extension *(optional, recommended)* — full Unicode normalization and advanced accent folding. Without it, a Symfony-based fallback processor handles basic accents.
 - **mbstring** extension (multibyte string operations)
 - **Optional:** [Laravel Debugbar](https://github.com/barryvdh/laravel-debugbar) (adds an FTS5 queries tab)
@@ -1159,7 +1165,80 @@ Register your engine in a ServiceProvider:
 $this->app->singleton(Engine::class, fn () => new MyCustomEngine);
 ```
 
-> ⚠️ **Breaking change (2.0.0):** The Engine interface was expanded in v2.0.0 to include all methods previously only available on `SqliteEngine`. Custom implementations must implement all new methods.
+> ⚠️ **Breaking change (v1.13.0):** The Engine interface was expanded to include all methods previously only available on `SqliteEngine`. Custom implementations must implement all new methods.
+
+---
+
+## MySQL Driver
+
+illumi-search ships with **two engine implementations** that share the same API:
+
+| Engine | Backend | Best for |
+|---|---|---|
+| **SqliteEngine** (default) | SQLite FTS5 | Single-server apps, embedded, zero-config, testing |
+| **MySqlEngine** | MySQL 8.0+ / MariaDB 10.5+ FULLTEXT | Shared hosting, replicated setups, existing MySQL infrastructure |
+
+Both engines implement the same `Engine` contract — the `Searchable` trait, `QueryBuilder`, `IndexManager`, and all commands work identically regardless of the driver.
+
+### Configuration
+
+```bash
+# .env
+ILLUMI_SEARCH_DRIVER=mysql
+ILLUMI_SEARCH_MYSQL_HOST=127.0.0.1
+ILLUMI_SEARCH_MYSQL_PORT=3306
+ILLUMI_SEARCH_MYSQL_DATABASE=illumi_search
+ILLUMI_SEARCH_MYSQL_USERNAME=root
+ILLUMI_SEARCH_MYSQL_PASSWORD=
+```
+
+The MySQL engine creates its **own database connection** (`illumi-search-mysql`) using these environment variables — **completely independent** from the application's default database connection.
+
+### How it works
+
+A single `search_index` table stores all indexed documents across all models:
+
+| Column | Type | Description |
+|---|---|---|
+| `model_type` | VARCHAR(255) | FQCN of the Eloquent model |
+| `model_id` | VARCHAR(255) | Primary key (supports UUIDs) |
+| `search_text` | LONGTEXT | Normalized, stemmed, stopword-filtered text |
+| `created_at` | TIMESTAMP | Auto-set on insert |
+
+Search uses MySQL `MATCH ... AGAINST (... IN BOOLEAN MODE)` with automatic operator mapping:
+
+| FTS5 syntax | MySQL BOOLEAN MODE |
+|---|---|---|
+| `php AND laravel` | `+php +laravel` |
+| `php OR laravel` | `php laravel` |
+| `NOT word` | `-word` |
+| `"exact phrase"` | `"exact phrase"` |
+| `word*` (prefix) | `word*` |
+| `word NEAR other` | `+word +other` (fallback AND) |
+
+### Spellcheck
+
+The MySQL engine includes its own spellcheck system powered by a `search_vocab` table and Levenshtein distance. Words are harvested during indexing and refreshed on rebuild. The same `didYouMean()` API is used regardless of the driver.
+
+### Limitations
+
+- **FTS5-specific features** (`getPragma`, `vacuum`, `queryVocab`) return null / no-op in MySQL mode
+- **Full-text search** quality depends on MySQL's built-in FULLTEXT parser — the `processDocument()` pre-normalization (stemming, accent folding, stopwords, UTF-8 truncation) compensates for MySQL's lack of native stemming
+- **Per-column weights** are simulated by repeating column values in `search_text` (×1–×3)
+
+### Switching between engines
+
+```bash
+# Switch to MySQL
+ILLUMI_SEARCH_DRIVER=mysql
+
+# Switch back to SQLite
+ILLUMI_SEARCH_DRIVER=sqlite
+```
+
+Run `php artisan illumi-search:rebuild --force` after switching to re-index.
+
+> **Multi-engine compatibility:** The same `AbstractEngineTest` suite (19 tests) runs against both engines, guaranteeing identical behavior for all core operations (upsert, search, pagination, operators, totalCount, snippets, etc.).
 
 ---
 
@@ -1175,14 +1254,17 @@ pint                                        # Code style
 
 ### Test coverage
 
-**216 tests** covering unit and feature suites, including:
+**350+ tests** covering unit and feature suites across two search engines:
 
-- `TextProcessor` — accent folding, CJK character separation, Korean, HTML stripping, invalid UTF-8 graceful fallback, Porter stemming for EN/FR
-- `Spellcheck` — Levenshtein-based suggestions with configurable distance and frequency ordering, exact-match exclusion, vocab limits
-- `Authorization` — policy-based result filtering, respect for `view`/`viewAny` gates, graceful fallback when no user is authenticated
-- `Multi-tenant isolation` — tenant-aware database paths, unique index per tenant, no cross-tenant data leakage
-- `Bad-query resilience` — unclosed quotes, hanging operators (`NOT`/`AND`/`OR` at start), invalid NEAR syntax, normal search still works after any malformed query
-- `Graceful degradation` — `isFts5Available()`, `getEngineVersion()` shows `(FTS5 unavailable)` when missing, `DoctorCommand` with actionable resolution steps
+- **Cross-engine compatibility** — 19 common tests run against both SQLite and MySQL (upsert, search, count, pagination, operators, totalCount, snippets, optimize, tableExists, insertBatch, empty query)
+- **TextProcessor** — accent folding, CJK character separation, Korean, HTML stripping, invalid UTF-8 graceful fallback, Porter stemming for EN/FR, token truncation
+- **Spellcheck** — Levenshtein-based suggestions with configurable distance and frequency ordering, exact-match exclusion, vocab limits
+- **Authorization** — policy-based result filtering, respect for `view`/`viewAny` gates, graceful fallback when no user is authenticated, non-sequential IDs
+- **Multi-tenant isolation** — tenant-aware database paths, unique index per tenant, no cross-tenant data leakage
+- **Bad-query resilience** — unclosed quotes, hanging operators (`NOT`/`AND`/`OR` at start), invalid NEAR syntax, normal search still works after any malformed query
+- **Graceful degradation** — `isFts5Available()`, `getEngineVersion()`, `DoctorCommand` for missing FTS5
+- **Operator safety** — operator keywords (`AND`, `OR`, `NOT`, `NEAR`) survive stopword filtering, `OperatorRegistry` centralizes operator management
+- **Edge case resilience** — emoji in content, HTML stripping, SQL injection attempts, long tokens truncation, empty queries, zero-result pagination
 - `Diagnostics & config` — `fullIntegrityCheck()` across all FTS5 tables, persistent config read/write via `_search_config`, unsafe PRAGMA rejection
 
 ---

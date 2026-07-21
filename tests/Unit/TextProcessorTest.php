@@ -151,4 +151,36 @@ class TextProcessorTest extends TestCase
         $this->assertEquals('hello', $tokens[0]);
         $this->assertEquals('world', $tokens[1]);
     }
+
+    public function test_truncate_long_tokens(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+        $result = $this->processor->process($uuid);
+
+        // Le token de 36 chars doit être tronqué à 32
+        $this->assertLessThan(36, strlen($result));
+        $this->assertStringStartsWith('550e8400-e29b-41d4-a716-44', $result);
+    }
+
+    public function test_truncate_does_not_affect_short_tokens(): void
+    {
+        $result = $this->processor->process('hello world php');
+
+        $this->assertEquals('hello world php', $result);
+    }
+
+    public function test_truncate_handles_empty_string(): void
+    {
+        $result = $this->processor->process('');
+
+        $this->assertEmpty($result);
+    }
+
+    public function test_truncate_handles_cjk_short(): void
+    {
+        $result = $this->processor->process('中文测试');
+
+        $this->assertNotEmpty($result);
+        $this->assertStringContainsString(' ', $result);
+    }
 }

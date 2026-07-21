@@ -2,6 +2,17 @@
 
 return [
 
+    /*
+    |--------------------------------------------------------------------------
+    | Search Driver
+    |--------------------------------------------------------------------------
+    |
+    | 'sqlite' — SQLite FTS5 (default). Requires ext-sqlite3 with FTS5.
+    | 'mysql' — MySQL 8.0+ with FULLTEXT index. Requires mysql connection.
+    |
+    */
+    'driver' => env('ILLUMI_SEARCH_DRIVER', 'sqlite'),
+
     'database_path' => env('ILLUMI_SEARCH_DATABASE_PATH', 'app/search/search-index.sqlite'),
 
     'mode' => env('ILLUMI_SEARCH_MODE', 'advanced'),
@@ -89,5 +100,22 @@ return [
     |
     */
     'stopwords' => ['en'],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MySQL Driver
+    |--------------------------------------------------------------------------
+    |
+    | Settings used when ILLUMI_SEARCH_DRIVER=mysql.
+    |
+    */
+    'mysql' => [
+        'host' => env('ILLUMI_SEARCH_MYSQL_HOST', '127.0.0.1'),
+        'port' => env('ILLUMI_SEARCH_MYSQL_PORT', '3306'),
+        'database' => env('ILLUMI_SEARCH_MYSQL_DATABASE', 'illumi_search'),
+        'username' => env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
+        'password' => env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
+        'max_search_text_length' => env('ILLUMI_SEARCH_MYSQL_MAX_TEXT_LENGTH', 65535),
+    ],
 
 ];

@@ -44,8 +44,8 @@ class OptimizeCommandTest extends TestCase
         }
 
         $this->artisan('illumi-search:optimize')
-            ->expectsOutputToContain('Database:')
-            ->expectsOutputToContain('VACUUM')
+            ->expectsOutputToContain('Engine:')
+            ->expectsOutputToContain('optimization')
             ->assertSuccessful();
     }
 }

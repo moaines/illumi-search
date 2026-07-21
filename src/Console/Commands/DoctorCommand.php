@@ -13,13 +13,13 @@ class DoctorCommand extends Command
 
     protected $signature = 'illumi-search:doctor';
 
-    protected $description = 'Diagnose the FTS5 search environment';
+    protected $description = 'Diagnose the search environment';
 
     private bool $allOk = true;
 
     public function handle(Engine $engine): int
     {
-        $this->info('🔍 FTS Environment Diagnostics');
+        $this->info('🔍 Search Environment Diagnostics');
         $this->newLine();
 
         $this->checkPhpExtensions();
@@ -42,13 +42,22 @@ class DoctorCommand extends Command
 
     private function checkPhpExtensions(): void
     {
+        $driver = config('illumi-search.driver', 'sqlite');
+        $exts = $driver === 'mysql'
+            ? ['pdo_mysql', 'mbstring']
+            : ['sqlite3', 'mbstring', 'pdo_sqlite'];
+
         $this->line('1. PHP Extensions');
-        foreach (['sqlite3', 'mbstring', 'pdo_sqlite'] as $ext) {
+        foreach ($exts as $ext) {
             $loaded = extension_loaded($ext);
             $this->line('   '.($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>')." ext-{$ext}");
             if (! $loaded) {
                 $this->allOk = false;
             }
+        }
+
+        if ($driver === 'mysql' && ! extension_loaded('sqlite3')) {
+            $this->line('   <fg=yellow>⚠</> ext-sqlite3 is missing (not needed with mysql driver)');
         }
 
         if (extension_loaded('intl')) {
@@ -62,19 +71,27 @@ class DoctorCommand extends Command
 
     private function checkEngineSupport(): void
     {
-        $this->line('2. SQLite FTS5 Support');
-        try {
-            $db = new \SQLite3(':memory:');
-            $db->exec('CREATE VIRTUAL TABLE _fts_check USING fts5(content)');
-            $version = \SQLite3::version();
-            $this->line('   <fg=green>✓</> FTS5 is available (SQLite '.$version['versionString'].')');
-            $db->close();
-        } catch (\Exception $e) {
-            $this->line('   <fg=red>✗</> FTS5 is NOT available: '.$e->getMessage());
-            $this->line('   <fg=yellow>  → SQLite must be compiled with --enable-fts5 or SQLITE_ENABLE_FTS5</>');
-            $this->line('   <fg=yellow>  → Most distributions: apt install php-sqlite3 / yum install php-sqlite3</>');
-            $this->line('   <fg=yellow>  → Verify with: php -r "echo SQLite3::version()[\'versionString\'];"</>');
-            $this->allOk = false;
+        $driver = config('illumi-search.driver', 'sqlite');
+
+        if ($driver === 'mysql') {
+            $this->line('2. Search Engine');
+            $this->line('   <fg=green>✓</> Driver: mysql (FULLTEXT) — FTS5 not required');
+            $this->line('   <fg=green>✓</> Engine: ' . app(Engine::class)->getEngineVersion());
+        } else {
+            $this->line('2. SQLite FTS5 Support');
+            try {
+                $db = new \SQLite3(':memory:');
+                $db->exec('CREATE VIRTUAL TABLE _fts_check USING fts5(content)');
+                $version = \SQLite3::version();
+                $this->line('   <fg=green>✓</> FTS5 is available (SQLite '.$version['versionString'].')');
+                $db->close();
+            } catch (\Exception $e) {
+                $this->line('   <fg=red>✗</> FTS5 is NOT available: '.$e->getMessage());
+                $this->line('   <fg=yellow>  → SQLite must be compiled with --enable-fts5 or SQLITE_ENABLE_FTS5</>');
+                $this->line('   <fg=yellow>  → Most distributions: apt install php-sqlite3 / yum install php-sqlite3</>');
+                $this->line('   <fg=yellow>  → Verify with: php -r "echo SQLite3::version()[\'versionString\'];"</>');
+                $this->allOk = false;
+            }
         }
         $this->newLine();
     }
@@ -82,8 +99,32 @@ class DoctorCommand extends Command
     /** @return array<int, array{model_class: string, record_count: int, last_synced_at: ?string, columns: ?string}> */
     private function checkDatabase(Engine $engine): array
     {
-        $this->line('3. FTS Database');
+        $driver = config('illumi-search.driver', 'sqlite');
         $dbPath = $engine->getDatabasePath();
+
+        if ($driver === 'mysql') {
+            $this->line('3. Search Index');
+            $stats = $engine->getIndexStats();
+            $total = collect($stats)->sum('record_count');
+            $this->line("   <fg=green>✓</> Connection: {$dbPath}");
+            $this->line("   <fg=green>✓</> Engine: " . $engine->getEngineVersion());
+            $this->line("   <fg=green>✓</> Indexed records: {$total}");
+
+            if (empty($stats)) {
+                $this->line('   <fg=yellow>⚠</> No indexes found. Run php artisan illumi-search:rebuild');
+            } else {
+                $this->newLine();
+                $this->line('   Indexes:');
+                foreach ($stats as $stat) {
+                    $this->line("     - {$stat['model_class']}: {$stat['record_count']} records");
+                }
+            }
+            $this->newLine();
+
+            return $stats;
+        }
+
+        $this->line('3. FTS Database');
 
         if (! file_exists($dbPath)) {
             $this->line('   <fg=yellow>⚠</> Database does not exist yet');
@@ -139,13 +180,27 @@ class DoctorCommand extends Command
 
     private function showConfig(): void
     {
+        $driver = config('illumi-search.driver', 'sqlite');
+
         $this->line('4. Configuration');
-        $keys = [
-            'illumi-search.indexing', 'illumi-search.mode', 'illumi-search.fts5.tokenizer', 'illumi-search.fts5.processor',
-            'illumi-search.fts5.detail', 'illumi-search.fts5.synchronous', 'illumi-search.fts5.temp_store',
-            'illumi-search.fts5.columnsize', 'illumi-search.fts5.wal', 'illumi-search.fts5.busy_timeout',
-            'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
-        ];
+
+        if ($driver === 'mysql') {
+            $keys = [
+                'illumi-search.driver', 'illumi-search.indexing', 'illumi-search.mode',
+                'illumi-search.mysql.max_search_text_length',
+                'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
+            ];
+        } else {
+            $keys = [
+                'illumi-search.indexing', 'illumi-search.mode', 'illumi-search.fts5.tokenizer',
+                'illumi-search.fts5.processor', 'illumi-search.fts5.detail',
+                'illumi-search.fts5.synchronous', 'illumi-search.fts5.temp_store',
+                'illumi-search.fts5.columnsize', 'illumi-search.fts5.wal',
+                'illumi-search.fts5.busy_timeout',
+                'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
+            ];
+        }
+
         foreach ($keys as $key) {
             $value = config($key);
             $display = is_bool($value) ? ($value ? 'true' : 'false') : $value;
@@ -156,7 +211,19 @@ class DoctorCommand extends Command
 
     private function validateConfig(): void
     {
+        $driver = config('illumi-search.driver', 'sqlite');
+
         $this->line('4b. Config Validation');
+
+        if ($driver === 'mysql') {
+            $mysqlMax = (int) config('illumi-search.mysql.max_search_text_length', 65535);
+            $this->line('   '.($mysqlMax >= 1024 ? '<fg=green>✓</>' : '<fg=red>✗</>')
+                ." illumi-search.mysql.max_search_text_length = {$mysqlMax}");
+            $this->newLine();
+
+            return;
+        }
+
         $rules = [
             ['illumi-search.mode', config('illumi-search.mode'), ['basic', 'advanced']],
             ['illumi-search.indexing', config('illumi-search.indexing'), ['queue', 'sync', 'manual']],
@@ -192,6 +259,21 @@ class DoctorCommand extends Command
 
     private function checkOperators(): void
     {
+        $driver = config('illumi-search.driver', 'sqlite');
+
+        if ($driver === 'mysql') {
+            $this->line('5. BOOLEAN MODE Operators');
+            $this->line('   <fg=green>✓</> AND (MySQL: +term +term)');
+            $this->line('   <fg=green>✓</> OR (MySQL: term term — default)');
+            $this->line('   <fg=green>✓</> NOT (MySQL: -term)');
+            $this->line('   <fg=green>✓</> "exact phrase"');
+            $this->line('   <fg=green>✓</> term* (prefix wildcard)');
+            $this->line('   <fg=yellow>⚠</> NEAR → fallback AND (not supported by MySQL BOOLEAN MODE)');
+            $this->newLine();
+
+            return;
+        }
+
         $this->line('5. FTS5 Operators');
         $rawOps = SqliteEngine::getRawSupportedOperators();
         $allowedOps = SqliteEngine::getSupportedOperators();

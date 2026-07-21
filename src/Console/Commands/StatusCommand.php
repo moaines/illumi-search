@@ -11,23 +11,31 @@ class StatusCommand extends Command
     use HasFormatBytes;
     protected $signature = 'illumi-search:status';
 
-    protected $description = 'Show FTS5 index statistics';
+    protected $description = 'Show index statistics';
 
     public function handle(Engine $engine): int
     {
-        $path = $engine->getDatabasePath();
+        $driver = config('illumi-search.driver', 'sqlite');
 
-        if (! file_exists($path)) {
-            $this->warn('FTS database does not exist yet. Run "php artisan illumi-search:rebuild" first.');
+        if ($driver === 'mysql') {
+            $this->info('Engine: ' . $engine->getEngineVersion());
+            $this->info('Connection: ' . $engine->getDatabasePath());
+        } else {
+            $path = $engine->getDatabasePath();
 
-            return Command::SUCCESS;
+            if (! file_exists($path)) {
+                $this->warn('Database does not exist yet. Run "php artisan illumi-search:rebuild" first.');
+
+                return Command::SUCCESS;
+            }
+
+            $size = $engine->getDatabaseSize();
+            $sizeHuman = $this->formatBytes($size);
+
+            $this->info("Database: {$path}");
+            $this->line("Size: {$sizeHuman}");
         }
 
-        $size = $engine->getDatabaseSize();
-        $sizeHuman = $this->formatBytes($size);
-
-        $this->info("FTS Database: {$path}");
-        $this->line("Size: {$sizeHuman}");
         $this->newLine();
 
         $stats = $engine->getIndexStats();

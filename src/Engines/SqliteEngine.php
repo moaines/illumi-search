@@ -7,6 +7,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Result;
+use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SnippetService;
 use SQLite3;
 
@@ -638,7 +639,23 @@ class SqliteEngine implements Engine
             return $b['frequency'] <=> $a['frequency'];
         });
 
-        return array_slice(array_map(fn ($s) => $s['term'], $suggestions), 0, $limit);
+        return array_column($suggestions, 'term');
+    }
+
+    public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
+    {
+        if (strlen(trim($query)) < 2) {
+            return [];
+        }
+
+        $candidates = [];
+
+        foreach ($this->getIndexedModelClasses() as $modelClass) {
+            $results = $this->queryVocab($modelClass, $query, $maxDistance, $limit);
+            $candidates = array_merge($candidates, $results);
+        }
+
+        return array_values(array_unique($candidates));
     }
 
     /** @param string[] $columns */
@@ -675,10 +692,9 @@ class SqliteEngine implements Engine
 
     private function escapeBasicQuery(string $query): string
     {
-        preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
         $terms = [];
 
-        foreach ($tokenMatches[0] as $token) {
+        foreach (OperatorRegistry::tokenize($query) as $token) {
             if (preg_match('/^"([^"]+)"$/', $token, $m)) {
                 $terms[] = '"'.$m[1].'"';
             } else {
@@ -694,8 +710,7 @@ class SqliteEngine implements Engine
 
     private function escapeAdvancedQuery(string $query): string
     {
-        preg_match_all('/"[^"]+"|[^\s]+/', $query, $tokenMatches);
-        $terms = $tokenMatches[0];
+        $terms = OperatorRegistry::tokenize($query);
         $escaped = [];
         $this->ensureOperatorsProbed();
         $this->applyOperatorConfig();

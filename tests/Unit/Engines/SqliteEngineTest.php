@@ -30,32 +30,6 @@ class SqliteEngineTest extends TestCase
         $this->assertFalse($this->engine->tableExists('App\Models\Post'));
     }
 
-    public function test_upsert_and_search(): void
-    {
-        $this->engine->upsert('App\Models\Post', 1, [
-            'title' => 'hello world',
-            'body' => 'this is a test post',
-        ]);
-
-        $results = $this->engine->search('hello', ['App\Models\Post'], 10);
-
-        $this->assertCount(1, $results);
-        $this->assertEquals('hello world', $results[0]->title);
-        $this->assertEquals('App\Models\Post', $results[0]->modelClass);
-        $this->assertEquals(1, $results[0]->modelId);
-    }
-
-    public function test_search_returns_empty_for_no_match(): void
-    {
-        $this->engine->upsert('App\Models\Post', 1, [
-            'title' => 'hello world',
-            'body' => 'test content',
-        ]);
-
-        $results = $this->engine->search('nonexistent', ['App\Models\Post'], 10);
-        $this->assertCount(0, $results);
-    }
-
     public function test_search_returns_multiple_results(): void
     {
         $this->engine->upsert('App\Models\Post', 1, ['title' => 'first post', 'body' => 'content one']);
@@ -63,37 +37,7 @@ class SqliteEngineTest extends TestCase
 
         $results = $this->engine->search('post', ['App\Models\Post'], 10);
         $this->assertCount(2, $results);
-    }
-
-    public function test_count_returns_correct_number(): void
-    {
-        $this->engine->upsert('App\Models\Post', 1, ['title' => 'hello alpha', 'body' => 'test']);
-        $this->engine->upsert('App\Models\Post', 2, ['title' => 'hello beta', 'body' => 'test']);
-
-        $count = $this->engine->count('hello', ['App\Models\Post']);
-        $this->assertEquals(2, $count);
-    }
-
-    public function test_delete_removes_from_index(): void
-    {
-        $this->engine->upsert('App\Models\Post', 1, ['title' => 'hello', 'body' => 'world']);
-        $this->engine->delete('App\Models\Post', 1);
-
-        $results = $this->engine->search('hello', ['App\Models\Post'], 10);
-        $this->assertCount(0, $results);
-    }
-
-    public function test_insert_batch(): void
-    {
-        $documents = [
-            ['model_id' => 1, 'document' => ['title' => 'batch one', 'body' => 'content']],
-            ['model_id' => 2, 'document' => ['title' => 'batch two', 'body' => 'content']],
-        ];
-
-        $this->engine->insertBatch('App\Models\Post', $documents);
-
-        $results = $this->engine->search('batch', ['App\Models\Post'], 10);
-        $this->assertCount(2, $results);
+        $this->assertEquals([1, 2], array_map(fn ($r) => $r->modelId, $results));
     }
 
     public function test_search_multiple_models(): void
@@ -105,6 +49,9 @@ class SqliteEngineTest extends TestCase
 
         $results = $this->engine->search('php', ['App\Models\Post', 'App\Models\Comment'], 10);
         $this->assertCount(2, $results);
+        $ids = array_map(fn ($r) => ['model' => $r->modelClass, 'id' => $r->modelId], $results);
+        $this->assertContains(['model' => 'App\Models\Post', 'id' => 1], $ids);
+        $this->assertContains(['model' => 'App\Models\Comment', 'id' => 1], $ids);
     }
 
     public function test_respects_limit(): void
@@ -504,13 +451,6 @@ class SqliteEngineTest extends TestCase
         $this->assertNotContains(3, array_map(fn ($r) => $r->modelId, $results), 'Post 3 does not contain the exact phrase');
     }
 
-    public function test_search_without_query_returns_empty(): void
-    {
-        $results = $this->engine->search('', ['App\Models\Post'], 10);
-
-        $this->assertEmpty($results);
-    }
-
     public function test_search_returns_bm25_ranks_for_all_matching_records(): void
     {
         $this->engine->upsert('App\Models\Post', 1, ['title' => 'learning data science', 'body' => 'data analysis with python']);
@@ -551,46 +491,12 @@ class SqliteEngineTest extends TestCase
         $this->assertNotNull($sizeBefore, 'Database size should be measurable');
     }
 
-    public function test_table_exists_returns_true_for_existing_table(): void
-    {
-        $this->assertTrue($this->engine->tableExists('App\Models\Post'));
-    }
-
-    public function test_table_exists_returns_false_for_non_existent_table(): void
-    {
-        $this->assertFalse($this->engine->tableExists('App\Models\NonExistent'));
-    }
-
     public function test_get_database_size_returns_positive_integer(): void
     {
         $size = $this->engine->getDatabaseSize();
 
         $this->assertNotNull($size, 'Database size should not be null');
         $this->assertGreaterThan(0, $size, 'Database size should be positive for non-empty DB');
-    }
-
-    public function test_pagination_across_three_pages(): void
-    {
-        for ($i = 1; $i <= 5; $i++) {
-            $this->engine->upsert('App\Models\Post', $i, ['title' => "post $i", 'body' => 'content to search']);
-        }
-
-        $page1 = $this->engine->search('search', ['App\Models\Post'], 2, 0);
-        $page2 = $this->engine->search('search', ['App\Models\Post'], 2, 2);
-        $page3 = $this->engine->search('search', ['App\Models\Post'], 2, 4);
-
-        $this->assertCount(2, $page1, 'Page 1 should have 2 results');
-        $this->assertCount(2, $page2, 'Page 2 should have 2 results');
-        $this->assertCount(1, $page3, 'Page 3 should have 1 remaining result');
-
-        $allIds = array_merge(
-            array_map(fn ($r) => $r->modelId, $page1),
-            array_map(fn ($r) => $r->modelId, $page2),
-            array_map(fn ($r) => $r->modelId, $page3),
-        );
-
-        sort($allIds);
-        $this->assertEquals([1, 2, 3, 4, 5], $allIds, 'All 5 posts distributed across pages without duplicates');
     }
 
     public function test_cross_model_search_ranks_by_bm25(): void

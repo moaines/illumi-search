@@ -3,7 +3,9 @@
 namespace Moaines\IllumiSearch\Text;
 
 use Illuminate\Support\Str;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
+use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 trait HasTextHelpers
 {
@@ -49,6 +51,10 @@ trait HasTextHelpers
                 return $text;
             }
 
+            // Mask operators AND/OR/NOT/NEAR so they survive stopword filtering
+            // (e.g. "not" is in the English stopword list)
+            [$text, $replacements] = OperatorRegistry::maskOperators($text);
+
             if (self::$stopwordFilter === null) {
                 self::$stopwordFilter = new StopwordFilter;
             }
@@ -56,11 +62,72 @@ trait HasTextHelpers
             foreach ($languages as $lang) {
                 $text = self::$stopwordFilter->filter($text, $lang);
             }
+
+            $text = OperatorRegistry::unmaskOperators($text, $replacements);
         } catch (\Throwable) {
             return $text;
         }
 
         return $text;
+    }
+
+    public function truncateLongTokens(string $text, int $maxLength = 32): string
+    {
+        return preg_replace_callback(
+            '/\S{' . $maxLength . ',}/u',
+            fn ($m) => mb_strcut($m[0], 0, $maxLength),
+            $text,
+        ) ?? $text;
+    }
+
+    public function normalize(string $s): string
+    {
+        $s = mb_strtolower($s);
+
+        $normalized = normalizer_normalize($s, \Normalizer::FORM_KD);
+
+        if ($normalized === false) {
+            return $s;
+        }
+
+        return preg_replace('/\p{Mn}/u', '', $normalized);
+    }
+
+    public function contains(string $haystack, string $needle): bool
+    {
+        return mb_strpos(self::normalize($haystack), self::normalize($needle)) !== false;
+    }
+
+    public function fuzzyContains(string $haystack, string $needle): bool
+    {
+        return $this->contains($haystack, $needle) || $this->similar($haystack, $needle);
+    }
+
+    public function similar(string $haystack, string $needle): bool
+    {
+        $haystack = self::normalize($haystack);
+        $needle = self::normalize($needle);
+
+        if (str_contains($haystack, $needle)) {
+            return true;
+        }
+
+        $distance = self::levenshteinDistance($haystack, $needle);
+        $max = $needle === '' ? 0 : max(1, intdiv(mb_strlen($needle), 3));
+
+        return $distance !== -1 && $distance <= $max;
+    }
+
+    public static function levenshteinDistance(string $a, string $b): int
+    {
+        $a = normalizer_normalize($a, \Normalizer::FORM_KD) ?: $a;
+        $b = normalizer_normalize($b, \Normalizer::FORM_KD) ?: $b;
+
+        if (function_exists('grapheme_levenshtein')) {
+            return grapheme_levenshtein($a, $b);
+        }
+
+        return levenshtein($a, $b);
     }
 
     /** @return string[] */

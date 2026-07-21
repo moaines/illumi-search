@@ -15,6 +15,7 @@ use Moaines\IllumiSearch\Console\Commands\StatusCommand;
 use Moaines\IllumiSearch\Console\Commands\SyncCommand;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
@@ -36,6 +37,12 @@ class IllumiSearchServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(Engine::class, function ($app) {
+            $driver = config('illumi-search.driver', 'sqlite');
+
+            if ($driver === 'mysql') {
+                return new MySqlEngine($app->make(SnippetService::class));
+            }
+
             $path = $app['config']->get('illumi-search.database_path', 'app/search/search-index.sqlite');
             $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
 

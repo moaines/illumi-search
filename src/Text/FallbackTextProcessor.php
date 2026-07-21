@@ -16,6 +16,7 @@ class FallbackTextProcessor implements TextProcessor
         $text = $this->separateCjk($text);
         $text = $this->lowercase($text);
         $text = $this->filterStopwords($text, $locale);
+        $text = $this->truncateLongTokens($text);
         $text = $this->cleanWhitespace($text);
 
         return trim($text);

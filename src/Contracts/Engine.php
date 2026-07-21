@@ -6,6 +6,8 @@ use Moaines\IllumiSearch\Result;
 
 interface Engine
 {
+    /** Standard Boolean operators supported across all engines. */
+    public const OPERATORS = ['AND', 'OR', 'NOT', 'NEAR'];
     /**
      * Insert or replace a single document in the FTS index.
      *
@@ -106,6 +108,13 @@ interface Engine
      * @return string[]
      */
     public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array;
+
+    /**
+     * Suggest spelling corrections for a query term.
+     *
+     * @return string[]
+     */
+    public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array;
 
     /** Check if FTS5 is available in the SQLite build. */
     public function isFts5Available(): bool;

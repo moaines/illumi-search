@@ -84,6 +84,10 @@ class IndexManager
         event(new RebuildComplete($results));
         $results = $this->cleanupOrphans($models, $results);
 
+        if (method_exists($this->engine, 'rebuildVocabFromScratch')) {
+            $this->engine->rebuildVocabFromScratch();
+        }
+
         if ($vacuum) {
             $this->engine->vacuum();
         }

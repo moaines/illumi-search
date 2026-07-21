@@ -11,25 +11,25 @@ class OptimizeCommand extends Command
     use HasFormatBytes;
     protected $signature = 'illumi-search:optimize';
 
-    protected $description = 'Optimize the FTS5 index (VACUUM + FTS5 merge)';
+    protected $description = 'Optimize the search index';
 
     public function handle(Engine $engine): int
     {
+        $driver = config('illumi-search.driver', 'sqlite');
         $path = $engine->getDatabasePath();
 
-        if (! file_exists($path)) {
-            $this->warn('FTS database does not exist. Nothing to optimize.');
+        if ($driver !== 'mysql' && ! file_exists($path)) {
+            $this->warn('Database does not exist. Nothing to optimize.');
 
             return Command::SUCCESS;
         }
 
         $beforeSize = $engine->getDatabaseSize();
-        $this->info("Database: {$path}");
+        $this->info("Engine: {$path}");
         $this->line("Size before: {$this->formatBytes($beforeSize)}");
         $this->newLine();
 
-        $this->info('Running VACUUM...');
-        $this->line('Running FTS5 merge optimization...');
+        $this->info('Running optimization...');
 
         $results = $engine->optimize();
 
@@ -49,5 +49,4 @@ class OptimizeCommand extends Command
 
         return Command::SUCCESS;
     }
-
 }

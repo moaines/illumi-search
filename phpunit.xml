@@ -11,6 +11,7 @@
         </testsuite>
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
+            <exclude>tests/Feature/Engines/AbstractEngineTest.php</exclude>
         </testsuite>
     </testsuites>
 

@@ -41,48 +41,25 @@ class Spellcheck
             return collect();
         }
 
-        $terms = $this->extractTerms($query);
-        $suggestions = collect();
+        $suggestions = [];
 
-        foreach ($terms as $term) {
-            $candidates = $this->findSimilar($term, $modelClasses);
-            $suggestions = $suggestions->merge($candidates);
+        foreach ($this->extractTerms($query) as $term) {
+            $suggestions = array_merge($suggestions, $this->engine->suggest(
+                $term,
+                $this->maxDistance,
+                $this->maxSuggestions,
+            ));
         }
 
-        return $suggestions
+        return collect($suggestions)
             ->unique()
             ->take($this->maxSuggestions)
             ->values();
     }
 
-    /**
-     * @return string[]
-     */
     /** @return string[] */
     protected function extractTerms(string $query): array
     {
         return $this->extractQueryTerms($query);
-    }
-
-    /**
-     * @param string[] $modelClasses
-     * @return string[]
-     */
-    protected function findSimilar(string $term, array $modelClasses): array
-    {
-        $modelClasses = ! empty($modelClasses)
-            ? $modelClasses
-            : $this->engine->getIndexedModelClasses();
-
-        $suggestions = [];
-
-        foreach ($modelClasses as $modelClass) {
-            $results = $this->engine->queryVocab($modelClass, $term, $this->maxDistance, $this->maxSuggestions);
-            foreach ($results as $suggestion) {
-                $suggestions[] = $suggestion;
-            }
-        }
-
-        return $suggestions;
     }
 }
