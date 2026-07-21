@@ -356,7 +356,7 @@ class IndexManager
             return null;
         }
 
-        if (! preg_match('/^class\s+(\w+)/m', $contents, $classMatch)) {
+        if (! preg_match('/^(?:abstract\s+|final\s+|readonly\s+)*class\s+(\w+)/m', $contents, $classMatch)) {
             return null;
         }
 
