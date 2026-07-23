@@ -43,7 +43,7 @@ class SoftDeletesTest extends TestCase
         $engine = app(Engine::class);
         $engine->createTable($modelClass, ['title', 'body']);
 
-        config(['illumi-search.indexing' => 'sync']);
+        config(['illumi-search.indexing.mode' => 'sync']);
 
         $model = $modelClass::forceCreate([
             'title' => 'visible post',

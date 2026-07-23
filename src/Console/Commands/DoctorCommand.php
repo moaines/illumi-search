@@ -5,7 +5,6 @@ namespace Moaines\IllumiSearch\Console\Commands;
 use Illuminate\Console\Command;
 use Moaines\IllumiSearch\Console\Commands\Concerns\HasFormatBytes;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Engines\SqliteEngine;
 
 class DoctorCommand extends Command
 {
@@ -28,7 +27,7 @@ class DoctorCommand extends Command
         $this->checkIntegrity($engine, $stats);
         $this->showConfig();
         $this->validateConfig();
-        $this->checkOperators();
+        $this->checkOperators($engine);
 
         $this->newLine();
         if ($this->allOk) {
@@ -186,17 +185,17 @@ class DoctorCommand extends Command
 
         if ($driver === 'mysql') {
             $keys = [
-                'illumi-search.driver', 'illumi-search.indexing', 'illumi-search.mode',
-                'illumi-search.mysql.max_search_text_length',
+                'illumi-search.driver', 'illumi-search.indexing.mode', 'illumi-search.processing.mode',
+                'illumi-search.processing.max_search_text_length',
                 'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
             ];
         } else {
             $keys = [
-                'illumi-search.indexing', 'illumi-search.mode', 'illumi-search.fts5.tokenizer',
-                'illumi-search.fts5.processor', 'illumi-search.fts5.detail',
-                'illumi-search.fts5.synchronous', 'illumi-search.fts5.temp_store',
-                'illumi-search.fts5.columnsize', 'illumi-search.fts5.wal',
-                'illumi-search.fts5.busy_timeout',
+                'illumi-search.indexing.mode', 'illumi-search.processing.mode', 'illumi-search.engines.sqlite.fts5.tokenizer',
+                'illumi-search.processing.processor', 'illumi-search.engines.sqlite.fts5.detail',
+                'illumi-search.engines.sqlite.runtime.synchronous', 'illumi-search.engines.sqlite.runtime.temp_store',
+                'illumi-search.engines.sqlite.fts5.columnsize', 'illumi-search.engines.sqlite.runtime.wal',
+                'illumi-search.engines.sqlite.runtime.busy_timeout',
                 'illumi-search.tenancy.enabled', 'illumi-search.authorization.enabled',
             ];
         }
@@ -216,38 +215,38 @@ class DoctorCommand extends Command
         $this->line('4b. Config Validation');
 
         if ($driver === 'mysql') {
-            $mysqlMax = (int) config('illumi-search.mysql.max_search_text_length', 65535);
+            $mysqlMax = (int) config('illumi-search.processing.max_search_text_length', 65535);
             $this->line('   '.($mysqlMax >= 1024 ? '<fg=green>✓</>' : '<fg=red>✗</>')
-                ." illumi-search.mysql.max_search_text_length = {$mysqlMax}");
+                ." illumi-search.processing.max_search_text_length = {$mysqlMax}");
             $this->newLine();
 
             return;
         }
 
         $rules = [
-            ['illumi-search.mode', config('illumi-search.mode'), ['basic', 'advanced']],
-            ['illumi-search.indexing', config('illumi-search.indexing'), ['queue', 'sync', 'manual']],
-            ['illumi-search.fts5.processor', config('illumi-search.fts5.processor'), ['unicode', 'stemming']],
-            ['illumi-search.fts5.detail', config('illumi-search.fts5.detail'), ['full', 'column', 'none']],
-            ['illumi-search.fts5.synchronous', config('illumi-search.fts5.synchronous'), ['NORMAL', 'FULL', 'OFF']],
-            ['illumi-search.fts5.temp_store', config('illumi-search.fts5.temp_store'), ['MEMORY', 'FILE', 'DEFAULT']],
-            ['illumi-search.fts5.columnsize', config('illumi-search.fts5.columnsize'), []],
-            ['illumi-search.fts5.wal', config('illumi-search.fts5.wal'), []],
-            ['illumi-search.fts5.busy_timeout', config('illumi-search.fts5.busy_timeout'), []],
+            ['illumi-search.processing.mode', config('illumi-search.processing.mode'), ['basic', 'advanced']],
+            ['illumi-search.indexing.mode', config('illumi-search.indexing.mode'), ['queue', 'sync', 'manual']],
+            ['illumi-search.processing.processor', config('illumi-search.processing.processor'), ['unicode', 'stemming']],
+            ['illumi-search.engines.sqlite.fts5.detail', config('illumi-search.engines.sqlite.fts5.detail'), ['full', 'column', 'none']],
+            ['illumi-search.engines.sqlite.runtime.synchronous', config('illumi-search.engines.sqlite.runtime.synchronous'), ['NORMAL', 'FULL', 'OFF']],
+            ['illumi-search.engines.sqlite.runtime.temp_store', config('illumi-search.engines.sqlite.runtime.temp_store'), ['MEMORY', 'FILE', 'DEFAULT']],
+            ['illumi-search.engines.sqlite.fts5.columnsize', config('illumi-search.engines.sqlite.fts5.columnsize'), []],
+            ['illumi-search.engines.sqlite.runtime.wal', config('illumi-search.engines.sqlite.runtime.wal'), []],
+            ['illumi-search.engines.sqlite.runtime.busy_timeout', config('illumi-search.engines.sqlite.runtime.busy_timeout'), []],
         ];
 
         foreach ($rules as [$key, $value, $accepted]) {
             $isValid = match ($key) {
-                'illumi-search.fts5.columnsize' => in_array((int) $value, [0, 1], true),
-                'illumi-search.fts5.wal' => is_bool($value),
-                'illumi-search.fts5.busy_timeout' => is_numeric($value) && (int) $value >= 0,
+                'illumi-search.engines.sqlite.fts5.columnsize' => in_array((int) $value, [0, 1], true),
+                'illumi-search.engines.sqlite.runtime.wal' => is_bool($value),
+                'illumi-search.engines.sqlite.runtime.busy_timeout' => is_numeric($value) && (int) $value >= 0,
                 default => in_array($value, $accepted, true),
             };
 
             $this->line('   '.($isValid ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$key} = ".json_encode($value));
 
             if (! $isValid) {
-                $expected = $key === 'illumi-search.fts5.busy_timeout'
+                $expected = $key === 'illumi-search.engines.sqlite.runtime.busy_timeout'
                     ? 'must be a non-negative integer'
                     : 'accepted: '.implode('|', $accepted);
                 $this->line("     <fg=yellow>⚠ Expected {$expected}</>");
@@ -257,37 +256,20 @@ class DoctorCommand extends Command
         $this->newLine();
     }
 
-    private function checkOperators(): void
+    private function checkOperators(Engine $engine): void
     {
-        $driver = config('illumi-search.driver', 'sqlite');
+        $driver = $engine->getEngineStatus()['driver'] ?? (new \ReflectionClass($engine))->getShortName();
+        $this->line("5. {$driver} Operators");
 
-        if ($driver === 'mysql') {
-            $this->line('5. BOOLEAN MODE Operators');
-            $this->line('   <fg=green>✓</> AND (MySQL: +term +term)');
-            $this->line('   <fg=green>✓</> OR (MySQL: term term — default)');
-            $this->line('   <fg=green>✓</> NOT (MySQL: -term)');
-            $this->line('   <fg=green>✓</> "exact phrase"');
-            $this->line('   <fg=green>✓</> term* (prefix wildcard)');
-            $this->line('   <fg=yellow>⚠</> NEAR → fallback AND (not supported by MySQL BOOLEAN MODE)');
-            $this->newLine();
-
-            return;
-        }
-
-        $this->line('5. FTS5 Operators');
-        $rawOps = SqliteEngine::getRawSupportedOperators();
-        $allowedOps = SqliteEngine::getSupportedOperators();
+        $supported = $engine->getSupportedOperators();
 
         foreach (['AND', 'OR', 'NOT', 'NEAR'] as $op) {
-            $sqlite = in_array($op, $rawOps, true);
-            $configOk = in_array($op, $allowedOps, true);
-            $note = match (true) {
-                $configOk => 'SQLite: ✓, Config: allowed',
-                $sqlite => 'SQLite: ✓, Config: restricted',
-                default => 'SQLite: ✗, Config: —',
-            };
-            $this->line('   '.($configOk ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$op} ({$note})");
+            $opSupported = in_array($op, $supported, true);
+            $this->line('   '.($opSupported ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$op}");
         }
+
+        $this->line('   '.($engine->supportsPhraseSearch() ? '<fg=green>✓</>' : '<fg=red>✗</>').' "exact phrase"');
+        $this->line('   '.($engine->supportsPrefixWildcard() ? '<fg=green>✓</>' : '<fg=red>✗</>').' term* (prefix wildcard)');
         $this->newLine();
     }
 }

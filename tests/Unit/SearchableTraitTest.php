@@ -68,7 +68,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_saved_dispatches_job_in_queue_mode(): void
     {
-        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.indexing.mode' => 'queue']);
         $this->createPostIndex();
         Bus::fake();
 
@@ -79,7 +79,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_saved_indexes_directly_in_sync_mode(): void
     {
-        config(['illumi-search.indexing' => 'sync']);
+        config(['illumi-search.indexing.mode' => 'sync']);
         $this->createPostIndex();
 
         $post = Post::forceCreate(['title' => 'test index', 'body' => 'content']);
@@ -91,7 +91,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_deleted_dispatches_delete_job(): void
     {
-        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.indexing.mode' => 'queue']);
 
         $post = $this->createPostSafely(['title' => 'test', 'body' => 'content']);
 
@@ -104,7 +104,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_manual_mode_does_nothing(): void
     {
-        config(['illumi-search.indexing' => 'manual']);
+        config(['illumi-search.indexing.mode' => 'manual']);
         Bus::fake();
 
         Post::forceCreate(['title' => 'test', 'body' => 'content']);
@@ -232,7 +232,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_has_many_respects_max_related_values(): void
     {
-        config(['illumi-search.max_related_values' => 2]);
+        config(['illumi-search.processing.max_related_values' => 2]);
         $this->createBookTables();
         $book = Book::withoutEvents(fn () => Book::forceCreate([
             'title' => 'Test',
@@ -273,7 +273,7 @@ class SearchableTraitTest extends TestCase
 
     public function test_rebuild_with_dot_notation_indexes_correctly(): void
     {
-        config(['illumi-search.indexing' => 'sync']);
+        config(['illumi-search.indexing.mode' => 'sync']);
         $this->createBookTables();
         $this->engine->createTable(Book::class, ['title', 'body', 'author_name', 'comments_body', 'fullname']);
 

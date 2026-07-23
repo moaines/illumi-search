@@ -264,6 +264,28 @@ class SqliteEngineTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/\bAND\*/', $result);
     }
 
+    public function test_advanced_mode_does_not_double_wildcard(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'soft*', 'advanced');
+
+        $this->assertStringContainsString('soft*', $result);
+        $this->assertDoesNotMatchRegularExpression('/\*\*/', $result);
+    }
+
+    public function test_basic_mode_does_not_double_wildcard(): void
+    {
+        $ref = new \ReflectionClass($this->engine);
+        $method = $ref->getMethod('escapeQuery');
+
+        $result = $method->invoke($this->engine, 'soft*', 'basic');
+
+        $this->assertStringContainsString('soft*', $result);
+        $this->assertDoesNotMatchRegularExpression('/\*\*/', $result);
+    }
+
     public function test_raw_mode_passthrough(): void
     {
         $ref = new \ReflectionClass($this->engine);

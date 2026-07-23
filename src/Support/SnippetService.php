@@ -4,11 +4,10 @@ namespace Moaines\IllumiSearch\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Concerns\HasQueryTerms;
+use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 class SnippetService
 {
-    use HasQueryTerms;
 
     /** @var string[] */
     private array $defaultTextColumns = ['body', 'content', 'description', 'text', 'excerpt'];
@@ -207,6 +206,6 @@ class SnippetService
     /** @return string[] */
     private function extractSearchTerms(string $query): array
     {
-        return $this->extractQueryTerms($query);
+        return OperatorRegistry::tokenize($query);
     }
 }

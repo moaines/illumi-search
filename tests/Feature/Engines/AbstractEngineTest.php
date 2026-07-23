@@ -117,8 +117,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertTrue($engine->tableExists($this->testModelClass));
     }
 
-    /** @test */
-    public function table_exists_returns_false_after_drop(): void
+    protected function assertTableDropped(): void
     {
         $engine = $this->createEngine();
         $engine->dropTable($this->testModelClass);
@@ -150,6 +149,68 @@ abstract class AbstractEngineTest extends TestCase
     }
 
     /** @test */
+    public function suggest_returns_sorted_relevant_suggestions(): void
+    {
+        $engine = $this->createEngine();
+
+        $engine->upsert($this->testModelClass, 1, [
+            'title' => 'php programming',
+            'body' => 'learn php for web development',
+        ]);
+        $engine->upsert($this->testModelClass, 2, [
+            'title' => 'php framework',
+            'body' => 'laravel and symfony php framework',
+        ]);
+        $engine->upsert($this->testModelClass, 3, [
+            'title' => 'python data science',
+            'body' => 'pandas numpy python',
+        ]);
+        $engine->upsert($this->testModelClass, 4, [
+            'title' => 'programming basics',
+            'body' => 'python programming fundamentals php',
+        ]);
+
+        $suggestions = $engine->suggest('progamming', 2, 5);
+        $this->assertNotEmpty($suggestions);
+        $this->assertContains('programming', $suggestions);
+
+        $suggestions = $engine->suggest('phpp', 2, 5);
+        $this->assertContains('php', $suggestions);
+        $this->assertSame('php', $suggestions[0]);
+
+        $this->assertEmpty($engine->suggest('', 2, 5));
+        $this->assertEmpty($engine->suggest('x', 2, 5));
+
+        $this->assertEmpty($engine->suggest('zzzzz', 2, 5));
+
+        $this->assertLessThanOrEqual(2, count($engine->suggest('php', 2, 2)));
+
+        foreach ($engine->suggest('prgramming', 3, 5) as $word) {
+            $this->assertLessThanOrEqual(3, levenshtein('prgramming', $word));
+        }
+    }
+
+    /** @test */
+    public function suggest_prefers_same_script_over_ascii_proximity(): void
+    {
+        $engine = $this->createEngine();
+
+        $engine->upsert($this->testModelClass, 1, [
+            'title' => 'laravel php',
+            'body' => 'framework',
+        ]);
+        $engine->upsert($this->testModelClass, 2, [
+            'title' => 'правил php',
+            'body' => 'cyrillic content',
+        ]);
+
+        $suggestions = $engine->suggest('laravil', 2, 5);
+        $this->assertNotEmpty($suggestions);
+        $this->assertContains('laravel', $suggestions,
+            'Latin query should suggest Latin word, not Cyrillic with same ASCII');
+    }
+
+    /** @test */
     public function optimize_does_not_crash(): void
     {
         $engine = $this->createEngine();
@@ -157,6 +218,31 @@ abstract class AbstractEngineTest extends TestCase
 
         $result = $engine->optimize();
         $this->assertArrayHasKey('tables_optimized', $result);
+    }
+
+    /** @test */
+    public function get_supported_operators_returns_non_empty_array(): void
+    {
+        $engine = $this->createEngine();
+        $operators = $engine->getSupportedOperators();
+
+        $this->assertIsArray($operators);
+        $this->assertNotEmpty($operators);
+        $this->assertContains('AND', $operators);
+        $this->assertContains('OR', $operators);
+    }
+
+    /** @test */
+    public function engine_supports_standard_search_features(): void
+    {
+        $engine = $this->createEngine();
+
+        $this->assertTrue($engine->supportsPhraseSearch());
+        $this->assertTrue($engine->supportsPrefixWildcard());
+
+        $operators = $engine->getSupportedOperators();
+        $this->assertContains('AND', $operators);
+        $this->assertContains('OR', $operators);
     }
 
     /** @test */

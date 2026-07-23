@@ -7,6 +7,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Result;
+use Moaines\IllumiSearch\Support\ConfigHelper;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SnippetService;
 use SQLite3;
@@ -31,6 +32,8 @@ class SqliteEngine implements Engine
 
     /** @var array<string, string> */
     private array $cachedSafeQueries = [];
+
+    private int $maxCachedQueries = 1000;
 
     private bool $fts5Available = false;
 
@@ -658,6 +661,24 @@ class SqliteEngine implements Engine
         return array_values(array_unique($candidates));
     }
 
+    public function getSupportedOperators(): array
+    {
+        $this->ensureOperatorsProbed();
+        $this->applyOperatorConfig();
+
+        return static::$supportedOperators;
+    }
+
+    public function supportsPhraseSearch(): bool
+    {
+        return true;
+    }
+
+    public function supportsPrefixWildcard(): bool
+    {
+        return true;
+    }
+
     /** @param string[] $columns */
     protected function updateMeta(string $modelClass, int $version, array $columns): void
     {
@@ -683,6 +704,11 @@ class SqliteEngine implements Engine
         // Normalize query: lowercase + remove diacritics to match indexed content
         $query = $this->normalizeQuery($query);
 
+        // Evict oldest entry if cache is full
+        if (count($this->cachedSafeQueries) >= $this->maxCachedQueries) {
+            array_shift($this->cachedSafeQueries);
+        }
+
         return $this->cachedSafeQueries[$cacheKey] = match ($mode) {
             'basic' => $this->escapeBasicQuery($query),
             'raw' => $query,
@@ -700,7 +726,7 @@ class SqliteEngine implements Engine
             } else {
                 $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
                 if ($clean !== '') {
-                    $terms[] = $clean.'*';
+                    $terms[] = rtrim($clean, '*').'*';
                 }
             }
         }
@@ -758,7 +784,7 @@ class SqliteEngine implements Engine
             if (preg_match('/[:\-\(\)\^]/', $term)) {
                 $escaped[] = '"'.$term.'"';
             } else {
-                $escaped[] = $term.'*';
+                $escaped[] = rtrim($term, '*').'*';
             }
         }
 
@@ -835,18 +861,6 @@ class SqliteEngine implements Engine
         } elseif (is_array($allowed) && empty($allowed)) {
             static::$supportedOperators = [];
         }
-    }
-
-    /** @return list<string> */
-    public static function getSupportedOperators(): array
-    {
-        return static::$supportedOperators;
-    }
-
-    /** @return list<string> */
-    public static function getRawSupportedOperators(): array
-    {
-        return static::$rawSupportedOperators;
     }
 
     /** @return array<string, bool> operator → supported or not */
@@ -1003,6 +1017,25 @@ class SqliteEngine implements Engine
         return ['passed' => empty($errors), 'errors' => $errors];
     }
 
+    public function getEngineStatus(): array
+    {
+        return [
+            'driver' => 'SQLite FTS5',
+            'engine_version' => $this->getEngineVersion(),
+            'database_path' => $this->getDatabasePath(),
+            'database_size' => $this->getDatabaseSize(),
+            'tokenizer' => config('illumi-search.engines.sqlite.fts5.tokenizer', 'unicode61'),
+            'detail' => config('illumi-search.engines.sqlite.fts5.detail', 'full'),
+            'columnsize' => config('illumi-search.engines.sqlite.fts5.columnsize', 1) ? 'Enabled' : 'Disabled',
+            'prefix_lengths' => '[' . implode(', ', config('illumi-search.engines.sqlite.fts5.prefix_lengths', [2, 3, 4])) . ']',
+            'automerge' => config('illumi-search.engines.sqlite.fts5.automerge', 4),
+            'crisismerge' => config('illumi-search.engines.sqlite.fts5.crisismerge', 16),
+            'wal' => config('illumi-search.engines.sqlite.runtime.wal', true) ? 'Enabled' : 'Disabled',
+            'cache_size' => abs(config('illumi-search.engines.sqlite.runtime.cache_size_kb', -64000)) . ' KB',
+            'busy_timeout' => config('illumi-search.engines.sqlite.runtime.busy_timeout', 15000) . ' ms',
+        ];
+    }
+
     public function getConfig(string $key, mixed $default = null): mixed
     {
         $this->ensureConfigTable();
@@ -1013,7 +1046,7 @@ class SqliteEngine implements Engine
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $row = $stmt->execute()->fetchArray(\SQLITE3_ASSOC);
 
-        return $row !== false ? json_decode($row['value'], true) : $default;
+        return $row !== false ? ConfigHelper::decode($row['value'], $default) : $default;
     }
 
     public function setConfig(string $key, mixed $value): void
@@ -1024,7 +1057,7 @@ class SqliteEngine implements Engine
             'INSERT OR REPLACE INTO '.self::CONFIG_TABLE.' (key, value) VALUES (:key, :value)'
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
-        $stmt->bindValue(':value', json_encode($value), \SQLITE3_TEXT);
+        $stmt->bindValue(':value', ConfigHelper::encode($value), \SQLITE3_TEXT);
         $stmt->execute();
     }
 }

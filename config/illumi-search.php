@@ -13,72 +13,108 @@ return [
     */
     'driver' => env('ILLUMI_SEARCH_DRIVER', 'sqlite'),
 
-    'database_path' => env('ILLUMI_SEARCH_DATABASE_PATH', 'app/search/search-index.sqlite'),
-
-    'mode' => env('ILLUMI_SEARCH_MODE', 'advanced'),
-
-    'indexing' => env('ILLUMI_SEARCH_INDEXING', 'queue'),
-
-    'queue_connection' => env('ILLUMI_SEARCH_QUEUE_CONNECTION'),
-
-    'rebuild_batch_size' => env('ILLUMI_SEARCH_REBUILD_BATCH_SIZE', 0),
-
-    'max_results' => 50,
-
-    'model_paths' => [
-        app_path('Models'),
-    ],
-
-    'fts5' => [
-
-        'tokenizer' => 'unicode61',
+    /*
+    |--------------------------------------------------------------------------
+    | Processing
+    |--------------------------------------------------------------------------
+    |
+    | Shared text processing settings used by all engines before indexing.
+    |
+    */
+    'processing' => [
+        'mode' => env('ILLUMI_SEARCH_MODE', 'advanced'),
 
         'processor' => env('ILLUMI_SEARCH_PROCESSOR', 'unicode'),
 
-        'prefix_lengths' => [2, 3, 4],
+        'stopwords' => ['en'],
 
-        'detail' => 'full',
+        'max_search_text_length' => env('ILLUMI_SEARCH_MAX_TEXT_LENGTH', 65535),
 
-        'columnsize' => env('ILLUMI_SEARCH_COLUMNSIZE', 1),
+        'max_weight' => env('ILLUMI_SEARCH_MAX_WEIGHT', 3),
 
-        'automerge' => 4,
+        'max_results' => 50,
 
-        'crisismerge' => 16,
-
-        'pgsz' => 1000,
-
-        'wal' => env('ILLUMI_SEARCH_WAL', true),
-
-        'cache_size_kb' => env('ILLUMI_SEARCH_CACHE_SIZE_KB', -64000),
-
-        'synchronous' => env('ILLUMI_SEARCH_SYNCHRONOUS', 'NORMAL'),
-
-        'temp_store' => env('ILLUMI_SEARCH_TEMP_STORE', 'MEMORY'),
-
-        'busy_timeout' => env('ILLUMI_SEARCH_BUSY_TIMEOUT', 15000),
-
-        'mmap_size' => env('ILLUMI_SEARCH_MMAP_SIZE', 0),
+        'max_related_values' => 100,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Indexing
+    |--------------------------------------------------------------------------
+    |
+    | Batched/queued indexing behavior.
+    |
+    */
+    'indexing' => [
+        'mode' => env('ILLUMI_SEARCH_INDEXING', 'queue'),
+
+        'queue' => env('ILLUMI_SEARCH_QUEUE_CONNECTION'),
+
+        'rebuild_batch_size' => env('ILLUMI_SEARCH_REBUILD_BATCH_SIZE', 0),
+
+        'model_paths' => [
+            app_path('Models'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authorization
+    |--------------------------------------------------------------------------
+    |
+    | Model-level authorization via Laravel policies.
+    |
+    */
     'authorization' => [
         'enabled' => env('ILLUMI_SEARCH_AUTHORIZATION', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Multi-Tenancy
+    |--------------------------------------------------------------------------
+    |
+    | Isolate search indexes per tenant (SQLite only — separate database files).
+    |
+    */
     'tenancy' => [
         'enabled' => env('ILLUMI_SEARCH_TENANCY', false),
         'directory' => env('ILLUMI_SEARCH_TENANCY_DIRECTORY', 'app/search/tenants'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Spellcheck
+    |--------------------------------------------------------------------------
+    |
+    | "Did you mean?" vocabulary settings.
+    |
+    */
     'spellcheck' => [
-        'vocab_limit' => env('ILLUMI_SEARCH_SPELLCHECK_VOCAB_LIMIT', 1000),
+        'vocab_limit' => env('ILLUMI_SEARCH_SPELLCHECK_VOCAB_LIMIT', 5000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Operators
+    |--------------------------------------------------------------------------
+    |
+    | Enable/disable search operators (AND, OR, NOT, NEAR).
+    | Affects SQLite FTS5 and MySQL BOOLEAN MODE.
+    |
+    */
     'operators' => [
         'enabled' => env('ILLUMI_SEARCH_OPERATORS'),
     ],
 
-    'max_related_values' => 100,
-
+    /*
+    |--------------------------------------------------------------------------
+    | REST API
+    |--------------------------------------------------------------------------
+    |
+    | Built-in search API endpoint.
+    |
+    */
     'api' => [
         'enabled' => env('ILLUMI_SEARCH_API_ENABLED', false),
         'middleware' => ['api'],
@@ -88,34 +124,57 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Stopwords
+    | Engine-Specific Configuration
     |--------------------------------------------------------------------------
     |
-    | List of language codes for stopword filtering. Words from these languages
-    | are removed from the text before indexing to reduce index size and improve
-    | BM25 relevance. Built-in word lists are provided for 33 languages.
-    |
-    | Example: ['fr', 'en', 'ar']
-    | Set to empty array to disable stopword filtering (default).
+    | Each search engine driver can have its own settings.
     |
     */
-    'stopwords' => ['en'],
+    'engines' => [
 
-    /*
-    |--------------------------------------------------------------------------
-    | MySQL Driver
-    |--------------------------------------------------------------------------
-    |
-    | Settings used when ILLUMI_SEARCH_DRIVER=mysql.
-    |
-    */
-    'mysql' => [
-        'host' => env('ILLUMI_SEARCH_MYSQL_HOST', '127.0.0.1'),
-        'port' => env('ILLUMI_SEARCH_MYSQL_PORT', '3306'),
-        'database' => env('ILLUMI_SEARCH_MYSQL_DATABASE', 'illumi_search'),
-        'username' => env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
-        'password' => env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
-        'max_search_text_length' => env('ILLUMI_SEARCH_MYSQL_MAX_TEXT_LENGTH', 65535),
+        'sqlite' => [
+            'database_path' => env('ILLUMI_SEARCH_DATABASE_PATH', 'app/search/search-index.sqlite'),
+
+            'fts5' => [
+                'tokenizer' => 'unicode61',
+
+                'prefix_lengths' => [2, 3, 4],
+
+                'detail' => 'full',
+
+                'columnsize' => env('ILLUMI_SEARCH_COLUMNSIZE', 1),
+
+                'automerge' => 4,
+
+                'crisismerge' => 16,
+
+                'pgsz' => 1000,
+            ],
+
+            'runtime' => [
+                'wal' => env('ILLUMI_SEARCH_WAL', true),
+
+                'cache_size_kb' => env('ILLUMI_SEARCH_CACHE_SIZE_KB', -64000),
+
+                'synchronous' => env('ILLUMI_SEARCH_SYNCHRONOUS', 'NORMAL'),
+
+                'temp_store' => env('ILLUMI_SEARCH_TEMP_STORE', 'MEMORY'),
+
+                'busy_timeout' => env('ILLUMI_SEARCH_BUSY_TIMEOUT', 15000),
+
+                'mmap_size' => env('ILLUMI_SEARCH_MMAP_SIZE', 0),
+            ],
+        ],
+
+        'mysql' => [
+            'connection' => [
+                'host' => env('ILLUMI_SEARCH_MYSQL_HOST', '127.0.0.1'),
+                'port' => env('ILLUMI_SEARCH_MYSQL_PORT', '3306'),
+                'database' => env('ILLUMI_SEARCH_MYSQL_DATABASE', 'illumi_search'),
+                'username' => env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
+                'password' => env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
+            ],
+        ],
     ],
 
 ];

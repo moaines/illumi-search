@@ -5,6 +5,7 @@ namespace Moaines\IllumiSearch;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Moaines\IllumiSearch\Console\Commands\BenchmarkCommand;
 use Moaines\IllumiSearch\Console\Commands\CheckCommand;
 use Moaines\IllumiSearch\Console\Commands\DiscoverFilamentCommand;
 use Moaines\IllumiSearch\Console\Commands\DoctorCommand;
@@ -28,6 +29,22 @@ use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
 class IllumiSearchServiceProvider extends ServiceProvider
 {
+    /** @var array<string, callable> */
+    private static array $engines = [];
+
+    /**
+     * Register a custom search engine resolver.
+     *
+     * Called in your AppServiceProvider:
+     * <code>
+     * IllumiSearchServiceProvider::extend('pgsql', fn ($app) => new PostgresEngine);
+     * </code>
+     */
+    public static function extend(string $driver, callable $resolver): void
+    {
+        self::$engines[$driver] = $resolver;
+    }
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/illumi-search.php', 'illumi-search');
@@ -39,11 +56,18 @@ class IllumiSearchServiceProvider extends ServiceProvider
         $this->app->singleton(Engine::class, function ($app) {
             $driver = config('illumi-search.driver', 'sqlite');
 
+            // Look up in the registered engines first
+            if (isset(self::$engines[$driver])) {
+                return (self::$engines[$driver])($app);
+            }
+
+            // Built-in engines
             if ($driver === 'mysql') {
                 return new MySqlEngine($app->make(SnippetService::class));
             }
 
-            $path = $app['config']->get('illumi-search.database_path', 'app/search/search-index.sqlite');
+            // Default: SQLite
+            $path = $app['config']->get('illumi-search.engines.sqlite.database_path', 'app/search/search-index.sqlite');
             $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
 
             // Apply tenant isolation if enabled
@@ -63,7 +87,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(TextProcessor::class, function () {
-            $processor = config('illumi-search.fts5.processor', 'unicode');
+            $processor = config('illumi-search.processing.processor', 'unicode');
 
             if ($processor === 'stemming') {
                 return extension_loaded('intl')
@@ -95,6 +119,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
         }
 
         $this->commands([
+            BenchmarkCommand::class,
             RebuildCommand::class,
             SyncCommand::class,
             CheckCommand::class,

@@ -8,7 +8,7 @@ class DatabasePathTest extends TestCase
 {
     public function test_relative_path_resolves_via_storage_path(): void
     {
-        $path = config('illumi-search.database_path');
+        $path = config('illumi-search.engines.sqlite.database_path');
         $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
 
         $this->assertStringStartsWith(storage_path(), $fullPath);

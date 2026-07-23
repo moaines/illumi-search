@@ -46,4 +46,13 @@ class TenantManager
 
         return storage_path($dir.'/'.$tenantId.'/'.$filename);
     }
+
+    public function tenantId(): ?string
+    {
+        if (! $this->enabled()) {
+            return null;
+        }
+
+        return $this->resolve();
+    }
 }

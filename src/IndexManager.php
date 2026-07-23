@@ -121,7 +121,11 @@ class IndexManager
             }
 
             $this->engine->dropTable($modelClass);
-            $this->engine->createTable($modelClass, array_keys($columns), config('illumi-search.fts5.prefix_lengths', [2, 3, 4]));
+            $this->engine->createTable($modelClass, array_keys($columns), config('illumi-search.engines.sqlite.fts5.prefix_lengths', [2, 3, 4]));
+
+            if (method_exists($this->engine, 'setRebuilding')) {
+                $this->engine->setRebuilding(true);
+            }
 
             $totalRecords = $modelClass::count();
             $keyName = (new $modelClass)->getKeyName();
@@ -138,6 +142,10 @@ class IndexManager
             }
 
             $progress?->__invoke('finishModel');
+
+            if (method_exists($this->engine, 'setRebuilding')) {
+                $this->engine->setRebuilding(false);
+            }
 
             return [
                 'model' => $modelClass,

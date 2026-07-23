@@ -141,7 +141,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_selects_only_needed_columns(): void
     {
-        config(['illumi-search.indexing' => 'manual']);
+        config(['illumi-search.indexing.mode' => 'manual']);
         $engine = $this->app->make(Engine::class);
 
         $modelClass = new class extends Model
@@ -178,7 +178,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_with_dot_notation_relation(): void
     {
-        config(['illumi-search.indexing' => 'manual']);
+        config(['illumi-search.indexing.mode' => 'manual']);
         // The enrichWithSnippets eager-loads relation columns for dot-notation.
         // This is tested more thoroughly in SearchableTraitTest.
         // Here we just verify the engine produces results with snippets enabled.
@@ -211,7 +211,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_enrich_with_virtual_accessor(): void
     {
-        config(['illumi-search.indexing' => 'manual']);
+        config(['illumi-search.indexing.mode' => 'manual']);
         Schema::create('virtual_models', function (Blueprint $table) {
             $table->id();
             $table->string('first_name');
@@ -253,7 +253,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_create_table_with_detail_column(): void
     {
-        config(['illumi-search.fts5.detail' => 'column']);
+        config(['illumi-search.engines.sqlite.fts5.detail' => 'column']);
 
         $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
@@ -263,7 +263,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_create_table_with_detail_none(): void
     {
-        config(['illumi-search.fts5.detail' => 'none']);
+        config(['illumi-search.engines.sqlite.fts5.detail' => 'none']);
 
         $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
@@ -300,7 +300,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_wal_mode_can_be_disabled(): void
     {
-        config(['illumi-search.fts5.wal' => false]);
+        config(['illumi-search.engines.sqlite.runtime.wal' => false]);
 
         $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
@@ -310,7 +310,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_cache_size_can_be_configured(): void
     {
-        config(['illumi-search.fts5.cache_size_kb' => -32000]);
+        config(['illumi-search.engines.sqlite.runtime.cache_size_kb' => -32000]);
 
         $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title']);
@@ -332,7 +332,7 @@ class SearchableConfigTest extends TestCase
 
     public function test_columnsize_0_creates_table_without_docsize(): void
     {
-        config(['illumi-search.fts5.columnsize' => 0]);
+        config(['illumi-search.engines.sqlite.fts5.columnsize' => 0]);
 
         $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);

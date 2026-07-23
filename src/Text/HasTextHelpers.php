@@ -2,18 +2,27 @@
 
 namespace Moaines\IllumiSearch\Text;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 trait HasTextHelpers
 {
+    private const CJK_RANGE = '\x{4E00}-\x{9FFF}'
+        . '\x{3400}-\x{4DBF}'
+        . '\x{F900}-\x{FAFF}'
+        . '\x{3040}-\x{309F}'
+        . '\x{30A0}-\x{30FF}'
+        . '\x{AC00}-\x{D7AF}';
+
     private static ?StopwordFilter $stopwordFilter = null;
 
     public function lowercase(string $text): string
     {
-        return mb_strtolower($text, 'UTF-8');
+        return Str::lower($text);
     }
 
     public function separateCjk(string $text): string
@@ -24,13 +33,6 @@ trait HasTextHelpers
             $text,
         ) ?? $text;
     }
-
-    private const CJK_RANGE = '\x{4E00}-\x{9FFF}'
-        . '\x{3400}-\x{4DBF}'
-        . '\x{F900}-\x{FAFF}'
-        . '\x{3040}-\x{309F}'
-        . '\x{30A0}-\x{30FF}'
-        . '\x{AC00}-\x{D7AF}';
 
     public function cleanWhitespace(string $text): string
     {
@@ -80,9 +82,13 @@ trait HasTextHelpers
         ) ?? $text;
     }
 
-    public function normalize(string $s): string
+    public function removeDiacritics(string $s): string
     {
-        $s = mb_strtolower($s);
+        $s = Str::lower($s);
+
+        if (! extension_loaded('intl')) {
+            return $s;
+        }
 
         $normalized = normalizer_normalize($s, \Normalizer::FORM_KD);
 
@@ -90,12 +96,15 @@ trait HasTextHelpers
             return $s;
         }
 
-        return preg_replace('/\p{Mn}/u', '', $normalized);
+        return Str::of($normalized)->replaceMatches('/\p{Mn}/u', '')->toString();
     }
 
     public function contains(string $haystack, string $needle): bool
     {
-        return mb_strpos(self::normalize($haystack), self::normalize($needle)) !== false;
+        return Str::contains(
+            $this->removeDiacritics($haystack),
+            $this->removeDiacritics($needle),
+        );
     }
 
     public function fuzzyContains(string $haystack, string $needle): bool
@@ -105,10 +114,10 @@ trait HasTextHelpers
 
     public function similar(string $haystack, string $needle): bool
     {
-        $haystack = self::normalize($haystack);
-        $needle = self::normalize($needle);
+        $haystack = $this->removeDiacritics($haystack);
+        $needle = $this->removeDiacritics($needle);
 
-        if (str_contains($haystack, $needle)) {
+        if (Str::contains($haystack, $needle)) {
             return true;
         }
 
@@ -130,10 +139,101 @@ trait HasTextHelpers
         return levenshtein($a, $b);
     }
 
+    /**
+     * Normalize a search query using the configured TextProcessor.
+     */
+    public function normalizeQuery(string $query): string
+    {
+        $processor = app(TextProcessor::class);
+
+        return $processor->process($query);
+    }
+
+    /**
+     * Split text into unique tokens, stripping surrounding punctuation.
+     *
+     * @return string[]
+     */
+    public function tokenizeText(?string $text): array
+    {
+        if ($text === null || trim($text) === '') {
+            return [];
+        }
+
+        $words = preg_split('/\s+/', trim($text));
+        $result = [];
+
+        foreach ($words as $w) {
+            $w = preg_replace('/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/u', '', $w);
+            if ($w !== '') {
+                $result[] = $w;
+            }
+        }
+
+        return array_unique($result);
+    }
+
+    /**
+     * @var array<string, string>|null
+     */
+    private static ?array $scriptPatterns = null;
+
+    /**
+     * Detect Unicode scripts present in a text string.
+     *
+     * @return string[]
+     */
+    public function scriptsOf(string $text): array
+    {
+        if (self::$scriptPatterns === null) {
+            self::$scriptPatterns = [
+                'Latin'       => '\p{Latin}',
+                'Cyrillic'    => '\p{Cyrillic}',
+                'Arabic'      => '\p{Arabic}',
+                'Han'         => '\p{Han}',
+                'Hiragana'    => '\p{Hiragana}',
+                'Katakana'    => '\p{Katakana}',
+                'Hangul'      => '\p{Hangul}',
+                'Greek'       => '\p{Greek}',
+                'Devanagari'  => '\p{Devanagari}',
+                'Hebrew'      => '\p{Hebrew}',
+                'Thai'        => '\p{Thai}',
+                'Tamil'       => '\p{Tamil}',
+                'Bengali'     => '\p{Bengali}',
+                'Gurmukhi'    => '\p{Gurmukhi}',
+                'Gujarati'    => '\p{Gujarati}',
+                'Oriya'       => '\p{Oriya}',
+                'Telugu'      => '\p{Telugu}',
+                'Kannada'     => '\p{Kannada}',
+                'Malayalam'   => '\p{Malayalam}',
+                'Sinhala'     => '\p{Sinhala}',
+                'Myanmar'     => '\p{Myanmar}',
+                'Khmer'       => '\p{Khmer}',
+                'Lao'         => '\p{Lao}',
+                'Tibetan'     => '\p{Tibetan}',
+                'Ethiopic'    => '\p{Ethiopic}',
+                'Georgian'    => '\p{Georgian}',
+                'Armenian'    => '\p{Armenian}',
+                'Cherokee'    => '\p{Cherokee}',
+                'Mongolian'   => '\p{Mongolian}',
+                'Canadian_Aboriginal' => '\p{Canadian_Aboriginal}',
+            ];
+        }
+
+        $found = [];
+        foreach (self::$scriptPatterns as $name => $pattern) {
+            if (preg_match('/' . $pattern . '/u', $text) === 1) {
+                $found[] = $name;
+            }
+        }
+
+        return $found ?: ['Common'];
+    }
+
     /** @return string[] */
     private function getStopwordLanguages(): array
     {
-        $config = config('illumi-search.stopwords', []);
+        $config = config('illumi-search.processing.stopwords', []);
 
         if (! is_array($config)) {
             return [];

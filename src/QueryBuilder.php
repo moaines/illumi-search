@@ -82,7 +82,7 @@ class QueryBuilder
 
     public function limit(int $limit): static
     {
-        $this->limit = max(1, min($limit, config('illumi-search.max_results', 50)));
+        $this->limit = max(1, min($limit, config('illumi-search.processing.max_results', 50)));
 
         return $this;
     }
@@ -191,13 +191,6 @@ class QueryBuilder
         })->values();
     }
 
-    /**
-     * Get the total count of matching results without retrieving them.
-     *
-     * @example IllumiSearch::query('laravel')->model(Post::class)->count()
-     *
-     * @return int<0, max>
-     */
     /**
      * Get the total count of matching results without retrieving them.
      *

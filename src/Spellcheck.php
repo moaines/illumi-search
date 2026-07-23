@@ -3,12 +3,11 @@
 namespace Moaines\IllumiSearch;
 
 use Illuminate\Support\Collection;
-use Moaines\IllumiSearch\Concerns\HasQueryTerms;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 class Spellcheck
 {
-    use HasQueryTerms;
     private int $maxDistance = 2;
 
     private int $maxSuggestions = 5;
@@ -60,6 +59,6 @@ class Spellcheck
     /** @return string[] */
     protected function extractTerms(string $query): array
     {
-        return $this->extractQueryTerms($query);
+        return OperatorRegistry::tokenize($query);
     }
 }

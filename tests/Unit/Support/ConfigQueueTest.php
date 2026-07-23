@@ -78,4 +78,27 @@ class ConfigQueueTest extends TestCase
         $this->assertCount(1, $data);
         $this->assertEquals('second', $data[0]['name']);
     }
+
+    public function test_push_and_remove_with_sqlite_engine(): void
+    {
+        $path = storage_path('app/config-queue-test.sqlite');
+        @unlink($path);
+
+        $sqlite = new \Moaines\IllumiSearch\Engines\SqliteEngine($path);
+        $queue = new \Moaines\IllumiSearch\Support\ConfigQueue($sqlite);
+
+        $queue->push('test_recent', 'first', 10);
+        $queue->push('test_recent', 'second', 10);
+        $queue->push('test_recent', 'first', 10);
+
+        $data = $sqlite->getConfig('test_recent', []);
+        $this->assertCount(2, $data);
+        $this->assertSame('first', $data[0]);
+
+        $queue->remove('test_recent', 'first');
+        $data = $sqlite->getConfig('test_recent', []);
+        $this->assertCount(1, $data);
+
+        @unlink($path);
+    }
 }

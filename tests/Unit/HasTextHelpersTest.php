@@ -3,69 +3,69 @@
 namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Moaines\IllumiSearch\Text\FallbackTextProcessor;
+use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class HasTextHelpersTest extends TestCase
 {
-    private FallbackTextProcessor $helper;
+    use HasTextHelpers;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->helper = new FallbackTextProcessor;
     }
 
     public function test_normalize_lowercases_and_removes_accents(): void
     {
-        $this->assertEquals('cafe', $this->helper->normalize('Café'));
-        $this->assertEquals('deja vu', $this->helper->normalize('Déjà Vu'));
+        $this->assertEquals('cafe', $this->removeDiacritics('Café'));
+        $this->assertEquals('deja vu', $this->removeDiacritics('Déjà Vu'));
     }
 
     public function test_contains_finds_substring(): void
     {
-        $this->assertTrue($this->helper->contains('Hello World', 'world'));
-        $this->assertFalse($this->helper->contains('Hello World', 'xyz'));
+        $this->assertTrue($this->contains('Hello World', 'world'));
+        $this->assertFalse($this->contains('Hello World', 'xyz'));
     }
 
     public function test_fuzzyContains_handles_typo(): void
     {
-        $this->assertTrue($this->helper->fuzzyContains('programming', 'programing'));
+        $this->assertTrue($this->fuzzyContains('programming', 'programing'));
     }
 
     public function test_similar_uses_levenshtein_threshold(): void
     {
-        $this->assertTrue($this->helper->similar('framework', 'framwork'));
+        $this->assertTrue($this->similar('framework', 'framwork'));
     }
 
     public function test_levenshtein_distance_zero(): void
     {
-        $this->assertEquals(0, $this->helper->levenshteinDistance('test', 'test'));
+        $this->assertEquals(0, $this->levenshteinDistance('test', 'test'));
     }
 
     public function test_levenshtein_distance_one(): void
     {
-        $this->assertEquals(1, $this->helper->levenshteinDistance('test', 'tests'));
+        $this->assertEquals(1, $this->levenshteinDistance('test', 'tests'));
     }
 
     public function test_contains_is_case_insensitive(): void
     {
-        $this->assertTrue($this->helper->contains('PHP Laravel', 'php'));
+        $this->assertTrue($this->contains('PHP Laravel', 'php'));
     }
 
     public function test_fuzzyContains_exact_match(): void
     {
-        $this->assertTrue($this->helper->fuzzyContains('php', 'php'));
+        $this->assertTrue($this->fuzzyContains('php', 'php'));
     }
 
     public function test_similar_exact_substring(): void
     {
-        $this->assertTrue($this->helper->similar('learn php programming', 'php'));
+        $this->assertTrue($this->similar('learn php programming', 'php'));
     }
 
     public function test_stopwords_do_not_remove_search_terms(): void
     {
         // 'test' might be in some stopword lists — verify it's searchable
-        $this->assertTrue($this->helper->contains('test search term', 'test'));
+        $this->assertTrue($this->contains('test search term', 'test'));
     }
 
     public function test_fallback_processor_preserves_cjk(): void
@@ -88,8 +88,8 @@ class HasTextHelpersTest extends TestCase
 
     public function test_filter_stopwords_preserves_not_operator(): void
     {
-        config(['illumi-search.stopwords' => ['en']]);
-        $result = $this->helper->filterStopwords('laravel NOT php');
+        config(['illumi-search.processing.stopwords' => ['en']]);
+        $result = $this->filterStopwords('laravel NOT php');
 
         $this->assertStringContainsString('NOT', $result, 'NOT operator must survive stopword filtering');
         $this->assertStringContainsString('laravel', $result);
@@ -98,11 +98,62 @@ class HasTextHelpersTest extends TestCase
 
     public function test_filter_stopwords_preserves_and_or_near(): void
     {
-        config(['illumi-search.stopwords' => ['en']]);
-        $result = $this->helper->filterStopwords('php AND laravel OR python NEAR java');
+        config(['illumi-search.processing.stopwords' => ['en']]);
+        $result = $this->filterStopwords('php AND laravel OR python NEAR java');
 
         $this->assertStringContainsString('AND', $result);
         $this->assertStringContainsString('OR', $result);
         $this->assertStringContainsString('NEAR', $result);
+    }
+
+    public function test_scripts_of_detects_latin(): void
+    {
+        $this->assertContains('Latin', $this->scriptsOf('laravel'));
+        $this->assertNotContains('Cyrillic', $this->scriptsOf('laravel'));
+    }
+
+    public function test_scripts_of_detects_cyrillic(): void
+    {
+        $scripts = $this->scriptsOf('правил');
+        $this->assertContains('Cyrillic', $scripts);
+        $this->assertNotContains('Latin', $scripts);
+    }
+
+    public function test_scripts_of_detects_mixed_scripts(): void
+    {
+        $scripts = $this->scriptsOf('русский laravel');
+        $this->assertContains('Cyrillic', $scripts);
+        $this->assertContains('Latin', $scripts);
+    }
+
+    public function test_scripts_of_detects_cjk(): void
+    {
+        $this->assertContains('Han', $this->scriptsOf('中文测试'));
+    }
+
+    public function test_scripts_of_detects_arabic(): void
+    {
+        $this->assertContains('Arabic', $this->scriptsOf('العربية'));
+    }
+
+    public function test_scripts_of_detects_hebrew(): void
+    {
+        $this->assertContains('Hebrew', $this->scriptsOf('עברית'));
+    }
+
+    public function test_scripts_of_detects_greek(): void
+    {
+        $this->assertContains('Greek', $this->scriptsOf('Ελληνικά'));
+    }
+
+    public function test_scripts_of_returns_common_for_symbols(): void
+    {
+        $this->assertEquals(['Common'], $this->scriptsOf('12345'));
+        $this->assertEquals(['Common'], $this->scriptsOf('!@#$%'));
+    }
+
+    public function test_scripts_of_returns_common_for_empty(): void
+    {
+        $this->assertEquals(['Common'], $this->scriptsOf(''));
     }
 }

@@ -25,7 +25,7 @@ class QueueConnectionTest extends TestCase
 
     public function test_queue_connection_is_read_and_applied(): void
     {
-        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.indexing.mode' => 'queue']);
         config(['illumi-search.queue_connection' => 'sync']);
         Bus::fake();
 
@@ -36,7 +36,7 @@ class QueueConnectionTest extends TestCase
 
     public function test_null_connection_uses_default_queue(): void
     {
-        config(['illumi-search.indexing' => 'queue']);
+        config(['illumi-search.indexing.mode' => 'queue']);
         config(['illumi-search.queue_connection' => null]);
         Bus::fake();
 

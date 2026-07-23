@@ -20,7 +20,7 @@ trait Searchable
 {
     public static function bootSearchable(): void
     {
-        $indexing = config('illumi-search.indexing', 'queue');
+        $indexing = config('illumi-search.indexing.mode', 'queue');
 
         if ($indexing === 'manual') {
             return;
@@ -107,13 +107,19 @@ trait Searchable
             }
 
             if ($related instanceof Collection || $related instanceof \Illuminate\Database\Eloquent\Collection) {
-                $max = config('illumi-search.max_related_values', 100);
+                $max = config('illumi-search.processing.max_related_values', 100);
 
                 return $related->pluck($last)->filter()->take($max)->implode(' ');
             }
 
             return (string) ($related->$last ?? $related->getAttribute($last) ?? '');
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            logger()->warning('illumi-search: resolveSearchValue failed for column "{column}"', [
+                'column' => $column,
+                'model' => static::class,
+                'error' => $e->getMessage(),
+            ]);
+
             return '';
         }
     }
@@ -175,6 +181,7 @@ trait Searchable
     {
         return $this->searchable ?? [];
     }
+
 
     public function searchTextProcessor(): ?string
     {

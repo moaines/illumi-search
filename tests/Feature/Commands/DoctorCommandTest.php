@@ -36,10 +36,10 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_validates_config_values(): void
     {
-        config(['illumi-search.fts5.detail' => 'invalid']);
-        config(['illumi-search.fts5.synchronous' => 'INVALID']);
-        config(['illumi-search.mode' => 'wrong']);
-        config(['illumi-search.fts5.processor' => 'bad']);
+        config(['illumi-search.engines.sqlite.fts5.detail' => 'invalid']);
+        config(['illumi-search.engines.sqlite.runtime.synchronous' => 'INVALID']);
+        config(['illumi-search.processing.mode' => 'wrong']);
+        config(['illumi-search.processing.processor' => 'bad']);
 
         $this->artisan('illumi-search:doctor')
             ->expectsOutputToContain('Config Validation')
@@ -49,9 +49,9 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_reports_valid_config(): void
     {
-        config(['illumi-search.fts5.detail' => 'column']);
-        config(['illumi-search.fts5.synchronous' => 'NORMAL']);
-        config(['illumi-search.mode' => 'basic']);
+        config(['illumi-search.engines.sqlite.fts5.detail' => 'column']);
+        config(['illumi-search.engines.sqlite.runtime.synchronous' => 'NORMAL']);
+        config(['illumi-search.processing.mode' => 'basic']);
 
         $this->artisan('illumi-search:doctor')
             ->expectsOutputToContain('Config Validation')
@@ -60,7 +60,7 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_validates_busy_timeout(): void
     {
-        config(['illumi-search.fts5.busy_timeout' => -1]);
+        config(['illumi-search.engines.sqlite.runtime.busy_timeout' => -1]);
 
         $this->artisan('illumi-search:doctor')
             ->expectsOutputToContain('✗')
@@ -80,7 +80,7 @@ class DoctorCommandTest extends TestCase
         $this->artisan('illumi-search:doctor')
             ->expectsOutputToContain('Search Engine')
             ->expectsOutputToContain('BOOLEAN MODE Operators')
-            ->expectsOutputToContain('illumi-search.mysql.max_search_text_length')
+            ->expectsOutputToContain('illumi-search.processing.max_search_text_length')
             ->assertSuccessful();
     }
 }

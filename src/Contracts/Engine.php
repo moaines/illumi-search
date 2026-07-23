@@ -105,6 +105,9 @@ interface Engine
     /**
      * Query the FTS5 vocabulary table for suggestions.
      *
+     * @deprecated Use suggest() instead. This method is only implemented
+     *             by SqliteEngine internally. MySQL returns an empty array.
+     *
      * @return string[]
      */
     public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array;
@@ -116,9 +119,29 @@ interface Engine
      */
     public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array;
 
+    /**
+     * Get the list of boolean operators supported by this engine.
+     *
+     * @return list<string>
+     */
+    public function getSupportedOperators(): array;
+
+    /** Check if the engine supports exact phrase search ("hello world"). */
+    public function supportsPhraseSearch(): bool;
+
+    /** Check if the engine supports prefix wildcards (term*). */
+    public function supportsPrefixWildcard(): bool;
+
     /** Check if FTS5 is available in the SQLite build. */
     public function isFts5Available(): bool;
 
     /** Read a PRAGMA value from the connection. */
     public function getPragma(string $name): string|int|null;
+
+    /**
+     * Get engine-specific status information for display.
+     *
+     * @return array<string, string|int|float|null>
+     */
+    public function getEngineStatus(): array;
 }

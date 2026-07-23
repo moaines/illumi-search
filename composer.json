@@ -1,7 +1,7 @@
 {
     "name": "moaines/illumi-search",
-    "description": "SQLite FTS5 full-text search for Laravel. BM25 ranking, search-as-you-type, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, spellcheck, multi-tenant, authorization. Searchable trait with queue/sync/lazy batch indexing. No external services.",
-    "version": "1.13.0",
+    "description": "Multi-engine full-text search for Laravel — SQLite FTS5 or MySQL 8.0+ FULLTEXT. BM25 ranking, search-as-you-type prefix indexing, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, boolean operators, spellcheck, multi-tenant, authorization. Built-in benchmark. Searchable trait with queue/sync/lazy batch indexing.",
+    "version": "1.15.0",
     "type": "library",
     "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "string"],
     "license": "MIT",
