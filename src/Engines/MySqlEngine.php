@@ -17,13 +17,13 @@ class MySqlEngine implements Engine
 {
     use HasTextHelpers;
 
-    private const TABLE = 'search_index';
+    private const TABLE = 'index';
 
-    private const CONFIG_TABLE = 'search_config';
+    private const CONFIG_TABLE = 'config';
 
-    private const VOCAB_TABLE = 'search_vocab';
+    private const VOCAB_TABLE = 'vocab';
 
-    private const TRIGRAM_TABLE = 'search_vocab_trigrams';
+    private const TRIGRAM_TABLE = 'vocab_trigrams';
 
     private const SCRIPT_MISMATCH_PENALTY = 3;
 
@@ -42,9 +42,12 @@ class MySqlEngine implements Engine
 
     private function table(string $name): string
     {
+        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
         $tenantId = app(\Moaines\IllumiSearch\TenantManager::class)->tenantId();
 
-        return $tenantId !== null ? "{$tenantId}_{$name}" : $name;
+        $prefixed = $prefix . ltrim($name, '_');
+
+        return $tenantId !== null ? "{$tenantId}_{$prefixed}" : $prefixed;
     }
 
     public function __construct(?SnippetService $snippets = null)
@@ -155,7 +158,7 @@ class MySqlEngine implements Engine
             }
 
             DB::connection($this->connection)->statement(
-                "ALTER TABLE " . $this->table(self::TABLE) . " ADD COLUMN {$col} LONGTEXT NOT NULL DEFAULT '' AFTER created_at"
+                "ALTER TABLE " . $this->table(self::TABLE) . " ADD COLUMN {$col} LONGTEXT NOT NULL DEFAULT '' AFTER last_synced_at"
             );
             DB::connection($this->connection)->statement(
                 "ALTER TABLE " . $this->table(self::TABLE) . " ADD FULLTEXT INDEX idx_fts_w{$w} ({$col})"
@@ -180,7 +183,7 @@ class MySqlEngine implements Engine
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 model_type VARCHAR(255) NOT NULL,
                 model_id VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY uk_model_model_id (model_type, model_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ');
@@ -224,6 +227,10 @@ class MySqlEngine implements Engine
      */
     public function dropTable(string $modelClass): void
     {
+        if (! $this->tableExistsAny()) {
+            return;
+        }
+
         DB::connection($this->connection)->delete(
             'DELETE FROM ' . $this->table(self::TABLE) . ' WHERE model_type = ?',
             [$modelClass],
@@ -267,7 +274,7 @@ class MySqlEngine implements Engine
     public function getIndexStats(): array
     {
         $rows = DB::connection($this->connection)->select('
-            SELECT model_type, COUNT(*) AS record_count, MAX(created_at) AS last_synced_at
+            SELECT model_type, COUNT(*) AS record_count, MAX(last_synced_at) AS last_synced_at
             FROM ' . $this->table(self::TABLE) . '
             GROUP BY model_type
         ');
@@ -321,9 +328,9 @@ class MySqlEngine implements Engine
         $updateParts = collect($weightCols)->keys()->map(fn ($c) => "{$c} = VALUES({$c})")->implode(', ');
 
         DB::connection($this->connection)->statement("
-            INSERT INTO " . $this->table(self::TABLE) . " (model_type, model_id, {$colNames})
-            VALUES (?, ?, {$placeholders})
-            ON DUPLICATE KEY UPDATE {$updateParts}
+            INSERT INTO " . $this->table(self::TABLE) . " (model_type, model_id, {$colNames}, last_synced_at)
+            VALUES (?, ?, {$placeholders}, NOW())
+            ON DUPLICATE KEY UPDATE {$updateParts}, last_synced_at = NOW()
         ", [$modelClass, (string) $modelId, ...array_values($weightCols)]);
 
         if (! $this->isRebuilding) {
@@ -338,8 +345,8 @@ class MySqlEngine implements Engine
         }
 
         $firstDoc = $this->buildSearchText($modelClass, $documents[0]['document']);
-        $colNames = implode(', ', array_keys($firstDoc));
-        $valuePlaceholders = '(' . implode(', ', array_fill(0, count($firstDoc) + 2, '?')) . ')';
+        $colNames = implode(', ', array_keys($firstDoc)) . ', last_synced_at';
+        $valuePlaceholders = '(' . implode(', ', array_fill(0, count($firstDoc) + 2, '?')) . ', NOW())';
 
         $values = [];
         $params = [];
@@ -357,7 +364,7 @@ class MySqlEngine implements Engine
         }
 
         $placeholders = implode(', ', $values);
-        $updateParts = collect($firstDoc)->keys()->map(fn ($c) => "{$c} = VALUES({$c})")->implode(', ');
+        $updateParts = collect($firstDoc)->keys()->map(fn ($c) => "{$c} = VALUES({$c})")->implode(', ') . ', last_synced_at = NOW()';
 
         DB::connection($this->connection)->statement("
             INSERT INTO " . $this->table(self::TABLE) . " (model_type, model_id, {$colNames})
@@ -967,7 +974,7 @@ class MySqlEngine implements Engine
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 model_type VARCHAR(255) NOT NULL,
                 model_id VARCHAR(255) NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY uk_model_model_id (model_type, model_id),
                 INDEX idx_model_type (model_type)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";

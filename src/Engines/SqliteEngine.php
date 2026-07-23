@@ -14,9 +14,9 @@ use SQLite3;
 
 class SqliteEngine implements Engine
 {
-    private const META_TABLE = '_search_meta';
+    private const META_TABLE = 'meta';
 
-    private const CONFIG_TABLE = '_search_config';
+    private const CONFIG_TABLE = 'config';
 
     private ?SQLite3 $db = null;
 
@@ -134,7 +134,7 @@ class SqliteEngine implements Engine
                 columns TEXT NOT NULL,
                 last_synced_at TEXT
             )',
-            self::META_TABLE
+            $this->table(self::META_TABLE)
         ));
     }
 
@@ -145,7 +145,7 @@ class SqliteEngine implements Engine
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )',
-            self::CONFIG_TABLE
+            $this->table(self::CONFIG_TABLE)
         ));
     }
 
@@ -153,7 +153,7 @@ class SqliteEngine implements Engine
     {
         $name = str_replace('\\', '_', $modelClass);
         $name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
-        $name = 'idx_'.strtolower(ltrim($name, '_'));
+        $name = $this->table('idx_' . strtolower(ltrim($name, '_')));
 
         return $name;
     }
@@ -246,7 +246,7 @@ class SqliteEngine implements Engine
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$table}");
 
-        $stmt = $this->db()->prepare('DELETE FROM '.self::META_TABLE.' WHERE model_class = :model');
+        $stmt = $this->db()->prepare('DELETE FROM '.$this->table(self::META_TABLE).' WHERE model_class = :model');
         $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
         $stmt->execute();
     }
@@ -486,7 +486,7 @@ class SqliteEngine implements Engine
     public function listIndexTables(): array
     {
         $result = $this->db()->query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'idx_%' AND name != '".self::META_TABLE."'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '" . $this->table('idx_') . "%' AND name != '" . $this->table(self::META_TABLE) . "' AND name != '" . $this->table(self::CONFIG_TABLE) . "' AND name NOT LIKE '" . $this->table('idx_') . "%_vocab'",
         );
 
         $tables = [];
@@ -507,7 +507,7 @@ class SqliteEngine implements Engine
     /** @return array<class-string> */
     public function getIndexedModelClasses(): array
     {
-        $result = $this->db()->query('SELECT model_class FROM '.self::META_TABLE);
+        $result = $this->db()->query('SELECT model_class FROM '.$this->table(self::META_TABLE));
         $classes = [];
 
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -541,7 +541,7 @@ class SqliteEngine implements Engine
             $row = $result->fetchArray(SQLITE3_ASSOC);
 
             $metaResult = $this->db()->query(
-                'SELECT last_synced_at, columns FROM '.self::META_TABLE." WHERE model_class = '".SQLite3::escapeString($modelClass)."'"
+                'SELECT last_synced_at, columns FROM '.$this->table(self::META_TABLE)." WHERE model_class = '".SQLite3::escapeString($modelClass)."'"
             );
             $meta = $metaResult ? $metaResult->fetchArray(SQLITE3_ASSOC) : false;
 
@@ -684,7 +684,7 @@ class SqliteEngine implements Engine
     {
         $stmt = $this->db()->prepare(sprintf(
             'INSERT OR REPLACE INTO %s (model_class, schema_version, columns, last_synced_at) VALUES (:model, :version, :columns, :synced)',
-            self::META_TABLE
+            $this->table(self::META_TABLE)
         ));
 
         $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
@@ -900,7 +900,7 @@ class SqliteEngine implements Engine
     private function cleanupOrphanedMeta(string $modelClass): void
     {
         try {
-            $stmt = $this->db()->prepare('DELETE FROM '.self::META_TABLE.' WHERE model_class = :model');
+            $stmt = $this->db()->prepare('DELETE FROM '.$this->table(self::META_TABLE).' WHERE model_class = :model');
             $stmt->bindValue(':model', $modelClass, \SQLITE3_TEXT);
             $stmt->execute();
         } catch (\Exception) {
@@ -926,6 +926,13 @@ class SqliteEngine implements Engine
         }
 
         return $this->probeFts5();
+    }
+
+    private function table(string $name): string
+    {
+        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
+
+        return $prefix . ltrim($name, '_');
     }
 
     private function probeFts5(): bool
@@ -1041,7 +1048,7 @@ class SqliteEngine implements Engine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'SELECT value FROM '.self::CONFIG_TABLE.' WHERE key = :key'
+            'SELECT value FROM '.$this->table(self::CONFIG_TABLE).' WHERE key = :key'
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $row = $stmt->execute()->fetchArray(\SQLITE3_ASSOC);
@@ -1054,7 +1061,7 @@ class SqliteEngine implements Engine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'INSERT OR REPLACE INTO '.self::CONFIG_TABLE.' (key, value) VALUES (:key, :value)'
+            'INSERT OR REPLACE INTO '.$this->table(self::CONFIG_TABLE).' (key, value) VALUES (:key, :value)'
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $stmt->bindValue(':value', ConfigHelper::encode($value), \SQLITE3_TEXT);

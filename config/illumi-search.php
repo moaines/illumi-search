@@ -35,6 +35,8 @@ return [
         'max_results' => 50,
 
         'max_related_values' => 100,
+
+        'table_prefix' => env('ILLUMI_SEARCH_TABLE_PREFIX', 'illumi_search_'),
     ],
 
     /*

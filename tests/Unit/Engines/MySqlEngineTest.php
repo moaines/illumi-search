@@ -35,7 +35,7 @@ class MySqlEngineTest extends TestCase
     {
         $engine = new MySqlEngine;
 
-        $this->assertSame('search_index', $engine->tableName('App\Models\Post'));
-        $this->assertSame('search_index', $engine->tableName('App\Models\Book'));
+        $this->assertSame('illumi_search_index', $engine->tableName('App\Models\Post'));
+        $this->assertSame('illumi_search_index', $engine->tableName('App\Models\Book'));
     }
 }

@@ -16,8 +16,8 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             $this->markTestSkipped('MySQL connection not available.');
         }
 
-        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_index');
-        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_vocab_trigrams');
+        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_index');
+        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_vocab_trigrams');
 
         $this->engine = new MySqlEngine;
         $this->engine->createTable('App\Models\Post', ['title', 'body']);
@@ -28,8 +28,11 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
     protected function tearDown(): void
     {
         if ($this->engine && $this->mysqlAvailable()) {
-            DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_index');
-        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_vocab_trigrams');
+            $conn = MySqlEngine::CONNECTION_NAME;
+            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_index');
+            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_vocab_trigrams');
+            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_vocab');
+            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_config');
         }
 
         parent::tearDown();
@@ -174,31 +177,32 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => 'tenant_42');
 
         $rawConn = DB::connection(MySqlEngine::CONNECTION_NAME);
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_index');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_config');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_vocab');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_index');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_config');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_vocab');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_vocab_trigrams');
 
         $engine = new MySqlEngine;
         $engine->createTable('App\Models\Post', ['title', 'body']);
 
         $tables = $engine->listIndexTables();
-        $this->assertContains('tenant_42_search_index', $tables);
+        $this->assertContains('tenant_42_illumi_search_index', $tables);
 
         $engine->upsert('App\Models\Post', 1, ['title' => 'test', 'body' => 'content']);
         $results = $engine->search('test', ['App\Models\Post'], 10);
         $this->assertCount(1, $results);
 
         // Verify the prefixed table has the data
-        $data = $rawConn->table('tenant_42_search_index')->where('model_type', 'App\Models\Post')->count();
+        $data = $rawConn->table('tenant_42_illumi_search_index')->where('model_type', 'App\Models\Post')->count();
         $this->assertEquals(1, $data);
-        $data = $rawConn->table('tenant_42_search_vocab')->count();
+        $data = $rawConn->table('tenant_42_illumi_search_vocab')->count();
         $this->assertGreaterThan(0, $data);
 
         $engine->dropTable('App\Models\Post');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_index');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_config');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_vocab');
-        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_vocab_trigrams');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_index');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_config');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_vocab');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_vocab_trigrams');
 
         config(['illumi-search.tenancy' => ['enabled' => false]]);
         app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => null);
@@ -218,7 +222,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
     {
         $engine = $this->createEngine();
         $tables = $engine->listIndexTables();
-        $this->assertContains('search_index', $tables);
+        $this->assertContains('illumi_search_index', $tables);
     }
 
     public function test_integrity_check(): void
@@ -316,5 +320,68 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertNotEmpty($suggestions);
         $this->assertContains('laravel', $suggestions,
             'After rebuildTrigramTable, trigram-based suggest should still find "laravel"');
+    }
+
+    public function test_last_synced_at_updates_on_upsert(): void
+    {
+        $engine = $this->createEngine();
+        $conn = MySqlEngine::CONNECTION_NAME;
+
+        $engine->upsert('App\Models\Post', 1, ['title' => 'initial', 'body' => 'content']);
+
+        $first = DB::connection($conn)->table('illumi_search_index')
+            ->where('model_type', 'App\Models\Post')
+            ->where('model_id', '1')
+            ->value('last_synced_at');
+        $this->assertNotNull($first, 'last_synced_at should be set on insert');
+
+        sleep(1);
+
+        $engine->upsert('App\Models\Post', 1, ['title' => 'updated', 'body' => 'content']);
+
+        $second = DB::connection($conn)->table('illumi_search_index')
+            ->where('model_type', 'App\Models\Post')
+            ->where('model_id', '1')
+            ->value('last_synced_at');
+        $this->assertNotNull($second, 'last_synced_at should be set on update');
+        $this->assertNotSame($first, $second, 'last_synced_at should change after re-upsert');
+    }
+
+    public function test_custom_table_prefix(): void
+    {
+        if (! $this->mysqlAvailable()) {
+            $this->markTestSkipped('MySQL connection not available.');
+        }
+
+        config(['illumi-search.processing.table_prefix' => 'custom_']);
+        $conn = MySqlEngine::CONNECTION_NAME;
+
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_index');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_config');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab_trigrams');
+
+        $engine = new MySqlEngine;
+        $engine->createTable('App\Models\Post', ['title', 'body']);
+
+        $this->assertEquals('custom_index', $engine->tableName('App\Models\Post'));
+
+        $tables = $engine->listIndexTables();
+        $this->assertContains('custom_index', $tables);
+
+        $engine->upsert('App\Models\Post', 1, ['title' => 'test', 'body' => 'content']);
+
+        $data = DB::connection($conn)->table('custom_index')
+            ->where('model_type', 'App\Models\Post')
+            ->count();
+        $this->assertEquals(1, $data);
+
+        $engine->dropTable('App\Models\Post');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_index');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_config');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab');
+        DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab_trigrams');
+
+        config(['illumi-search.processing.table_prefix' => 'illumi_search_']);
     }
 }

@@ -111,4 +111,13 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertArrayHasKey('errors', $result);
         $this->assertTrue($result['passed']);
     }
+
+    public function test_table_name_uses_prefix(): void
+    {
+        $engine = $this->createEngine();
+        $name = $engine->tableName('App\Models\Post');
+        $this->assertStringStartsWith('illumi_search_idx_', $name,
+            'SQLite table names should use the configured prefix');
+        $this->assertStringContainsString('app_models_post', $name);
+    }
 }
