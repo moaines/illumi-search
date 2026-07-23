@@ -23,6 +23,8 @@ class MySqlEngine implements Engine
 
     private const VOCAB_TABLE = 'search_vocab';
 
+    private const TRIGRAM_TABLE = 'search_vocab_trigrams';
+
     private const SCRIPT_MISMATCH_PENALTY = 3;
 
     public const CONNECTION_NAME = 'illumi-search-mysql';
@@ -198,6 +200,16 @@ class MySqlEngine implements Engine
                 ascii_word VARCHAR(255) NOT NULL DEFAULT \'\',
                 doc_count INT UNSIGNED NOT NULL DEFAULT 0,
                 INDEX idx_vocab_ascii (ascii_word, doc_count)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        '        );
+
+        DB::connection($this->connection)->statement('
+            CREATE TABLE IF NOT EXISTS ' . $this->table(self::TRIGRAM_TABLE) . ' (
+                trigram   CHAR(3) NOT NULL,
+                word      VARCHAR(255) NOT NULL,
+                doc_count INT UNSIGNED NOT NULL DEFAULT 0,
+                PRIMARY KEY (trigram, word),
+                INDEX idx_word (word)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ');
 
@@ -597,20 +609,65 @@ class MySqlEngine implements Engine
 
         $queryAscii = (string) (new UnicodeString($query))->ascii();
         $queryScripts = $this->scriptsOf($query);
-        $scriptCache = [];
+        $queryTrigrams = $this->wordToTrigrams($queryAscii);
+
+        if (count($queryTrigrams) < 2) {
+            return [];
+        }
+
+        // Phase 1: trigram matching — no Levenshtein, no limit cap
+        $trigramWords = DB::connection($this->connection)
+            ->table($this->table(self::TRIGRAM_TABLE))
+            ->select('word', DB::raw('AVG(doc_count) AS avg_doc'))
+            ->whereIn('trigram', $queryTrigrams)
+            ->groupBy('word')
+            ->havingRaw('COUNT(*) >= ?', [min(2, count($queryTrigrams))])
+            ->orderByDesc('avg_doc')
+            ->limit($limit * 3)
+            ->pluck('word');
+
+        if ($trigramWords->isNotEmpty()) {
+            $vocab = DB::connection($this->connection)
+                ->table($this->table(self::VOCAB_TABLE))
+                ->whereIn('word', $trigramWords)
+                ->get(['word', 'ascii_word']);
+
+            $suggestions = $this->rankSuggestions($vocab, $queryAscii, $queryScripts, $maxDistance);
+
+            if (count($suggestions) >= $limit) {
+                return array_slice($suggestions, 0, $limit);
+            }
+        }
+
+        // Phase 2: fallback prefix Levenshtein (if trigrams didn't yield enough)
         $prefix = mb_substr($queryAscii, 0, 2);
+        $vocabLimit = (int) config('illumi-search.spellcheck.vocab_limit', 5000);
 
-        $vocabLimit = (int) config('illumi-search.spellcheck.vocab_limit', 1000);
-
-        $words = DB::connection($this->connection)
+        $fallback = DB::connection($this->connection)
             ->table($this->table(self::VOCAB_TABLE))
             ->where('doc_count', '>=', 1)
             ->where('ascii_word', 'like', $prefix . '%')
+            ->whereNotIn('word', $trigramWords)
             ->orderBy('doc_count', 'desc')
             ->limit($vocabLimit)
             ->get(['word', 'ascii_word']);
 
-        $suggestions = $words
+        $more = $this->rankSuggestions($fallback, $queryAscii, $queryScripts, $maxDistance);
+
+        return array_slice(array_merge($suggestions ?? [], $more), 0, $limit);
+    }
+
+    /**
+     * Score and rank words by Levenshtein distance + script penalty.
+     *
+     * @param \Illuminate\Support\Collection $vocab  Collection of {word, ascii_word}
+     * @return string[]
+     */
+    private function rankSuggestions($vocab, string $queryAscii, array $queryScripts, int $maxDistance): array
+    {
+        $scriptCache = [];
+
+        return $vocab
             ->map(function ($row) use ($queryAscii, $queryScripts, &$scriptCache) {
                 $asciiWord = $row->ascii_word;
 
@@ -631,11 +688,8 @@ class MySqlEngine implements Engine
                     + (empty(array_intersect($queryScripts, $w['scripts'])) ? self::SCRIPT_MISMATCH_PENALTY : 0),
             ])
             ->sortBy('score')
-            ->take($limit)
             ->pluck('word')
             ->all();
-
-        return $suggestions;
     }
 
     public function getSupportedOperators(): array
@@ -659,35 +713,77 @@ class MySqlEngine implements Engine
      */
     private function synchronizeVocabCounts(array $oldWords, array $newWords): void
     {
-        foreach (array_diff($newWords, $oldWords) as $word) {
-            if ($word === '') {
-                continue;
+        $added = array_diff($newWords, $oldWords);
+
+        if (! empty($added)) {
+            $values = [];
+            $params = [];
+            foreach ($added as $word) {
+                if ($word === '') {
+                    continue;
+                }
+                $ascii = (string) (new UnicodeString($word))->ascii();
+                $values[] = '(?, ?, ?)';
+                $params[] = $word;
+                $params[] = $ascii;
+                $params[] = 1;
+                $this->syncWordTrigrams($word, $ascii, 1);
             }
 
-            $ascii = (string) (new UnicodeString($word))->ascii();
-
-            DB::connection($this->connection)
-                ->table($this->table(self::VOCAB_TABLE))
-                ->updateOrInsert(
-                    ['word' => $word],
-                    ['doc_count' => DB::raw('doc_count + 1'), 'ascii_word' => $ascii],
+            if (! empty($values)) {
+                DB::connection($this->connection)->statement(
+                    'INSERT INTO ' . $this->table(self::VOCAB_TABLE) . ' (word, ascii_word, doc_count)
+                     VALUES ' . implode(', ', $values) . '
+                     ON DUPLICATE KEY UPDATE doc_count = doc_count + VALUES(doc_count)',
+                    $params,
                 );
+            }
         }
 
         foreach (array_diff($oldWords, $newWords) as $word) {
             if ($word === '') {
                 continue;
             }
+            $ascii = (string) (new UnicodeString($word))->ascii();
             DB::connection($this->connection)
                 ->table($this->table(self::VOCAB_TABLE))
                 ->where('word', $word)
                 ->decrement('doc_count');
+            $this->syncWordTrigrams($word, $ascii, -1);
         }
 
         DB::connection($this->connection)
             ->table($this->table(self::VOCAB_TABLE))
             ->where('doc_count', '<=', 0)
             ->delete();
+
+        DB::connection($this->connection)
+            ->table($this->table(self::TRIGRAM_TABLE))
+            ->where('doc_count', '<=', 0)
+            ->delete();
+    }
+
+    private function syncWordTrigrams(string $word, string $asciiWord, int $delta): void
+    {
+        $trigrams = $this->wordToTrigrams($asciiWord);
+
+        foreach ($trigrams as $t) {
+            if ($delta > 0) {
+                DB::connection($this->connection)->statement(
+                    'INSERT INTO ' . $this->table(self::TRIGRAM_TABLE) . ' (trigram, word, doc_count)
+                     VALUES (?, ?, 1)
+                     ON DUPLICATE KEY UPDATE doc_count = doc_count + 1',
+                    [$t, $word],
+                );
+            } else {
+                DB::connection($this->connection)->statement(
+                    'UPDATE ' . $this->table(self::TRIGRAM_TABLE) . '
+                     SET doc_count = doc_count - 1
+                     WHERE trigram = ? AND word = ?',
+                    [$t, $word],
+                );
+            }
+        }
     }
 
     public function resetVocab(): void
@@ -805,6 +901,49 @@ class MySqlEngine implements Engine
 
                         DB::connection($this->connection)->statement(
                             'INSERT INTO ' . $temp . ' (word, ascii_word, doc_count)
+                             VALUES ' . implode(', ', $values) . '
+                             ON DUPLICATE KEY UPDATE doc_count = doc_count + VALUES(doc_count)',
+                            $params,
+                        );
+                    }
+                });
+        });
+    }
+
+    public function rebuildTrigramTable(): void
+    {
+        $createSql = '
+            CREATE TABLE IF NOT EXISTS {table} (
+                trigram   CHAR(3) NOT NULL,
+                word      VARCHAR(255) NOT NULL,
+                doc_count INT UNSIGNED NOT NULL DEFAULT 0,
+                PRIMARY KEY (trigram, word),
+                INDEX idx_word (word)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ';
+
+        $this->atomicSwapBuild($this->table(self::TRIGRAM_TABLE), $createSql, function ($temp) {
+            DB::connection($this->connection)
+                ->table($this->table(self::VOCAB_TABLE))
+                ->orderBy('doc_count', 'desc')
+                ->chunk(2000, function ($rows) use ($temp) {
+                    $values = [];
+                    $params = [];
+
+                    foreach ($rows as $row) {
+                        $trigrams = $this->wordToTrigrams($row->ascii_word);
+
+                        foreach ($trigrams as $t) {
+                            $values[] = '(?, ?, ?)';
+                            $params[] = $t;
+                            $params[] = $row->word;
+                            $params[] = $row->doc_count;
+                        }
+                    }
+
+                    if (! empty($values)) {
+                        DB::connection($this->connection)->statement(
+                            'INSERT INTO ' . $temp . ' (trigram, word, doc_count)
                              VALUES ' . implode(', ', $values) . '
                              ON DUPLICATE KEY UPDATE doc_count = doc_count + VALUES(doc_count)',
                             $params,

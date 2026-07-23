@@ -17,6 +17,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         }
 
         DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_index');
+        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_vocab_trigrams');
 
         $this->engine = new MySqlEngine;
         $this->engine->createTable('App\Models\Post', ['title', 'body']);
@@ -28,6 +29,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
     {
         if ($this->engine && $this->mysqlAvailable()) {
             DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_index');
+        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS search_vocab_trigrams');
         }
 
         parent::tearDown();
@@ -196,6 +198,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_index');
         $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_config');
         $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_vocab');
+        $rawConn->statement('DROP TABLE IF EXISTS tenant_42_search_vocab_trigrams');
 
         config(['illumi-search.tenancy' => ['enabled' => false]]);
         app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => null);
@@ -245,5 +248,73 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $size = $engine->getDatabaseSize();
         $this->assertIsInt($size);
         $this->assertGreaterThan(0, $size);
+    }
+
+    public function test_suggest_via_trigram_finds_word(): void
+    {
+        $engine = $this->createEngine();
+
+        $engine->upsert('App\Models\Post', 1, [
+            'title' => 'laravel',
+            'body' => 'framework',
+        ]);
+
+        $suggestions = $engine->suggest('laravil', 2, 5);
+        $this->assertNotEmpty($suggestions);
+        $this->assertContains('laravel', $suggestions,
+            'Trigram phase should find "laravel" from "laravil" via shared trigrams #la, lar, ara, rav');
+    }
+
+    public function test_trigram_ranks_by_frequency(): void
+    {
+        $engine = $this->createEngine();
+
+        for ($i = 1; $i <= 3; $i++) {
+            $engine->upsert('App\Models\Post', $i, [
+                'title' => 'php programming',
+                'body' => 'content',
+            ]);
+        }
+        $engine->upsert('App\Models\Post', 4, [
+            'title' => 'phar data',
+            'body' => 'content',
+        ]);
+
+        $suggestions = $engine->suggest('phpp', 2, 5);
+        $this->assertContains('php', $suggestions);
+        $this->assertSame('php', $suggestions[0],
+            'More frequent word "php" (3×) should rank before "phar" (1×) in trigram scoring');
+    }
+
+    public function test_trigram_vs_levenshtein_fallback(): void
+    {
+        $engine = $this->createEngine();
+
+        $engine->upsert('App\Models\Post', 1, [
+            'title' => 'xyzabc',
+            'body' => 'something',
+        ]);
+
+        $suggestions = $engine->suggest('xyzab', 2, 5);
+        $this->assertNotEmpty($suggestions,
+            'When trigrams have no match, fallback prefix + Levenshtein should still find the word');
+        $this->assertContains('xyzabc', $suggestions);
+    }
+
+    public function test_rebuild_trigram_table(): void
+    {
+        $engine = $this->createEngine();
+        $engine->upsert('App\Models\Post', 1, [
+            'title' => 'laravel',
+            'body' => 'php framework',
+        ]);
+
+        $engine->rebuildVocabFromScratch();
+        $engine->rebuildTrigramTable();
+
+        $suggestions = $engine->suggest('laravil', 2, 5);
+        $this->assertNotEmpty($suggestions);
+        $this->assertContains('laravel', $suggestions,
+            'After rebuildTrigramTable, trigram-based suggest should still find "laravel"');
     }
 }

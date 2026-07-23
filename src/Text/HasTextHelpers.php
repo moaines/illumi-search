@@ -174,6 +174,27 @@ trait HasTextHelpers
     }
 
     /**
+     * Convert an ASCII word into trigrams (3-char sliding windows with # boundary).
+     *
+     * "laravel" → ["#la", "lar", "ara", "rav", "ave", "vel", "el#"]
+     * "a" → ["#a#"]
+     *
+     * @return string[]
+     */
+    public function wordToTrigrams(string $word): array
+    {
+        $padded = '#' . $word . '#';
+        $len = strlen($padded);
+        $trigrams = [];
+
+        for ($i = 0; $i < $len - 2; $i++) {
+            $trigrams[] = substr($padded, $i, 3);
+        }
+
+        return array_values(array_unique($trigrams));
+    }
+
+    /**
      * @var array<string, string>|null
      */
     private static ?array $scriptPatterns = null;

@@ -156,4 +156,37 @@ class HasTextHelpersTest extends TestCase
     {
         $this->assertEquals(['Common'], $this->scriptsOf(''));
     }
+
+    public function test_word_to_trigrams_generates_correct_count(): void
+    {
+        $trigrams = $this->wordToTrigrams('laravel');
+        $this->assertContains('#la', $trigrams);
+        $this->assertContains('lar', $trigrams);
+        $this->assertContains('ara', $trigrams);
+        $this->assertContains('rav', $trigrams);
+        $this->assertContains('ave', $trigrams);
+        $this->assertContains('vel', $trigrams);
+        $this->assertContains('el#', $trigrams);
+        $this->assertCount(7, $trigrams);
+    }
+
+    public function test_word_to_trigrams_short_word(): void
+    {
+        $trigrams = $this->wordToTrigrams('a');
+        $this->assertEquals(['#a#'], $trigrams);
+    }
+
+    public function test_word_to_trigrams_two_chars(): void
+    {
+        $trigrams = $this->wordToTrigrams('in');
+        $this->assertEquals(['#in', 'in#'], $trigrams);
+    }
+
+    public function test_word_to_trigrams_deduplicates(): void
+    {
+        $trigrams = $this->wordToTrigrams('aaa');
+        // #aa, aaa, aa# — all unique
+        $this->assertCount(3, $trigrams);
+        $this->assertEquals(['#aa', 'aaa', 'aa#'], $trigrams);
+    }
 }
