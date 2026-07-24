@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 abstract class AbstractEngineTest extends TestCase
@@ -649,6 +650,45 @@ abstract class AbstractEngineTest extends TestCase
 
         $cjResults = $engine->search('学习', [$this->testModelClass], 10);
         $this->assertNotEmpty($cjResults, 'CJK word "学习" should match tokenized "学 习"');
+    }
+
+    /** @test */
+    public function tenant_isolation_prefixes_tables(): void
+    {
+        $engine = $this->createEngine();
+
+        // Enable tenancy and register a tenant resolver
+        config(['illumi-search.tenancy.enabled' => true]);
+        app(TenantManager::class)->setResolver(fn () => 'test_tenant');
+
+        try {
+            // Create tenant-scoped table
+            $engine->createTable($this->testModelClass, ['title', 'body']);
+
+            $engine->upsert($this->testModelClass, 1, ['title' => 'tenant specific doc', 'body' => 'data for tenant']);
+            $engine->upsert($this->testModelClass, 2, ['title' => 'another tenant doc', 'body' => 'more data']);
+
+            // Search under test_tenant should find the docs
+            $results = $engine->search('tenant', [$this->testModelClass], 10);
+            $this->assertNotEmpty($results, 'Tenant-scoped search should find documents');
+
+            $resultIds = array_map(fn ($r) => $r->modelId, $results);
+            $this->assertContains(1, $resultIds);
+            $this->assertContains(2, $resultIds);
+
+            // Switch to another tenant — different isolation scope
+            app(TenantManager::class)->setResolver(fn () => 'other_tenant');
+
+            // Create table under the new tenant (no drop needed — table doesn't exist yet)
+            $engine->createTable($this->testModelClass, ['title', 'body']);
+
+            $otherResults = $engine->search('tenant', [$this->testModelClass], 10);
+            $this->assertEmpty($otherResults, 'Different tenant should NOT find documents from test_tenant');
+        } finally {
+            // Cleanup
+            app(TenantManager::class)->setResolver(fn () => null);
+            config(['illumi-search.tenancy.enabled' => false]);
+        }
     }
 
     /** @test */

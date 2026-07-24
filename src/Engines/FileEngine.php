@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Engines;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File as FileFacade;
 use Illuminate\Support\Str;
@@ -22,14 +23,26 @@ use Moaines\IllumiSearch\Support\VocabService;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasDebugCollector;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
+use Moaines\IllumiSearch\Text\NoopVacuum;
+use Moaines\IllumiSearch\Text\NullPragma;
+use Moaines\IllumiSearch\Text\StubQueryVocab;
 use Symfony\Component\String\UnicodeString;
 
 class FileEngine implements Engine
 {
     use HasDebugCollector;
     use HasTextHelpers;
+    use NoopVacuum;
+    use NullPragma;
+    use StubQueryVocab;
 
     private const CACHE_LOAD_FAILED = '__FAILED__';
+    private const SEARCH_OVERFETCH_MARGIN = 50;
+    private const VOCAB_WORDS_FILE = 'words.php';
+    private const VOCAB_TRIGRAMS_FILE = 'trigrams.php';
+    private const META_FILE = 'meta.php';
+    private const CONFIG_FILE = 'config.php';
+    private const VERSION = '1.16.1';
 
     private string $basePath;
     private ?SnippetService $snippets = null;
@@ -467,7 +480,7 @@ class FileEngine implements Engine
             return [];
         }
 
-        $cacheKey = $this->searchCache->key($query, $modelClasses, $limit, $offset, $mode);
+        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
         $cached = $this->searchCache->get($cacheKey);
         if ($cached !== null) {
             return $this->makeResults($cached);
@@ -625,21 +638,38 @@ class FileEngine implements Engine
 
     public function getEngineVersion(): string
     {
-        return 'FileEngine 2.0';
+        return 'FileEngine ' . self::VERSION;
     }
 
     public function getConfig(string $key, mixed $default = null): mixed
     {
-        $data = $this->chunks->decodeFile($this->path('config.php'));
+        try {
+            return Cache::lock(self::CONFIG_LOCK_KEY, self::CONFIG_LOCK_TIMEOUT)
+                ->block(self::CONFIG_LOCK_WAIT, function () use ($key, $default) {
+                    $data = $this->chunks->decodeFile($this->path(self::CONFIG_FILE));
 
-        return is_array($data) ? ($data[$key] ?? $default) : $default;
+                    return is_array($data) ? ($data[$key] ?? $default) : $default;
+                });
+        } catch (LockTimeoutException) {
+            Log::warning('illumi-search: FileEngine config read timed out');
+
+            return $default;
+        }
     }
 
     public function setConfig(string $key, mixed $value): void
     {
-        $config = $this->chunks->decodeFile($this->path('config.php')) ?: [];
-        $config[$key] = $value;
-        $this->chunks->atomicWrite($this->path('config.php'), $config);
+        try {
+            Cache::lock(self::CONFIG_LOCK_KEY, self::CONFIG_LOCK_TIMEOUT)
+                ->block(self::CONFIG_LOCK_WAIT, function () use ($key, $value) {
+                    $config = $this->chunks->decodeFile($this->path(self::CONFIG_FILE)) ?: [];
+                    $config[$key] = $value;
+
+                    $this->chunks->atomicWrite($this->path(self::CONFIG_FILE), $config);
+                });
+        } catch (LockTimeoutException) {
+            Log::warning('illumi-search: FileEngine config write timed out');
+        }
     }
 
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
@@ -693,8 +723,6 @@ class FileEngine implements Engine
     {
         return is_dir($this->modelDir($modelClass));
     }
-
-    public function vacuum(): void {}
 
     public function getDatabasePath(): string
     {
@@ -755,15 +783,10 @@ class FileEngine implements Engine
         return ['passed' => empty($errors), 'errors' => $errors];
     }
 
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
-    {
-        return [];
-    }
-
     public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
     {
         // Ensure vocab is built by checking decoded content
-        $vocabPath = $this->path('vocab/words.php');
+        $vocabPath = $this->path('vocab/' . self::VOCAB_WORDS_FILE);
         if (! file_exists($vocabPath)) {
             $this->ensureVocabFiles();
             $this->collectAllWords();
@@ -780,11 +803,6 @@ class FileEngine implements Engine
     public function isFts5Available(): bool
     {
         return false;
-    }
-
-    public function getPragma(string $name): string|int|null
-    {
-        return null;
     }
 
     public function getEngineStatus(): array
@@ -1019,7 +1037,7 @@ class FileEngine implements Engine
     {
         $dir = $this->path('vocab/');
         FileFacade::ensureDirectoryExists($dir);
-        foreach (['words.php', 'trigrams.php'] as $f) {
+        foreach ([self::VOCAB_WORDS_FILE, self::VOCAB_TRIGRAMS_FILE] as $f) {
             if (! file_exists($this->path('vocab/' . $f))) {
                 $this->chunks->atomicWrite($this->path('vocab/' . $f), []);
             }
@@ -1028,21 +1046,21 @@ class FileEngine implements Engine
 
     private function ensureMetaFile(): void
     {
-        if (! file_exists($this->path('meta.php'))) {
-            $this->chunks->atomicWrite($this->path('meta.php'), []);
+        if (! file_exists($this->path(self::META_FILE))) {
+            $this->chunks->atomicWrite($this->path(self::META_FILE), []);
         }
     }
 
     private function ensureConfigFile(): void
     {
-        if (! file_exists($this->path('config.php'))) {
-            $this->chunks->atomicWrite($this->path('config.php'), []);
+        if (! file_exists($this->path(self::CONFIG_FILE))) {
+            $this->chunks->atomicWrite($this->path(self::CONFIG_FILE), []);
         }
     }
 
     private function updateMetaFile(array $classes): void
     {
-        $this->chunks->atomicWrite($this->path('meta.php'), array_map(fn ($c) => [$c], $classes));
+        $this->chunks->atomicWrite($this->path(self::META_FILE), array_map(fn ($c) => [$c], $classes));
     }
 
     private function collectAllWords(): void
@@ -1108,12 +1126,12 @@ class FileEngine implements Engine
 
     public function getVocabPath(): string
     {
-        return $this->path('vocab/words.php');
+        return $this->path('vocab/' . self::VOCAB_WORDS_FILE);
     }
 
     public function getVocabTrigramPath(): string
     {
-        return $this->path('vocab/trigrams.php');
+        return $this->path('vocab/' . self::VOCAB_TRIGRAMS_FILE);
     }
 
     public function getVocabChunkRow(array $row, int $w): string

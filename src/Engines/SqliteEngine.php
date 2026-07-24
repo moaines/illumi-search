@@ -15,6 +15,7 @@ use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasScoring;
 use SQLite3;
 
@@ -180,17 +181,15 @@ class SqliteEngine implements Engine
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
         $this->db();
+        $table = $this->tableName($modelClass);
 
         if (! $this->fts5Available) {
-            throw new IllumiSearchException(
-                'FTS5 is not available in your SQLite build. '
-                . 'Install or compile SQLite with FTS5 enabled '
-                . '(--enable-fts5 or SQLITE_ENABLE_FTS5). '
-                . 'Run "php artisan illumi-search:doctor" for details.',
-            );
+            throw new IllumiSearchException('FTS5 is not available');
         }
 
-        $table = $this->tableName($modelClass);
+        // Ensure supporting tables exist for the current tenant scope
+        $this->ensureMetaTable();
+        $this->ensureConfigTable();
 
         $contentColumns = [];
         $columnDefinitions = [];
@@ -260,6 +259,9 @@ class SqliteEngine implements Engine
         $vocabTable = $table . '_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$table}");
+
+        // Meta table may not exist for tenant-scoped calls; create it if needed
+        $this->ensureMetaTable();
 
         $stmt = $this->db()->prepare('DELETE FROM ' . $this->table(self::META_TABLE) . ' WHERE model_class = :model');
         $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
@@ -346,7 +348,7 @@ class SqliteEngine implements Engine
         }
 
         // Try cache first
-        $cacheKey = $this->searchCache->key($query, $modelClasses, $limit, $offset, $mode);
+        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
         $cached = $this->searchCache->get($cacheKey);
 
         if ($cached !== null) {
@@ -981,8 +983,11 @@ class SqliteEngine implements Engine
     private function table(string $name): string
     {
         $prefix = $this->illumiConfig->tablePrefix();
+        $tenantId = app(TenantManager::class)->tenantId();
 
-        return $prefix . ltrim($name, '_');
+        $prefixed = $prefix . ltrim($name, '_');
+
+        return $tenantId !== null ? "{$tenantId}_{$prefixed}" : $prefixed;
     }
 
     private function probeFts5(): bool

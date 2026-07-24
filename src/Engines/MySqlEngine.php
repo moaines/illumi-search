@@ -16,12 +16,18 @@ use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasScoring;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
+use Moaines\IllumiSearch\Text\NoopVacuum;
+use Moaines\IllumiSearch\Text\NullPragma;
+use Moaines\IllumiSearch\Text\StubQueryVocab;
 use Symfony\Component\String\UnicodeString;
 
 class MySqlEngine implements Engine
 {
     use HasScoring;
     use HasTextHelpers;
+    use NoopVacuum;
+    use NullPragma;
+    use StubQueryVocab;
 
     private const TABLE = 'index';
 
@@ -35,7 +41,7 @@ class MySqlEngine implements Engine
 
     public const CONNECTION_NAME = 'illumi-search-mysql';
 
-    private bool $tableCreated = false;
+    private string $createdTableName = '';
     private string $connection = self::CONNECTION_NAME;
     private ?SnippetService $snippets = null;
     private bool $isRebuilding = false;
@@ -78,6 +84,7 @@ class MySqlEngine implements Engine
 
     public function isFts5Available(): bool
     {
+        // MySQL uses FULLTEXT indexes, not SQLite FTS5.
         return false;
     }
 
@@ -93,11 +100,6 @@ class MySqlEngine implements Engine
         return "MySQL {$version} | FULLTEXT (illumi-search)";
     }
 
-    public function getPragma(string $name): string|int|null
-    {
-        return null;
-    }
-
     public function getDatabasePath(): string
     {
         return $this->connection;
@@ -110,11 +112,6 @@ class MySqlEngine implements Engine
         );
 
         return $row->size !== null ? (int) $row->size : null;
-    }
-
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
-    {
-        return [];
     }
 
     public function vacuum(): void {}
@@ -164,15 +161,19 @@ class MySqlEngine implements Engine
 
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
-        if ($this->tableCreated) {
+        $currentTable = $this->table(self::TABLE);
+
+        // Tenant-aware guard: only DROP + CREATE when the table name changes
+        // (e.g., switching tenants). For the same table, this is a no-op.
+        if ($currentTable === $this->createdTableName) {
             return;
         }
 
         $maxWeight = (int) config('illumi-search.processing.max_weight', 3);
 
-        DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $this->table(self::TABLE));
+        DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $currentTable);
         DB::connection($this->connection)->statement('
-            CREATE TABLE ' . $this->table(self::TABLE) . ' (
+            CREATE TABLE ' . $currentTable . ' (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 model_type VARCHAR(255) NOT NULL,
                 model_id VARCHAR(255) NOT NULL,
@@ -209,7 +210,7 @@ class MySqlEngine implements Engine
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ');
 
-        $this->tableCreated = true;
+        $this->createdTableName = $currentTable;
     }
 
     /**
@@ -434,7 +435,7 @@ class MySqlEngine implements Engine
         }
 
         // Try cache first
-        $cacheKey = $this->searchCache->key($query, $modelClasses, $limit, $offset, $mode);
+        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
         $cached = $this->searchCache->get($cacheKey);
 
         if ($cached !== null) {

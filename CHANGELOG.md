@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.16.1 — Tenant isolation fix + stubs traits
+
+### Fixed
+- **MySQL/Multi-tenant**: `createTable()` ne détruit plus les données à chaque appel (tenant-aware via `$createdTableName`).
+- **SqliteEngine**: `table()` inclut désormais le préfixe tenant (manquait vs FileEngine/MySqlEngine).
+- **Cache** : les clés de cache incluent le tenant ID → pas de fuite entre tenants pendant les recherches.
+- **SqliteEngine**: `createTable()` / `dropTable()` créent la meta table avant d'y écrire (nécessaire pour les nouveaux tenants).
+
+### Refactored
+- **3 traits partagés** : `NoopVacuum`, `NullPragma`, `StubQueryVocab` — remplacent les stubs dupliqués dans FileEngine et MySqlEngine.
+- **MySqlEngine** : méthodes `getPragma()`/`queryVocab()` supprimées (fournies par les traits).
+- **MySqlEngine** : méthodes manquantes `getEngineVersion()`, `getDatabasePath()`, `getDatabaseSize()`, `isFts5Available()` ajoutées (complétude interface).
+- **FileEngine** : constantes `VERSION`, `SEARCH_OVERFETCH_MARGIN`, `VOCAB_WORDS_FILE`, `CONFIG_FILE`.
+
+### Tests
+- **`tenant_isolation_prefixes_tables`** — cross-engine (File + SQLite + MySQL) : vérifie qu'un document n'est pas visible par un autre tenant.
+- **`search_with_only_operators_returns_empty`** — `AND OR NOT` ne doit pas lever d'exception.
+- **540 tests** (était 537), 1209 assertions.
+
+---
+
 ## v1.16.0 — FileEngine + Trigram Index + Field Boosting BM25
 
 ### New: FileEngine (`ILLUMI_SEARCH_DRIVER=file`)
