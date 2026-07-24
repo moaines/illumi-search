@@ -10,11 +10,8 @@ class Book extends Model
     use Searchable;
 
     protected $table = 'books';
-
     protected $guarded = [];
-
     public $timestamps = true;
-
     protected array $searchable = [
         'title' => ['weight' => 3],
         'body' => ['weight' => 1],

@@ -2,7 +2,6 @@
 
 namespace Moaines\IllumiSearch\Text;
 
-use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Normalizer;
 

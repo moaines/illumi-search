@@ -16,17 +16,11 @@ class QueryBuilder
     private array $modelClasses = [];
 
     private string $mode = 'advanced';
-
     private int $limit = 20;
-
     private int $offset = 0;
-
     private ?Engine $engine = null;
-
     private bool $authorizationEnabled = false;
-
     private ?Authenticatable $user = null;
-
     private ?int $totalCache = null;
 
     public function __construct(?Engine $engine = null)
@@ -153,7 +147,7 @@ class QueryBuilder
     }
 
     /**
-     * @param Collection<int, Result> $results
+     * @param  Collection<int, Result>  $results
      * @return Collection<int, Result>
      */
     protected function filterAuthorized(Collection $results): Collection
@@ -228,7 +222,7 @@ class QueryBuilder
 
         $results = $this->get();
         $first = $results->first();
-        $total = $first instanceof \Moaines\IllumiSearch\Result
+        $total = $first instanceof Result
             ? ($first->totalCount ?? $this->count())
             : $this->count();
 

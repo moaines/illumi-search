@@ -4,17 +4,15 @@ namespace Moaines\IllumiSearch\Support;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 class SnippetService
 {
-
     /** @var string[] */
     private array $defaultTextColumns = ['body', 'content', 'description', 'text', 'excerpt'];
 
     /**
-     * @param array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>}> $results
-     * @return array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>, eloquentModel?: \Illuminate\Database\Eloquent\Model|null, summary?: string|null}>
+     * @param  array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>}>  $results
+     * @return array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>, eloquentModel?: Model|null, summary?: string|null}>
      */
     public function enrich(array $results, string $query): array
     {
@@ -123,8 +121,8 @@ class SnippetService
     }
 
     /**
-     * @param string[] $searchTerms
-     * @param string[]|null $snippetColumns
+     * @param  string[]  $searchTerms
+     * @param  string[]|null  $snippetColumns
      */
     private function extractSnippet(Model $model, array $searchTerms, ?array $snippetColumns = null): ?string
     {
@@ -174,7 +172,7 @@ class SnippetService
         $snippet = mb_substr(strip_tags($sourceText), $snippetStart, $snippetLen);
 
         if ($snippetStart > 0) {
-            $snippet = '…'.$snippet;
+            $snippet = '…' . $snippet;
         }
         if ($snippetStart + $snippetLen < mb_strlen(strip_tags($sourceText)) - 1) {
             $snippet .= '…';
@@ -185,7 +183,7 @@ class SnippetService
                 continue;
             }
             $snippet = preg_replace(
-                '/'.preg_quote($term, '/').'/iu',
+                '/' . preg_quote($term, '/') . '/iu',
                 '<mark>$0</mark>',
                 $snippet,
             );
@@ -206,6 +204,9 @@ class SnippetService
     /** @return string[] */
     private function extractSearchTerms(string $query): array
     {
-        return OperatorRegistry::tokenize($query);
+        return array_values(array_filter(
+            OperatorRegistry::tokenize($query),
+            fn ($term) => ! OperatorRegistry::isOperator($term),
+        ));
     }
 }

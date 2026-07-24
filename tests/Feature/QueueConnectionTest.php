@@ -6,8 +6,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class QueueConnectionTest extends TestCase
 {

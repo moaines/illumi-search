@@ -9,6 +9,7 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
+use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 
 /**
  * @method array<string, array{weight?: int, locale?: string, snippet?: array}> getSearchableColumns()
@@ -72,7 +73,7 @@ trait Searchable
 
     public function searchColumnName(string $column): string
     {
-        return str_replace(['.', '->', '-'], '_', $column);
+        return IllumiSearchHelper::normalizeColumnName($column);
     }
 
     public function toSearchDocument(): array
@@ -156,7 +157,7 @@ trait Searchable
 
             if (! method_exists($this, $relName)) {
                 $warnings[] = class_basename(static::class)
-                    ."::\$searchable: relation '{$relName}' introuvable pour '{$colName}'";
+                    . "::\$searchable: relation '{$relName}' introuvable pour '{$colName}'";
             }
         }
 
@@ -181,7 +182,6 @@ trait Searchable
     {
         return $this->searchable ?? [];
     }
-
 
     public function searchTextProcessor(): ?string
     {

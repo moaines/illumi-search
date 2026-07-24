@@ -2,9 +2,10 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
+use Moaines\IllumiSearch\Tests\TestCase;
 use Moaines\IllumiSearch\Text\FallbackTextProcessor;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
-use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
 class HasTextHelpersTest extends TestCase
 {
@@ -27,7 +28,7 @@ class HasTextHelpersTest extends TestCase
         $this->assertFalse($this->contains('Hello World', 'xyz'));
     }
 
-    public function test_fuzzyContains_handles_typo(): void
+    public function test_fuzzy_contains_handles_typo(): void
     {
         $this->assertTrue($this->fuzzyContains('programming', 'programing'));
     }
@@ -52,7 +53,7 @@ class HasTextHelpersTest extends TestCase
         $this->assertTrue($this->contains('PHP Laravel', 'php'));
     }
 
-    public function test_fuzzyContains_exact_match(): void
+    public function test_fuzzy_contains_exact_match(): void
     {
         $this->assertTrue($this->fuzzyContains('php', 'php'));
     }
@@ -70,7 +71,7 @@ class HasTextHelpersTest extends TestCase
 
     public function test_fallback_processor_preserves_cjk(): void
     {
-        $processor = new \Moaines\IllumiSearch\Text\FallbackTextProcessor;
+        $processor = new FallbackTextProcessor;
         $result = $processor->process('中文测试');
 
         $this->assertNotEmpty($result, 'Fallback processor must preserve CJK');
@@ -79,7 +80,7 @@ class HasTextHelpersTest extends TestCase
 
     public function test_unicode_processor_preserves_cjk(): void
     {
-        $processor = new \Moaines\IllumiSearch\Text\UnicodeTextProcessor;
+        $processor = new UnicodeTextProcessor;
         $result = $processor->process('中文测试');
 
         $this->assertNotEmpty($result, 'Unicode processor must preserve CJK');

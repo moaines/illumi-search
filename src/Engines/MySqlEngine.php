@@ -2,19 +2,25 @@
 
 namespace Moaines\IllumiSearch\Engines;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Result;
+use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use Moaines\IllumiSearch\Support\ConfigHelper;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
+use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\TenantManager;
+use Moaines\IllumiSearch\Text\HasScoring;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Symfony\Component\String\UnicodeString;
 
 class MySqlEngine implements Engine
 {
+    use HasScoring;
     use HasTextHelpers;
 
     private const TABLE = 'index';
@@ -30,30 +36,19 @@ class MySqlEngine implements Engine
     public const CONNECTION_NAME = 'illumi-search-mysql';
 
     private bool $tableCreated = false;
-
     private string $connection = self::CONNECTION_NAME;
-
     private ?SnippetService $snippets = null;
-
     private bool $isRebuilding = false;
+    private SearchCache $searchCache;
 
     /** @var array<string, bool> */
     private static array $checkedSearchable = [];
-
-    private function table(string $name): string
-    {
-        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
-        $tenantId = app(\Moaines\IllumiSearch\TenantManager::class)->tenantId();
-
-        $prefixed = $prefix . ltrim($name, '_');
-
-        return $tenantId !== null ? "{$tenantId}_{$prefixed}" : $prefixed;
-    }
 
     public function __construct(?SnippetService $snippets = null)
     {
         $this->registerConnection();
         $this->snippets = $snippets;
+        $this->searchCache = new SearchCache(storage_path('app/illumi-search-mysql'));
     }
 
     private function registerConnection(): void
@@ -122,9 +117,7 @@ class MySqlEngine implements Engine
         return [];
     }
 
-    public function vacuum(): void
-    {
-    }
+    public function vacuum(): void {}
 
     // ─── Schema ─────────────────────────────────────────
 
@@ -158,10 +151,10 @@ class MySqlEngine implements Engine
             }
 
             DB::connection($this->connection)->statement(
-                "ALTER TABLE " . $this->table(self::TABLE) . " ADD COLUMN {$col} LONGTEXT NOT NULL DEFAULT '' AFTER last_synced_at"
+                "ALTER TABLE " . $this->table(self::TABLE) . " ADD COLUMN {$col} LONGTEXT NOT NULL DEFAULT '' AFTER last_synced_at",
             );
             DB::connection($this->connection)->statement(
-                "ALTER TABLE " . $this->table(self::TABLE) . " ADD FULLTEXT INDEX idx_fts_w{$w} ({$col})"
+                "ALTER TABLE " . $this->table(self::TABLE) . " ADD FULLTEXT INDEX idx_fts_w{$w} ({$col})",
             );
         }
 
@@ -204,7 +197,7 @@ class MySqlEngine implements Engine
                 doc_count INT UNSIGNED NOT NULL DEFAULT 0,
                 INDEX idx_vocab_ascii (ascii_word, doc_count)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        '        );
+        ');
 
         DB::connection($this->connection)->statement('
             CREATE TABLE IF NOT EXISTS ' . $this->table(self::TRIGRAM_TABLE) . ' (
@@ -256,6 +249,16 @@ class MySqlEngine implements Engine
      * Check if the search_index table exists in MySQL.
      * Note: this is a global check (table exists at all), not per-model.
      */
+    private function table(string $name): string
+    {
+        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
+        $tenantId = app(TenantManager::class)->tenantId();
+
+        $prefixed = $prefix . ltrim($name, '_');
+
+        return $tenantId !== null ? "{$tenantId}_{$prefixed}" : $prefixed;
+    }
+
     private function tableExistsAny(): bool
     {
         $row = DB::connection($this->connection)->selectOne('
@@ -336,6 +339,8 @@ class MySqlEngine implements Engine
         if (! $this->isRebuilding) {
             $this->synchronizeVocabCounts($oldWords, $newWords);
         }
+
+        $this->searchCache->clear();
     }
 
     public function insertBatch(string $modelClass, array $documents): void
@@ -380,6 +385,8 @@ class MySqlEngine implements Engine
                 $this->synchronizeVocabCounts([], $newWords);
             }
         }
+
+        $this->searchCache->clear();
     }
 
     public function delete(string $modelClass, int|string $modelId): void
@@ -414,6 +421,8 @@ class MySqlEngine implements Engine
                 ->where('doc_count', '<=', 0)
                 ->delete();
         }
+
+        $this->searchCache->clear();
     }
 
     // ─── Search ──────────────────────────────────────────
@@ -424,8 +433,20 @@ class MySqlEngine implements Engine
             return [];
         }
 
+        // Try cache first
+        $cacheKey = $this->searchCache->key($query, $modelClasses, $limit, $offset, $mode);
+        $cached = $this->searchCache->get($cacheKey);
+
+        if ($cached !== null) {
+            return array_map(fn ($r) => Result::fromRaw($r), $cached);
+        }
+
         $safeQuery = $this->normalizeQuery($query);
         $booleanQuery = $this->toBooleanMode($safeQuery, $mode);
+
+        if (empty(trim($booleanQuery))) {
+            return [];
+        }
 
         $modelTypes = array_map(fn ($c) => (string) $c, $modelClasses);
         [$inPlaceholders, $inParams] = $this->modelTypePlaceholders($modelTypes);
@@ -433,13 +454,15 @@ class MySqlEngine implements Engine
         $match = $this->buildWeightMatchExpressions();
 
         $firstCol = $this->getFirstTextColumn();
+        $titleCol = $this->getTitleColumn() ?: $this->getFirstTextColumn() ?: 'text_w1';
 
-        // Build bindings: each MATCH needs its own binding
         $selectBindings = array_fill(0, $match['bindCount'], $booleanQuery);
         $whereBindings = array_fill(0, $match['bindCount'], $booleanQuery);
 
         $rows = DB::connection($this->connection)->select("
-            SELECT model_type, model_id, {$firstCol} AS search_text,
+            SELECT model_type, model_id,
+                   {$firstCol} AS search_text,
+                   {$titleCol} AS search_title,
                    {$match['selectExpr']} AS rank,
                    COUNT(*) OVER () AS total_count
              FROM " . $this->table(self::TABLE) . "
@@ -457,13 +480,13 @@ class MySqlEngine implements Engine
         $results = [];
 
         foreach ($rows as $row) {
-            $score = round((float) $row->rank, 8);
+            $score = $this->normalizeScore((float) $row->rank, null, 1);
 
             $results[] = [
                 'modelClass' => $row->model_type,
                 'modelId' => ctype_digit($row->model_id) ? (int) $row->model_id : $row->model_id,
                 'rank' => $score,
-                'title' => $row->model_id,
+                'title' => $row->search_title ?? $row->model_id,
                 'row' => [
                     'model_type' => $row->model_type,
                     'model_id' => $row->model_id,
@@ -478,18 +501,10 @@ class MySqlEngine implements Engine
             $results = $service->enrich($results, $safeQuery);
         }
 
-        return array_map(
-            fn ($r) => Result::make(
-                modelClass: $r['modelClass'],
-                modelId: $r['modelId'],
-                rank: $r['rank'],
-                title: $r['title'],
-                summary: $r['summary'] ?? null,
-                raw: $r['row'],
-                totalCount: $r['totalCount'],
-            ),
-            $results,
-        );
+        // Cache results
+        $this->searchCache->set($cacheKey, $results);
+
+        return array_map(fn ($r) => Result::fromRaw($r), $results);
     }
 
     public function count(string $query, array $modelClasses): int
@@ -501,6 +516,11 @@ class MySqlEngine implements Engine
         $mode = config('illumi-search.processing.mode', 'advanced');
         $safeQuery = $this->normalizeQuery($query);
         $booleanQuery = $this->toBooleanMode($safeQuery, $mode);
+
+        if (empty(trim($booleanQuery))) {
+            return 0;
+        }
+
         $modelTypes = array_map(fn ($c) => (string) $c, $modelClasses);
         [$inPlaceholders, $inParams] = $this->modelTypePlaceholders($modelTypes);
 
@@ -667,7 +687,7 @@ class MySqlEngine implements Engine
     /**
      * Score and rank words by Levenshtein distance + script penalty.
      *
-     * @param \Illuminate\Support\Collection $vocab  Collection of {word, ascii_word}
+     * @param  Collection  $vocab  Collection of {word, ascii_word}
      * @return string[]
      */
     private function rankSuggestions($vocab, string $queryAscii, array $queryScripts, int $maxDistance): array
@@ -675,7 +695,7 @@ class MySqlEngine implements Engine
         $scriptCache = [];
 
         return $vocab
-            ->map(function ($row) use ($queryAscii, $queryScripts, &$scriptCache) {
+            ->map(function ($row) use ($queryAscii, &$scriptCache) {
                 $asciiWord = $row->ascii_word;
 
                 if (! isset($scriptCache[$asciiWord])) {
@@ -715,8 +735,8 @@ class MySqlEngine implements Engine
     }
 
     /**
-     * @param string[] $oldWords
-     * @param string[] $newWords
+     * @param  string[]  $oldWords
+     * @param  string[]  $newWords
      */
     private function synchronizeVocabCounts(array $oldWords, array $newWords): void
     {
@@ -813,7 +833,7 @@ class MySqlEngine implements Engine
         callable $builder,
     ): void {
         $temp = $tableName . '_new';
-        $old  = $tableName . '_old';
+        $old = $tableName . '_old';
 
         // Drop any leftover tables from a previous crash
         DB::connection($this->connection)->statement("DROP TABLE IF EXISTS {$old}");
@@ -821,7 +841,7 @@ class MySqlEngine implements Engine
 
         // Create the temp table with the same structure
         DB::connection($this->connection)->statement(
-            str_replace('{table}', $temp, $createSql)
+            str_replace('{table}', $temp, $createSql),
         );
 
         // Build data into the temp via the caller's logic
@@ -1045,7 +1065,7 @@ class MySqlEngine implements Engine
             return [];
         }
 
-        $filter = new \Moaines\IllumiSearch\Stopwords\StopwordFilter;
+        $filter = new StopwordFilter;
         $all = [];
 
         foreach ($languages as $lang) {
@@ -1063,7 +1083,7 @@ class MySqlEngine implements Engine
      * Build an array of column => text, keyed by weight level.
      * Each weight level gets its own FULLTEXT column for precise BM25 ranking.
      *
-     * @param array<string, string> $document
+     * @param  array<string, string>  $document
      * @return array<string, string>
      */
     private function buildSearchText(string $modelClass, array $document): array
@@ -1141,6 +1161,17 @@ class MySqlEngine implements Engine
         return $this->getExistingWeightColumns()[0] ?? '';
     }
 
+    /**
+     * Return the highest-weight text column (= the one that usually holds the title).
+     */
+    private function getTitleColumn(): string
+    {
+        $cols = $this->getExistingWeightColumns();
+        $lastKey = array_key_last($cols);
+
+        return $lastKey !== null ? $cols[$lastKey] : '';
+    }
+
     private function modelTypePlaceholders(array $classes): array
     {
         return [
@@ -1185,7 +1216,8 @@ class MySqlEngine implements Engine
 
             $clean = Str::of($term)->replaceMatches('/[^\p{L}\p{N}\*\-]/u', '')->toString();
 
-            if ($clean === '' || $clean === '-' || $clean === '--') {
+            // Skip terms that are only operators (empty, single asterisk, dashes)
+            if ($clean === '' || $clean === '-' || $clean === '--' || $clean === '*' || preg_match('/^[\*\-\+]+$/', $clean)) {
                 continue;
             }
 

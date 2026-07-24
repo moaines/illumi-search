@@ -10,12 +10,12 @@ class IllumiSearchExceptionTest extends TestCase
     public static function factoryMethodProvider(): array
     {
         return [
-            'extensionMissing'    => ['extensionMissing', ['sqlite3'], 'sqlite3'],
-            'fts5NotAvailable'    => ['fts5NotAvailable', [], 'FTS5'],
-            'queryParseError'     => ['queryParseError', ['test query', 'syntax error'], 'test query'],
-            'modelNotSearchable'  => ['modelNotSearchable', ['App\Models\Foo'], 'App\Models\Foo'],
-            'indexCorrupted'      => ['indexCorrupted', ['/path/to/db', 'corrupt'], '/path/to/db'],
-            'databaseLocked'      => ['databaseLocked', ['/path/to/db'], 'locked'],
+            'extensionMissing' => ['extensionMissing', ['sqlite3'], 'sqlite3'],
+            'fts5NotAvailable' => ['fts5NotAvailable', [], 'FTS5'],
+            'queryParseError' => ['queryParseError', ['test query', 'syntax error'], 'test query'],
+            'modelNotSearchable' => ['modelNotSearchable', ['App\Models\Foo'], 'App\Models\Foo'],
+            'indexCorrupted' => ['indexCorrupted', ['/path/to/db', 'corrupt'], '/path/to/db'],
+            'databaseLocked' => ['databaseLocked', ['/path/to/db'], 'locked'],
         ];
     }
 

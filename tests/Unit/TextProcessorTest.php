@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Text\StemmingTextProcessor;
 
 class TextProcessorTest extends TestCase
 {
@@ -98,18 +99,18 @@ class TextProcessorTest extends TestCase
     {
         config(['illumi-search.processing.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(TextProcessor::class);
+        $processor = $this->app->make(TextProcessor::class);
 
-        $this->assertInstanceOf(\Moaines\IllumiSearch\Text\StemmingTextProcessor::class, $processor);
+        $this->assertInstanceOf(StemmingTextProcessor::class, $processor);
     }
 
     public function test_stemming_french_removes_verb_endings(): void
     {
         config(['illumi-search.processing.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(TextProcessor::class);
+        $processor = $this->app->make(TextProcessor::class);
 
         $result = $processor->process('mangeais mangeant mangera', 'fr');
 
@@ -124,8 +125,8 @@ class TextProcessorTest extends TestCase
     {
         config(['illumi-search.processing.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(TextProcessor::class);
+        $processor = $this->app->make(TextProcessor::class);
 
         $result = $processor->process('running runner runs', 'en');
 
@@ -140,8 +141,8 @@ class TextProcessorTest extends TestCase
     {
         config(['illumi-search.processing.processor' => 'stemming']);
 
-        $this->app->forgetInstance(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
-        $processor = $this->app->make(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $this->app->forgetInstance(TextProcessor::class);
+        $processor = $this->app->make(TextProcessor::class);
 
         $result = $processor->process('hello world', 'xx');
 

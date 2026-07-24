@@ -18,12 +18,14 @@ class ReportRenderer
     {
         if ($format === 'json') {
             $output->writeln(json_encode($this->allResults, JSON_PRETTY_PRINT));
+
             return;
         }
 
         $engines = array_keys($this->allResults);
         if (empty($engines)) {
             $output->writeln('<error>No results to display.</error>');
+
             return;
         }
 

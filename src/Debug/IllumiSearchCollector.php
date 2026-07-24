@@ -29,14 +29,14 @@ class IllumiSearchCollector extends DataCollector implements Renderable
 
         if ($topScores) {
             $scores = array_map(fn ($s) => round($s, 3), $topScores);
-            $parts[] = 'BM25: '.implode(', ', $scores);
+            $parts[] = 'BM25: ' . implode(', ', $scores);
         }
 
         if ($mode !== 'advanced') {
             $parts[] = "mode: {$mode}";
         }
 
-        $this->queries[] = $duration > 1 ? "[{$duration}ms] ".implode(' — ', $parts) : implode(' — ', $parts);
+        $this->queries[] = $duration > 1 ? "[{$duration}ms] " . implode(' — ', $parts) : implode(' — ', $parts);
     }
 
     /** @param array<string, mixed> $info */
@@ -53,9 +53,9 @@ class IllumiSearchCollector extends DataCollector implements Renderable
         $data = [];
 
         if ($this->engineInfo) {
-            $data[] = '⚙️ Engine: '.($this->engineInfo['version'] ?? '?');
-            $data[] = '   Tokenizer: '.($this->engineInfo['tokenizer'] ?? '?');
-            $data[] = '   Indexed: '.number_format($this->engineInfo['indexed_records'] ?? 0).' records';
+            $data[] = '⚙️ Engine: ' . ($this->engineInfo['version'] ?? '?');
+            $data[] = '   Tokenizer: ' . ($this->engineInfo['tokenizer'] ?? '?');
+            $data[] = '   Indexed: ' . number_format($this->engineInfo['indexed_records'] ?? 0) . ' records';
         }
 
         if ($this->queries) {

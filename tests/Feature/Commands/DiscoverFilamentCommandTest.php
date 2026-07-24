@@ -2,12 +2,17 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
+use Filament\Forms\Form;
 use Filament\Panel;
 use Filament\Resources\Resource;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Author;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class DiscoverFilamentCommandTest extends TestCase
 {
@@ -30,12 +35,29 @@ class DiscoverFilamentCommandTest extends TestCase
         $panel->method('getResources')->willReturn([$resourceClass]);
 
         $this->app->singleton('filament', function () use ($panel) {
-            return new class ($panel) {
+            return new class($panel)
+            {
                 public function __construct(private $panel) {}
-                public function getCurrentPanel() { return $this->panel; }
-                public function getPanel(string $id) { return $this->panel; }
-                public function auth() { return auth(); }
-                public function getAuthGuard() { return 'web'; }
+
+                public function getCurrentPanel()
+                {
+                    return $this->panel;
+                }
+
+                public function getPanel(string $id)
+                {
+                    return $this->panel;
+                }
+
+                public function auth()
+                {
+                    return auth();
+                }
+
+                public function getAuthGuard()
+                {
+                    return 'web';
+                }
             };
         });
     }
@@ -73,16 +95,27 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
+                return Post::query();
             }
         };
 
@@ -94,11 +127,24 @@ class DiscoverFilamentCommandTest extends TestCase
         $panel2->method('getResources')->willReturn([]);
 
         $this->app->singleton('filament', function () use ($panel, $panel2) {
-            return new class ($panel, $panel2) {
+            return new class($panel, $panel2)
+            {
                 public function __construct(private $p1, private $p2) {}
-                public function getCurrentPanel() { return null; }
-                public function getPanels() { return ['admin' => $this->p1, 'test' => $this->p2]; }
-                public function getPanel(string $id) { return null; }
+
+                public function getCurrentPanel()
+                {
+                    return null;
+                }
+
+                public function getPanels()
+                {
+                    return ['admin' => $this->p1, 'test' => $this->p2];
+                }
+
+                public function getPanel(string $id)
+                {
+                    return null;
+                }
             };
         });
 
@@ -113,10 +159,19 @@ class DiscoverFilamentCommandTest extends TestCase
         $panel->method('getResources')->willReturn([]);
 
         $this->app->singleton('filament', function () use ($panel) {
-            return new class ($panel) {
+            return new class($panel)
+            {
                 public function __construct(private $panel) {}
-                public function getCurrentPanel() { return $this->panel; }
-                public function getPanel(string $id) { return $this->panel; }
+
+                public function getCurrentPanel()
+                {
+                    return $this->panel;
+                }
+
+                public function getPanel(string $id)
+                {
+                    return $this->panel;
+                }
             };
         });
 
@@ -127,10 +182,22 @@ class DiscoverFilamentCommandTest extends TestCase
     public function test_no_panel_available(): void
     {
         $this->app->singleton('filament', function () {
-            return new class {
-                public function getCurrentPanel() { return null; }
-                public function getPanels() { return []; }
-                public function getPanel(string $id) { return null; }
+            return new class
+            {
+                public function getCurrentPanel()
+                {
+                    return null;
+                }
+
+                public function getPanels()
+                {
+                    return [];
+                }
+
+                public function getPanel(string $id)
+                {
+                    return null;
+                }
             };
         });
 
@@ -143,16 +210,27 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
+                return Post::query();
             }
         };
 
@@ -167,7 +245,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -175,13 +253,24 @@ class DiscoverFilamentCommandTest extends TestCase
                 return ['title', 'body'];
             }
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
+                return Post::query();
             }
         };
 
@@ -203,7 +292,7 @@ class DiscoverFilamentCommandTest extends TestCase
             $table->foreignId('author_id')->nullable()->constrained('suggest_authors');
         });
 
-        $model = new class extends \Illuminate\Database\Eloquent\Model
+        $model = new class extends Model
         {
             protected $table = 'suggest_books';
             public $timestamps = true;
@@ -211,7 +300,7 @@ class DiscoverFilamentCommandTest extends TestCase
 
             public function author()
             {
-                return $this->belongsTo(\Moaines\IllumiSearch\Tests\TestSupport\Models\Author::class, 'author_id');
+                return $this->belongsTo(Author::class, 'author_id');
             }
         };
 
@@ -220,11 +309,14 @@ class DiscoverFilamentCommandTest extends TestCase
             protected static ?string $recordTitleAttribute = 'title';
             private static ?string $customModel = null;
 
-            public static function setModel(string $m): void { static::$customModel = $m; }
+            public static function setModel(string $m): void
+            {
+                self::$customModel = $m;
+            }
 
             public static function getModel(): string
             {
-                return static::$customModel ?? parent::getModel();
+                return self::$customModel ?? parent::getModel();
             }
 
             public static function getGloballySearchableAttributes(): array
@@ -232,13 +324,24 @@ class DiscoverFilamentCommandTest extends TestCase
                 return ['title', 'author.name'];
             }
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return (new static::$customModel)->newQuery();
+                return (new self::$customModel)->newQuery();
             }
         };
 
@@ -255,7 +358,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -263,13 +366,24 @@ class DiscoverFilamentCommandTest extends TestCase
                 return ['title', 'body'];
             }
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
+                return Post::query();
             }
         };
 
@@ -283,7 +397,7 @@ class DiscoverFilamentCommandTest extends TestCase
     {
         $resource = new class extends Resource
         {
-            protected static ?string $model = \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class;
+            protected static ?string $model = Post::class;
             protected static ?string $recordTitleAttribute = 'title';
 
             public static function getGloballySearchableAttributes(): array
@@ -291,13 +405,24 @@ class DiscoverFilamentCommandTest extends TestCase
                 return ['title', 'extra'];
             }
 
-            public static function form(\Filament\Forms\Form $f): \Filament\Forms\Form { return $f; }
-            public static function table(\Filament\Tables\Table $t): \Filament\Tables\Table { return $t; }
-            public static function getPages(): array { return []; }
+            public static function form(Form $f): Form
+            {
+                return $f;
+            }
+
+            public static function table(Table $t): Table
+            {
+                return $t;
+            }
+
+            public static function getPages(): array
+            {
+                return [];
+            }
 
             public static function getEloquentQuery(): Builder
             {
-                return \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::query();
+                return Post::query();
             }
         };
 

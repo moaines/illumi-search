@@ -10,15 +10,11 @@ class Post extends Model
     use Searchable;
 
     protected $table = 'posts';
-
     protected $guarded = [];
-
     public $timestamps = true;
-
     protected array $searchable = [
         'title' => ['weight' => 3],
         'body' => ['weight' => 1],
     ];
-
     protected $searchCategory = 'Posts';
 }

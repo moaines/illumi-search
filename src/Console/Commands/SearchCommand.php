@@ -4,6 +4,8 @@ namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Result;
+use Moaines\IllumiSearch\Spellcheck;
 
 class SearchCommand extends Command
 {
@@ -14,7 +16,6 @@ class SearchCommand extends Command
         {--mode=advanced : Search mode: basic, advanced, raw}
         {--json : Output as JSON}
         {--suggest : Include spellcheck suggestions}';
-
     protected $description = 'Search the FTS index';
 
     public function handle(Engine $engine): int
@@ -32,13 +33,14 @@ class SearchCommand extends Command
 
         $results = $engine->search($query, $modelClasses, $limit, 0, $mode, withSnippets: true);
         $total = count($results);
+        $suggestionsCache = $this->getSuggestions($withSuggest, $results, $query, $modelClasses);
 
         if ($asJson) {
             $this->line(json_encode([
-                'query'       => $query,
-                'total'       => $total,
-                'results'     => $results,
-                'suggestions' => $this->getSuggestions($withSuggest, $results, $query, $modelClasses),
+                'query' => $query,
+                'total' => $total,
+                'results' => $results,
+                'suggestions' => $suggestionsCache,
             ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 
             return Command::SUCCESS;
@@ -47,17 +49,10 @@ class SearchCommand extends Command
         if ($total === 0) {
             $this->warn("No results for \"{$query}\"");
 
-            if ($withSuggest && mb_strlen($query) > 2) {
-                $suggestions = app(\Moaines\IllumiSearch\Spellcheck::class)
-                    ->suggest($query, $modelClasses)
-                    ->values()
-                    ->toArray();
-
-                if (! empty($suggestions)) {
-                    $this->line('  Did you mean:');
-                    foreach ($suggestions as $s) {
-                        $this->line("    <fg=green>{$s}</>");
-                    }
+            if (! empty($suggestionsCache)) {
+                $this->line('  Did you mean:');
+                foreach ($suggestionsCache as $s) {
+                    $this->line("    <fg=green>{$s}</>");
                 }
             }
 
@@ -79,17 +74,16 @@ class SearchCommand extends Command
             $this->newLine();
         }
 
-        $withSuggestions = $this->getSuggestions($withSuggest, $results, $query, $modelClasses);
-        if (! empty($withSuggestions)) {
-            $this->line('  Suggestions: ' . implode(', ', $withSuggestions));
+        if (! empty($suggestionsCache)) {
+            $this->line('  Suggestions: ' . implode(', ', $suggestionsCache));
         }
 
         return Command::SUCCESS;
     }
 
     /**
-     * @param \Moaines\IllumiSearch\Result[] $results
-     * @param string[] $modelClasses
+     * @param  Result[]  $results
+     * @param  string[]  $modelClasses
      * @return string[]
      */
     private function getSuggestions(bool $withSuggest, array $results, string $query, array $modelClasses): array
@@ -98,7 +92,7 @@ class SearchCommand extends Command
             return [];
         }
 
-        return app(\Moaines\IllumiSearch\Spellcheck::class)
+        return app(Spellcheck::class)
             ->suggest($query, $modelClasses)
             ->values()
             ->toArray();

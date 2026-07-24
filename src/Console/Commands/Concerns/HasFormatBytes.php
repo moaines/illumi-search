@@ -8,11 +8,13 @@ trait HasFormatBytes
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $i = 0;
-        while ($bytes >= 1024 && $i < count($units) - 1) {
-            $bytes /= 1024;
+        $size = $bytes;
+
+        while ($size >= 1024 && $i < count($units) - 1) {
+            $size /= 1024;
             $i++;
         }
 
-        return round($bytes, 1) . ' ' . $units[$i];
+        return round($size, 1) . ' ' . $units[$i];
     }
 }

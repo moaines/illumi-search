@@ -5,8 +5,10 @@ namespace Moaines\IllumiSearch\Tests\Feature;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class ApiSearchTest extends TestCase
 {
@@ -31,13 +33,13 @@ class ApiSearchTest extends TestCase
         Route::middleware('api')
             ->prefix('api/search')
             ->group(function () {
-                Route::get('/', \Moaines\IllumiSearch\Http\Controllers\SearchApiController::class);
+                Route::get('/', SearchApiController::class);
             });
     }
 
     public function test_search_returns_results(): void
     {
-        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\Engine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
         $engine->upsert(Post::class, 1, ['title' => 'laravel testing', 'body' => 'php unit']);
 
@@ -61,7 +63,7 @@ class ApiSearchTest extends TestCase
 
     public function test_search_with_limit(): void
     {
-        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\Engine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
         $engine->upsert(Post::class, 10, ['title' => 'php 8', 'body' => 'test']);
         $engine->upsert(Post::class, 11, ['title' => 'php 9', 'body' => 'test']);
@@ -74,7 +76,7 @@ class ApiSearchTest extends TestCase
 
     public function test_spellcheck_via_suggest(): void
     {
-        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\Engine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable(Post::class, ['title', 'body']);
 
         $this->getJson('/api/search?q=laravell&suggest=1&models=' . urlencode(Post::class))

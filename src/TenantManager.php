@@ -44,7 +44,7 @@ class TenantManager
         $dir = config('illumi-search.tenancy.directory', 'app/search/tenants');
         $filename = basename($basePath);
 
-        return storage_path($dir.'/'.$tenantId.'/'.$filename);
+        return storage_path($dir . '/' . $tenantId . '/' . $filename);
     }
 
     public function tenantId(): ?string

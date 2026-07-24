@@ -3,13 +3,13 @@
 namespace Moaines\IllumiSearch\Tests\Unit\Support;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Support\ConfigQueue;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class ConfigQueueTest extends TestCase
 {
     private ConfigQueue $queue;
-
     private string $key = 'test_queue_key';
 
     protected function setUp(): void
@@ -84,8 +84,8 @@ class ConfigQueueTest extends TestCase
         $path = storage_path('app/config-queue-test.sqlite');
         @unlink($path);
 
-        $sqlite = new \Moaines\IllumiSearch\Engines\SqliteEngine($path);
-        $queue = new \Moaines\IllumiSearch\Support\ConfigQueue($sqlite);
+        $sqlite = new SqliteEngine($path);
+        $queue = new ConfigQueue($sqlite);
 
         $queue->push('test_recent', 'first', 10);
         $queue->push('test_recent', 'second', 10);

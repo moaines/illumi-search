@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Console\Commands;
 
+use Filament\Facades\Filament;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Schema;
@@ -11,7 +12,6 @@ class DiscoverFilamentCommand extends Command
     protected $signature = 'illumi-search:discover-filament
         {--panel= : The Filament panel ID (defaults to current)}
         {--format=table : Output format (table|json)}';
-
     protected $description = 'Discover $searchable columns based on Filament Resources';
 
     public function handle(): int
@@ -131,18 +131,18 @@ class DiscoverFilamentCommand extends Command
     /** @return ?string[] */
     protected function resolvePanelResources(): ?array
     {
-        if (! class_exists(\Filament\Facades\Filament::class)) {
+        if (! class_exists(Filament::class)) {
             $this->warn('Filament is not installed. This command requires Filament panels to analyze resources.');
 
             return null;
         }
 
         $panel = $this->option('panel')
-            ? \Filament\Facades\Filament::getPanel($this->option('panel'))
-            : \Filament\Facades\Filament::getCurrentPanel();
+            ? Filament::getPanel($this->option('panel'))
+            : Filament::getCurrentPanel();
 
         if ($panel === null) {
-            $panels = \Filament\Facades\Filament::getPanels();
+            $panels = Filament::getPanels();
 
             if (! empty($panels)) {
                 $panel = reset($panels);

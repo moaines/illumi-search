@@ -5,8 +5,8 @@ namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
 
 class CheckCommandTest extends TestCase
 {

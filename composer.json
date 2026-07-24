@@ -1,7 +1,7 @@
 {
     "name": "moaines/illumi-search",
-    "description": "Multi-engine full-text search for Laravel — SQLite FTS5 or MySQL 8.0+ FULLTEXT. BM25 ranking, search-as-you-type prefix indexing, multilingual (Latin, CJK, Arabic, Cyrillic), accent-insensitive, per-column weights, boolean operators, spellcheck, multi-tenant, authorization. Built-in benchmark. Searchable trait with queue/sync/lazy batch indexing.",
-    "version": "1.15.0",
+    "description": "Multi-engine full-text search for Laravel — SQLite FTS5, MySQL 8.0+ FULLTEXT, or FileEngine (flat-file, zero extension). BM25 ranking with field boosting, trigram index, search-as-you-type prefix indexing, CJK/Thai support, accent-insensitive, boolean operators, spellcheck, multi-tenant, authorization. Built-in benchmark with Recall/NDCG/MRR metrics. 537 tests.",
+    "version": "1.16.0",
     "type": "library",
     "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "string"],
     "license": "MIT",
@@ -21,7 +21,8 @@
         "wamania/php-stemmer": "^4.0"
     },
     "suggest": {
-        "ext-intl": "Required for advanced Unicode normalization and CJK tokenization. Without it, a fallback processor using symfony/string is used."
+        "ext-intl": "Required for advanced Unicode normalization and CJK tokenization. Without it, a fallback processor using symfony/string is used.",
+        "ext-pcntl": "Required for concurrent chunk processing in FileEngine. Without it, falls back to sequential processing (still functional, just slower)."
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",

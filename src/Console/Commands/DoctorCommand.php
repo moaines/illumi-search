@@ -11,9 +11,7 @@ class DoctorCommand extends Command
     use HasFormatBytes;
 
     protected $signature = 'illumi-search:doctor';
-
     protected $description = 'Diagnose the search environment';
-
     private bool $allOk = true;
 
     public function handle(Engine $engine): int
@@ -49,7 +47,7 @@ class DoctorCommand extends Command
         $this->line('1. PHP Extensions');
         foreach ($exts as $ext) {
             $loaded = extension_loaded($ext);
-            $this->line('   '.($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>')." ext-{$ext}");
+            $this->line('   ' . ($loaded ? '<fg=green>✓</>' : '<fg=red>✗</>') . " ext-{$ext}");
             if (! $loaded) {
                 $this->allOk = false;
             }
@@ -82,10 +80,10 @@ class DoctorCommand extends Command
                 $db = new \SQLite3(':memory:');
                 $db->exec('CREATE VIRTUAL TABLE _fts_check USING fts5(content)');
                 $version = \SQLite3::version();
-                $this->line('   <fg=green>✓</> FTS5 is available (SQLite '.$version['versionString'].')');
+                $this->line('   <fg=green>✓</> FTS5 is available (SQLite ' . $version['versionString'] . ')');
                 $db->close();
             } catch (\Exception $e) {
-                $this->line('   <fg=red>✗</> FTS5 is NOT available: '.$e->getMessage());
+                $this->line('   <fg=red>✗</> FTS5 is NOT available: ' . $e->getMessage());
                 $this->line('   <fg=yellow>  → SQLite must be compiled with --enable-fts5 or SQLITE_ENABLE_FTS5</>');
                 $this->line('   <fg=yellow>  → Most distributions: apt install php-sqlite3 / yum install php-sqlite3</>');
                 $this->line('   <fg=yellow>  → Verify with: php -r "echo SQLite3::version()[\'versionString\'];"</>');
@@ -127,7 +125,7 @@ class DoctorCommand extends Command
 
         if (! file_exists($dbPath)) {
             $this->line('   <fg=yellow>⚠</> Database does not exist yet');
-            $this->line('   Path would be: '.$dbPath);
+            $this->line('   Path would be: ' . $dbPath);
             $this->line('   Run <comment>php artisan illumi-search:rebuild</comment> to create it');
             $this->newLine();
 
@@ -140,11 +138,11 @@ class DoctorCommand extends Command
         $isAbsolute = str_starts_with($dbPath, '/');
 
         $this->line("   <fg=green>✓</> Path: {$dbPath}");
-        $this->line('   <fg=green>✓</> Path type: '.($isAbsolute ? 'absolute' : 'relative (via storage_path())'));
+        $this->line('   <fg=green>✓</> Path type: ' . ($isAbsolute ? 'absolute' : 'relative (via storage_path())'));
         $this->line("   <fg=green>✓</> Size: {$sizeHuman}");
         $this->line("   <fg=green>✓</> Free space on volume: {$freeHuman}");
-        $this->line('   '.(is_readable($dbPath) ? '<fg=green>✓</> Readable' : '<fg=red>✗</> Not readable'));
-        $this->line('   '.(is_writable($dbPath) ? '<fg=green>✓</> Writable' : '<fg=red>✗</> Not writable'));
+        $this->line('   ' . (is_readable($dbPath) ? '<fg=green>✓</> Readable' : '<fg=red>✗</> Not readable'));
+        $this->line('   ' . (is_writable($dbPath) ? '<fg=green>✓</> Writable' : '<fg=red>✗</> Not writable'));
 
         $stats = $engine->getIndexStats();
         if (! empty($stats)) {
@@ -216,8 +214,8 @@ class DoctorCommand extends Command
 
         if ($driver === 'mysql') {
             $mysqlMax = (int) config('illumi-search.processing.max_search_text_length', 65535);
-            $this->line('   '.($mysqlMax >= 1024 ? '<fg=green>✓</>' : '<fg=red>✗</>')
-                ." illumi-search.processing.max_search_text_length = {$mysqlMax}");
+            $this->line('   ' . ($mysqlMax >= 1024 ? '<fg=green>✓</>' : '<fg=red>✗</>')
+                . " illumi-search.processing.max_search_text_length = {$mysqlMax}");
             $this->newLine();
 
             return;
@@ -243,12 +241,12 @@ class DoctorCommand extends Command
                 default => in_array($value, $accepted, true),
             };
 
-            $this->line('   '.($isValid ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$key} = ".json_encode($value));
+            $this->line('   ' . ($isValid ? '<fg=green>✓</>' : '<fg=red>✗</>') . " {$key} = " . json_encode($value));
 
             if (! $isValid) {
                 $expected = $key === 'illumi-search.engines.sqlite.runtime.busy_timeout'
                     ? 'must be a non-negative integer'
-                    : 'accepted: '.implode('|', $accepted);
+                    : 'accepted: ' . implode('|', $accepted);
                 $this->line("     <fg=yellow>⚠ Expected {$expected}</>");
                 $this->allOk = false;
             }
@@ -265,11 +263,11 @@ class DoctorCommand extends Command
 
         foreach (['AND', 'OR', 'NOT', 'NEAR'] as $op) {
             $opSupported = in_array($op, $supported, true);
-            $this->line('   '.($opSupported ? '<fg=green>✓</>' : '<fg=red>✗</>')." {$op}");
+            $this->line('   ' . ($opSupported ? '<fg=green>✓</>' : '<fg=red>✗</>') . " {$op}");
         }
 
-        $this->line('   '.($engine->supportsPhraseSearch() ? '<fg=green>✓</>' : '<fg=red>✗</>').' "exact phrase"');
-        $this->line('   '.($engine->supportsPrefixWildcard() ? '<fg=green>✓</>' : '<fg=red>✗</>').' term* (prefix wildcard)');
+        $this->line('   ' . ($engine->supportsPhraseSearch() ? '<fg=green>✓</>' : '<fg=red>✗</>') . ' "exact phrase"');
+        $this->line('   ' . ($engine->supportsPrefixWildcard() ? '<fg=green>✓</>' : '<fg=red>✗</>') . ' term* (prefix wildcard)');
         $this->newLine();
     }
 }

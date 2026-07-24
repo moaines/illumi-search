@@ -5,7 +5,7 @@ namespace Moaines\IllumiSearch;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 
-/** @implements \Illuminate\Contracts\Support\Arrayable<string, mixed> */
+/** @implements Arrayable<string, mixed> */
 class Result implements Arrayable
 {
     /** @param array<string, mixed> $raw */
@@ -22,7 +22,13 @@ class Result implements Arrayable
         public readonly ?int $totalCount = null,
     ) {}
 
-    /** @param array<string, mixed> $raw */
+    /**
+     * Create a Result from raw parameters.
+     *
+     * @deprecated Use Result::fromRaw() instead.
+     *
+     * @param  array<string, mixed>  $raw
+     */
     public static function make(
         string $modelClass,
         int|string $modelId,
@@ -45,6 +51,28 @@ class Result implements Arrayable
             authorized: $authorized,
             model: $model,
             totalCount: $totalCount,
+        );
+    }
+
+    /**
+     * Create a Result from a raw result array (output from Engine::search()).
+     *
+     * Safely extracts the optional Eloquent model set by SnippetService::enrich(),
+     * returning null when the model is not available or was serialized to an array.
+     *
+     * @param  array<string, mixed>  $r
+     */
+    public static function fromRaw(array $r): self
+    {
+        return self::make(
+            modelClass: $r['modelClass'],
+            modelId: $r['modelId'],
+            rank: $r['rank'],
+            title: $r['title'],
+            summary: $r['summary'] ?? null,
+            raw: $r['row'] ?? [],
+            totalCount: $r['totalCount'] ?? null,
+            model: ($r['eloquentModel'] ?? null) instanceof Model ? $r['eloquentModel'] : null,
         );
     }
 

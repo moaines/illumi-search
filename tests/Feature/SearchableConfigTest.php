@@ -34,7 +34,6 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -56,7 +55,6 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => true,
@@ -76,7 +74,6 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'author',
@@ -97,7 +94,6 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected array $searchable = [
                 'title' => ['weight' => 3, 'locale' => 'de'],
                 'body' => ['weight' => 1, 'locale' => 'fr'],
@@ -121,7 +117,6 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected array $searchable = [
                 'title' => ['weight' => 3, 'snippet' => false],
                 'body' => ['weight' => 1, 'snippet' => true],
@@ -149,9 +144,7 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected $fillable = ['title', 'body', 'unused'];
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -189,9 +182,7 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'test_models';
-
             protected $fillable = ['title', 'body'];
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],
@@ -224,18 +215,15 @@ class SearchableConfigTest extends TestCase
             use Searchable;
 
             protected $table = 'virtual_models';
-
             protected $guarded = [];
-
             public $timestamps = true;
-
             protected array $searchable = [
                 'fullname' => ['weight' => 3],
             ];
 
             public function getFullnameAttribute(): string
             {
-                return $this->first_name.' '.$this->last_name;
+                return $this->first_name . ' ' . $this->last_name;
             }
         };
 

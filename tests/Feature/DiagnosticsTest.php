@@ -5,6 +5,7 @@ namespace Moaines\IllumiSearch\Tests\Feature;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class DiagnosticsTest extends TestCase
 {
@@ -14,7 +15,7 @@ class DiagnosticsTest extends TestCase
     {
         parent::setUp();
         $this->engine = app(Engine::class);
-        $this->engine->createTable(\Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class, ['title', 'body']);
+        $this->engine->createTable(Post::class, ['title', 'body']);
     }
 
     public function test_get_engine_version_returns_string(): void

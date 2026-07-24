@@ -10,7 +10,7 @@ use Moaines\IllumiSearch\Spellcheck;
 /**
  * @method static QueryBuilder query(string $query)
  *
- * @see \Moaines\IllumiSearch\QueryBuilder
+ * @see QueryBuilder
  */
 class IllumiSearch extends Facade
 {
@@ -24,8 +24,7 @@ class IllumiSearch extends Facade
      *
      * @example IllumiSearch::query('laravel')->model(Post::class)->get()
      *
-     * @param string $query The search terms
-     * @return QueryBuilder
+     * @param  string  $query  The search terms
      */
     public static function query(string $query): QueryBuilder
     {
@@ -37,8 +36,8 @@ class IllumiSearch extends Facade
      *
      * @example IllumiSearch::didYouMean('laravell', [Post::class])
      *
-     * @param string $query The (potentially misspelled) search term
-     * @param string[] $modelClasses Optional model classes to scope suggestions
+     * @param  string  $query  The (potentially misspelled) search term
+     * @param  string[]  $modelClasses  Optional model classes to scope suggestions
      * @return Collection<int, string>
      */
     public static function didYouMean(string $query, array $modelClasses = []): Collection

@@ -4,11 +4,12 @@ namespace Moaines\IllumiSearch\Text;
 
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Wamania\Snowball\NotFoundException;
+use Wamania\Snowball\Stemmer\Stemmer;
 use Wamania\Snowball\StemmerFactory;
 
 class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcessor
 {
-    /** @var array<string, \Wamania\Snowball\Stemmer\Stemmer> */
+    /** @var array<string, Stemmer> */
     protected static array $stemmers = [];
 
     public function process(string $text, string $locale = 'en'): string
@@ -30,7 +31,7 @@ class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcesso
         return implode(' ', array_map(fn ($word) => $stemmer->stem($word), $words));
     }
 
-    private function resolveStemmer(string $language): ?\Wamania\Snowball\Stemmer\Stemmer
+    private function resolveStemmer(string $language): ?Stemmer
     {
         if (isset(static::$stemmers[$language])) {
             return static::$stemmers[$language];

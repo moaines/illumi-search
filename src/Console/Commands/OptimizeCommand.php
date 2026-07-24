@@ -9,8 +9,8 @@ use Moaines\IllumiSearch\Contracts\Engine;
 class OptimizeCommand extends Command
 {
     use HasFormatBytes;
-    protected $signature = 'illumi-search:optimize';
 
+    protected $signature = 'illumi-search:optimize';
     protected $description = 'Optimize the search index';
 
     public function handle(Engine $engine): int

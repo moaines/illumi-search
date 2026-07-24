@@ -2,58 +2,68 @@
 
 namespace Moaines\IllumiSearch\Engines;
 
+use DebugBar\StandardDebugBar;
+use Illuminate\Support\Facades\Log;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\ConfigHelper;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
+use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
+use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Text\HasScoring;
 use SQLite3;
 
 class SqliteEngine implements Engine
 {
+    use HasScoring;
+
     private const META_TABLE = 'meta';
 
     private const CONFIG_TABLE = 'config';
 
     private ?SQLite3 $db = null;
-
     private ?TextProcessor $textProcessor = null;
 
     /** @var list<string> */
-    protected static array $supportedOperators = ['AND', 'OR', 'NOT'];
+    protected array $supportedOperators = ['AND', 'OR', 'NOT'];
 
     /** @var list<string> */
-    protected static array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
+    protected array $rawSupportedOperators = ['AND', 'OR', 'NOT'];
 
-    protected static bool $operatorsProbed = false;
+    protected bool $operatorsProbed = false;
 
     /** @var array<string, string> */
     private array $cachedSafeQueries = [];
 
     private int $maxCachedQueries = 1000;
-
     private bool $fts5Available = false;
-
     private ?IllumiSearchCollector $debugCollector = null;
-
-    public static function resetOperators(): void
-    {
-        static::$operatorsProbed = false;
-        static::$supportedOperators = ['AND', 'OR', 'NOT'];
-        static::$rawSupportedOperators = ['AND', 'OR', 'NOT'];
-    }
+    private bool $isRebuilding = false;
+    private SearchCache $searchCache;
+    private IllumiSearchConfig $illumiConfig;
 
     public function __construct(
         private readonly string $databasePath,
         private readonly ?SnippetService $snippets = null,
-    ) {}
+        ?IllumiSearchConfig $illumiConfig = null,
+    ) {
+        $this->searchCache = new SearchCache(dirname($databasePath));
+        $this->illumiConfig = $illumiConfig ?? app(IllumiSearchConfig::class);
+    }
 
     public function setTextProcessor(TextProcessor $processor): void
     {
         $this->textProcessor = $processor;
+    }
+
+    public function setRebuilding(bool $isRebuilding): void
+    {
+        $this->isRebuilding = $isRebuilding;
     }
 
     public function getDatabasePath(): string
@@ -62,17 +72,22 @@ class SqliteEngine implements Engine
     }
 
     /**
-     * @param array<string, string> $document
+     * @param  array<string, string>  $document
      * @return array<string, string>
      */
     protected function sanitizeDocumentKeys(array $document): array
     {
         $sanitized = [];
         foreach ($document as $key => $value) {
-            $sanitized[str_replace(['.', '->', '-'], '_', $key)] = $value;
+            $sanitized[$this->normalizeColumnName($key)] = $value;
         }
 
         return $sanitized;
+    }
+
+    private function normalizeColumnName(string $key): string
+    {
+        return IllumiSearchHelper::normalizeColumnName($key);
     }
 
     public function getDatabaseSize(): int
@@ -89,16 +104,16 @@ class SqliteEngine implements Engine
         if ($this->db === null) {
             $this->db = new SQLite3($this->databasePath);
 
-            $this->db->exec('PRAGMA busy_timeout='.config('illumi-search.fts5.busy_timeout', 15000));
+            $c = $this->illumiConfig;
 
-            if (filter_var(config('illumi-search.fts5.wal', true), FILTER_VALIDATE_BOOLEAN)) {
+            if (filter_var($c->sqliteWal(), FILTER_VALIDATE_BOOLEAN)) {
                 $this->db->exec('PRAGMA journal_mode=WAL');
             }
-            $this->db->exec('PRAGMA synchronous='.config('illumi-search.fts5.synchronous', 'NORMAL'));
-            $this->db->exec('PRAGMA cache_size='.config('illumi-search.fts5.cache_size_kb', -64000));
-            $this->db->exec('PRAGMA temp_store='.config('illumi-search.fts5.temp_store', 'MEMORY'));
-            $this->db->exec('PRAGMA busy_timeout='.config('illumi-search.fts5.busy_timeout', 15000));
-            $this->db->exec('PRAGMA mmap_size='.config('illumi-search.fts5.mmap_size', 0));
+            $this->db->exec('PRAGMA synchronous=' . $c->sqliteSynchronous());
+            $this->db->exec('PRAGMA cache_size=' . $c->sqliteCacheSizeKb());
+            $this->db->exec('PRAGMA temp_store=' . $c->sqliteTempStore());
+            $this->db->exec('PRAGMA busy_timeout=' . $c->sqliteBusyTimeout());
+            $this->db->exec('PRAGMA mmap_size=' . $c->sqliteMmapSize());
 
             $this->fts5Available = $this->probeFts5();
 
@@ -106,8 +121,8 @@ class SqliteEngine implements Engine
 
             if ($collector = $this->resolveDebugCollector()) {
                 $collector->setEngineInfo([
-                    'version' => 'SQLite '.$this->db->querySingle('SELECT sqlite_version()').' | FTS5',
-                    'tokenizer' => config('illumi-search.fts5.tokenizer', 'unicode61'),
+                    'version' => 'SQLite ' . $this->db->querySingle('SELECT sqlite_version()') . ' | FTS5',
+                    'tokenizer' => $this->illumiConfig->sqliteTokenizer(),
                     'indexed_records' => collect($this->getIndexStats())->sum('record_count'),
                     'fts5_available' => $this->fts5Available,
                 ]);
@@ -134,7 +149,7 @@ class SqliteEngine implements Engine
                 columns TEXT NOT NULL,
                 last_synced_at TEXT
             )',
-            $this->table(self::META_TABLE)
+            $this->table(self::META_TABLE),
         ));
     }
 
@@ -145,7 +160,7 @@ class SqliteEngine implements Engine
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             )',
-            $this->table(self::CONFIG_TABLE)
+            $this->table(self::CONFIG_TABLE),
         ));
     }
 
@@ -159,8 +174,8 @@ class SqliteEngine implements Engine
     }
 
     /**
-     * @param array<int|string, mixed> $columns
-     * @param int[] $prefixLengths
+     * @param  array<int|string, mixed>  $columns
+     * @param  int[]  $prefixLengths
      */
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
@@ -169,9 +184,9 @@ class SqliteEngine implements Engine
         if (! $this->fts5Available) {
             throw new IllumiSearchException(
                 'FTS5 is not available in your SQLite build. '
-                .'Install or compile SQLite with FTS5 enabled '
-                .'(--enable-fts5 or SQLITE_ENABLE_FTS5). '
-                .'Run "php artisan illumi-search:doctor" for details.'
+                . 'Install or compile SQLite with FTS5 enabled '
+                . '(--enable-fts5 or SQLITE_ENABLE_FTS5). '
+                . 'Run "php artisan illumi-search:doctor" for details.',
             );
         }
 
@@ -182,7 +197,7 @@ class SqliteEngine implements Engine
 
         foreach ($columns as $key => $config) {
             $colName = is_string($key) ? $key : $config;
-            $safeName = str_replace(['.', '->', '-'], '_', $colName);
+            $safeName = $this->normalizeColumnName($colName);
             $contentColumns[] = $safeName;
             $columnDefinitions[] = $safeName;
         }
@@ -193,19 +208,19 @@ class SqliteEngine implements Engine
 
         $options = [];
 
-        $tokenizerDef = config('illumi-search.fts5.tokenizer', 'unicode61');
+        $tokenizerDef = $this->illumiConfig->sqliteTokenizer();
         $options[] = "tokenize='{$tokenizerDef}'";
 
         if (! empty($prefixLengths)) {
-            $options[] = "prefix='".implode(' ', $prefixLengths)."'";
+            $options[] = "prefix='" . implode(' ', $prefixLengths) . "'";
         }
 
-        $detail = config('illumi-search.fts5.detail', 'full');
+        $detail = $this->illumiConfig->sqliteDetail();
         if ($detail !== 'full') {
             $options[] = "detail={$detail}";
         }
 
-        $columnsize = config('illumi-search.fts5.columnsize', 1);
+        $columnsize = $this->illumiConfig->sqliteColumnsize();
         if ((int) $columnsize === 0) {
             $options[] = 'columnsize=0';
         }
@@ -217,9 +232,9 @@ class SqliteEngine implements Engine
 
         // Set runtime FTS5 options (automerge, crisismerge, pgsz)
         $runtimeKeys = [
-            'automerge' => config('illumi-search.fts5.automerge', 4),
-            'crisismerge' => config('illumi-search.fts5.crisismerge', 16),
-            'pgsz' => config('illumi-search.fts5.pgsz', 1000),
+            'automerge' => $this->illumiConfig->sqliteAutomerge(),
+            'crisismerge' => $this->illumiConfig->sqliteCrisismerge(),
+            'pgsz' => $this->illumiConfig->sqlitePgsz(),
         ];
 
         foreach ($runtimeKeys as $key => $value) {
@@ -231,9 +246,9 @@ class SqliteEngine implements Engine
         }
 
         // Vocab table for spellcheck
-        $vocabTable = $table.'_vocab';
+        $vocabTable = $table . '_vocab';
         $this->db()->exec(
-            "CREATE VIRTUAL TABLE IF NOT EXISTS {$vocabTable} USING fts5vocab({$table}, 'row')"
+            "CREATE VIRTUAL TABLE IF NOT EXISTS {$vocabTable} USING fts5vocab({$table}, 'row')",
         );
 
         $this->updateMeta($modelClass, 1, $contentColumns);
@@ -242,11 +257,11 @@ class SqliteEngine implements Engine
     public function dropTable(string $modelClass): void
     {
         $table = $this->tableName($modelClass);
-        $vocabTable = $table.'_vocab';
+        $vocabTable = $table . '_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$table}");
 
-        $stmt = $this->db()->prepare('DELETE FROM '.$this->table(self::META_TABLE).' WHERE model_class = :model');
+        $stmt = $this->db()->prepare('DELETE FROM ' . $this->table(self::META_TABLE) . ' WHERE model_class = :model');
         $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
         $stmt->execute();
     }
@@ -273,7 +288,7 @@ class SqliteEngine implements Engine
         $placeholderList = implode(', ', $placeholders);
 
         $stmt = $this->db()->prepare(
-            "INSERT OR REPLACE INTO {$table} ({$columnList}) VALUES ({$placeholderList})"
+            "INSERT OR REPLACE INTO {$table} ({$columnList}) VALUES ({$placeholderList})",
         );
 
         foreach ($values as $param => $value) {
@@ -281,6 +296,8 @@ class SqliteEngine implements Engine
         }
 
         $stmt->execute();
+
+        $this->searchCache->clear();
     }
 
     public function delete(string $modelClass, int|string $modelId): void
@@ -294,6 +311,8 @@ class SqliteEngine implements Engine
         $stmt = $this->db()->prepare("DELETE FROM {$table} WHERE model_id = :id");
         $stmt->bindValue(':id', (string) $modelId, SQLITE3_TEXT);
         $stmt->execute();
+
+        $this->searchCache->clear();
     }
 
     /** @param array<int, array{model_id: int|string, document: array<string, string>}> $documents */
@@ -310,6 +329,10 @@ class SqliteEngine implements Engine
             $this->db()->exec('ROLLBACK');
             throw $e;
         }
+
+        if (! $this->isRebuilding) {
+            $this->searchCache->clear();
+        }
     }
 
     /**
@@ -320,6 +343,20 @@ class SqliteEngine implements Engine
     {
         if (empty(trim($query))) {
             return [];
+        }
+
+        // Try cache first
+        $cacheKey = $this->searchCache->key($query, $modelClasses, $limit, $offset, $mode);
+        $cached = $this->searchCache->get($cacheKey);
+
+        if ($cached !== null) {
+            // Cache the raw results
+            $this->searchCache->set($cacheKey, $results);
+
+            return array_map(
+                fn ($r) => Result::fromRaw($r),
+                $cached,
+            );
         }
 
         $safeQuery = $this->escapeQuery($query, $mode);
@@ -370,7 +407,7 @@ class SqliteEngine implements Engine
                     $modelResults[] = [
                         'modelClass' => $modelClass,
                         'modelId' => $modelId,
-                        'rank' => $row['rank'] ?? 0.0,
+                        'rank' => $this->normalizeScore($row['rank'] ?? 0.0, null, 1),
                         'title' => $row[$titleColumn] ?? $modelId,
                         'row' => $row,
                         'totalCount' => $pageTotalCount,
@@ -391,7 +428,10 @@ class SqliteEngine implements Engine
                     );
                 }
             } catch (\Exception $e) {
-                report($e);
+                Log::warning("illumi-search: FTS5 search failed for {$modelClass}: " . $e->getMessage(), [
+                    'query' => $safeQuery ?? '',
+                    'modelClass' => $modelClass,
+                ]);
 
                 continue;
             }
@@ -409,18 +449,16 @@ class SqliteEngine implements Engine
         }
 
         return array_map(
-            fn ($r) => Result::make(
-                modelClass: $r['modelClass'],
-                modelId: $r['modelId'],
-                rank: $r['rank'],
-                title: $r['title'],
-                summary: $r['summary'] ?? null,
-                raw: $r['row'],
-                model: $r['eloquentModel'] ?? null,
-                totalCount: $r['totalCount'] ?? null,
-            ),
+            fn ($r) => Result::fromRaw($r),
             $results,
         );
+    }
+
+    private function addCacheClearOnWrite(): void
+    {
+        if (! $this->isRebuilding) {
+            $this->searchCache->clear();
+        }
     }
 
     /**
@@ -444,7 +482,7 @@ class SqliteEngine implements Engine
 
             try {
                 $stmt = $this->db()->prepare(
-                    "SELECT COUNT(*) as cnt FROM {$table} WHERE {$table} MATCH :query"
+                    "SELECT COUNT(*) as cnt FROM {$table} WHERE {$table} MATCH :query",
                 );
                 $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
                 $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
@@ -460,7 +498,9 @@ class SqliteEngine implements Engine
     public function tableExists(string $modelClass): bool
     {
         $table = $this->tableName($modelClass);
-        $result = $this->db()->query("SELECT name FROM sqlite_master WHERE type='table' AND name='{$table}'");
+        $stmt = $this->db()->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = :name");
+        $stmt->bindValue(':name', $table, SQLITE3_TEXT);
+        $result = $stmt->execute();
 
         return $result !== false && $result->fetchArray(SQLITE3_NUM) !== false;
     }
@@ -485,9 +525,19 @@ class SqliteEngine implements Engine
     /** @return array<string> */
     public function listIndexTables(): array
     {
-        $result = $this->db()->query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '" . $this->table('idx_') . "%' AND name != '" . $this->table(self::META_TABLE) . "' AND name != '" . $this->table(self::CONFIG_TABLE) . "' AND name NOT LIKE '" . $this->table('idx_') . "%_vocab'",
+        $idxPrefix = $this->table('idx_');
+        $metaTable = $this->table(self::META_TABLE);
+        $configTable = $this->table(self::CONFIG_TABLE);
+
+        $stmt = $this->db()->prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ? AND name != ? AND name != ? AND name NOT LIKE ?",
         );
+        $stmt->bindValue(1, $idxPrefix . '%', SQLITE3_TEXT);
+        $stmt->bindValue(2, $metaTable, SQLITE3_TEXT);
+        $stmt->bindValue(3, $configTable, SQLITE3_TEXT);
+        $stmt->bindValue(4, $idxPrefix . '%_vocab', SQLITE3_TEXT);
+
+        $result = $stmt->execute();
 
         $tables = [];
         while ($row = $result->fetchArray(SQLITE3_NUM)) {
@@ -499,7 +549,7 @@ class SqliteEngine implements Engine
 
     public function dropIndexTable(string $tableName): void
     {
-        $vocabTable = $tableName.'_vocab';
+        $vocabTable = $tableName . '_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
         $this->db()->exec("DROP TABLE IF EXISTS {$tableName}");
     }
@@ -507,7 +557,7 @@ class SqliteEngine implements Engine
     /** @return array<class-string> */
     public function getIndexedModelClasses(): array
     {
-        $result = $this->db()->query('SELECT model_class FROM '.$this->table(self::META_TABLE));
+        $result = $this->db()->query('SELECT model_class FROM ' . $this->table(self::META_TABLE));
         $classes = [];
 
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
@@ -541,7 +591,7 @@ class SqliteEngine implements Engine
             $row = $result->fetchArray(SQLITE3_ASSOC);
 
             $metaResult = $this->db()->query(
-                'SELECT last_synced_at, columns FROM '.$this->table(self::META_TABLE)." WHERE model_class = '".SQLite3::escapeString($modelClass)."'"
+                'SELECT last_synced_at, columns FROM ' . $this->table(self::META_TABLE) . " WHERE model_class = '" . SQLite3::escapeString($modelClass) . "'",
             );
             $meta = $metaResult ? $metaResult->fetchArray(SQLITE3_ASSOC) : false;
 
@@ -599,16 +649,16 @@ class SqliteEngine implements Engine
         }
 
         $table = $this->tableName($modelClass);
-        $vocabTable = $table.'_vocab';
+        $vocabTable = $table . '_vocab';
         $suggestions = [];
 
         try {
-            $vocabLimit = config('illumi-search.spellcheck.vocab_limit', 1000);
+            $vocabLimit = $this->illumiConfig->sqliteVocabLimit();
             $prefix = mb_substr($term, 0, 2);
             $stmt = $this->db()->prepare(
-                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}"
+                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}",
             );
-            $stmt->bindValue(':prefix', $prefix.'%', SQLITE3_TEXT);
+            $stmt->bindValue(':prefix', $prefix . '%', SQLITE3_TEXT);
 
             if ($stmt === false) {
                 return [];
@@ -629,7 +679,7 @@ class SqliteEngine implements Engine
                 }
             }
         } catch (\Exception $e) {
-            report($e);
+            Log::warning("illumi-search: queryVocab failed: " . $e->getMessage());
 
             return [];
         }
@@ -666,7 +716,7 @@ class SqliteEngine implements Engine
         $this->ensureOperatorsProbed();
         $this->applyOperatorConfig();
 
-        return static::$supportedOperators;
+        return $this->supportedOperators;
     }
 
     public function supportsPhraseSearch(): bool
@@ -680,23 +730,23 @@ class SqliteEngine implements Engine
     }
 
     /** @param string[] $columns */
-    protected function updateMeta(string $modelClass, int $version, array $columns): void
+    protected function updateMeta(string $modelClass, int $version, array $columns, ?string $syncedAt = null): void
     {
         $stmt = $this->db()->prepare(sprintf(
             'INSERT OR REPLACE INTO %s (model_class, schema_version, columns, last_synced_at) VALUES (:model, :version, :columns, :synced)',
-            $this->table(self::META_TABLE)
+            $this->table(self::META_TABLE),
         ));
 
         $stmt->bindValue(':model', $modelClass, SQLITE3_TEXT);
         $stmt->bindValue(':version', $version, SQLITE3_INTEGER);
         $stmt->bindValue(':columns', json_encode($columns), SQLITE3_TEXT);
-        $stmt->bindValue(':synced', now()->toDateTimeString(), SQLITE3_TEXT);
+        $stmt->bindValue(':synced', $syncedAt ?? now()->toDateTimeString(), SQLITE3_TEXT);
         $stmt->execute();
     }
 
     protected function escapeQuery(string $query, string $mode): string
     {
-        $cacheKey = md5($query.$mode);
+        $cacheKey = md5($query . $mode);
         if (isset($this->cachedSafeQueries[$cacheKey])) {
             return $this->cachedSafeQueries[$cacheKey];
         }
@@ -722,11 +772,11 @@ class SqliteEngine implements Engine
 
         foreach (OperatorRegistry::tokenize($query) as $token) {
             if (preg_match('/^"([^"]+)"$/', $token, $m)) {
-                $terms[] = '"'.$m[1].'"';
+                $terms[] = '"' . $m[1] . '"';
             } else {
                 $clean = preg_replace('/[^\p{L}\p{N}\*-]/u', '', $token);
                 if ($clean !== '') {
-                    $terms[] = rtrim($clean, '*').'*';
+                    $terms[] = rtrim($clean, '*') . '*';
                 }
             }
         }
@@ -740,7 +790,7 @@ class SqliteEngine implements Engine
         $escaped = [];
         $this->ensureOperatorsProbed();
         $this->applyOperatorConfig();
-        $operatorsConfig = config('illumi-search.operators.enabled');
+        $operatorsConfig = $this->illumiConfig->operators();
 
         foreach ($terms as $term) {
             if (empty($term)) {
@@ -750,7 +800,7 @@ class SqliteEngine implements Engine
             $termUpper = strtoupper($term);
             $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
 
-            if (in_array($baseOp, static::$supportedOperators, true)) {
+            if (in_array($baseOp, $this->supportedOperators, true)) {
                 $escaped[] = $baseOp;
 
                 continue;
@@ -764,7 +814,7 @@ class SqliteEngine implements Engine
 
             // Unsupported operator keyword → literal quoted term
             if (in_array($baseOp, ['AND', 'OR', 'NOT', 'NEAR'], true)) {
-                $escaped[] = '"'.$term.'"';
+                $escaped[] = '"' . $term . '"';
 
                 continue;
             }
@@ -782,9 +832,9 @@ class SqliteEngine implements Engine
             }
 
             if (preg_match('/[:\-\(\)\^]/', $term)) {
-                $escaped[] = '"'.$term.'"';
+                $escaped[] = '"' . $term . '"';
             } else {
-                $escaped[] = rtrim($term, '*').'*';
+                $escaped[] = rtrim($term, '*') . '*';
             }
         }
 
@@ -802,10 +852,10 @@ class SqliteEngine implements Engine
 
     protected function ensureOperatorsProbed(): void
     {
-        if (static::$operatorsProbed) {
+        if ($this->operatorsProbed) {
             return;
         }
-        static::$operatorsProbed = true;
+        $this->operatorsProbed = true;
 
         if (! $this->fts5Available) {
             return;
@@ -819,7 +869,7 @@ class SqliteEngine implements Engine
             try {
                 $result = @$db->query("SELECT rowid FROM _fts_probe WHERE _fts_probe MATCH 'aaa NEAR/10 bbb'");
                 if ($result !== false && $result->fetchArray()) {
-                    static::$supportedOperators[] = 'NEAR';
+                    $this->supportedOperators[] = 'NEAR';
                 }
             } catch (\Exception) {
                 // operator not supported — skip
@@ -831,7 +881,7 @@ class SqliteEngine implements Engine
         }
 
         // Save raw list before config filtering (for illumi-search:doctor)
-        static::$rawSupportedOperators = static::$supportedOperators;
+        $this->rawSupportedOperators = $this->supportedOperators;
     }
 
     /**
@@ -840,10 +890,10 @@ class SqliteEngine implements Engine
      */
     protected function applyOperatorConfig(): void
     {
-        $allowed = config('illumi-search.operators.enabled');
+        $allowed = $this->illumiConfig->operators();
 
         // Reset to raw probed list before applying config
-        static::$supportedOperators = static::$rawSupportedOperators;
+        $this->supportedOperators = $this->rawSupportedOperators;
 
         if ($allowed === null) {
             return;
@@ -854,23 +904,23 @@ class SqliteEngine implements Engine
         }
 
         if (is_array($allowed) && ! empty($allowed)) {
-            static::$supportedOperators = array_intersect(
-                static::$supportedOperators,
-                $allowed
+            $this->supportedOperators = array_intersect(
+                $this->supportedOperators,
+                $allowed,
             );
         } elseif (is_array($allowed) && empty($allowed)) {
-            static::$supportedOperators = [];
+            $this->supportedOperators = [];
         }
     }
 
     /** @return array<string, bool> operator → supported or not */
-    public static function getOperatorsWithSupportStatus(): array
+    public function getOperatorsWithSupportStatus(): array
     {
         $all = ['AND', 'OR', 'NOT', 'NEAR'];
         $result = [];
 
         foreach ($all as $op) {
-            $result[$op] = in_array($op, static::$supportedOperators, true);
+            $result[$op] = in_array($op, $this->supportedOperators, true);
         }
 
         return $result;
@@ -900,7 +950,7 @@ class SqliteEngine implements Engine
     private function cleanupOrphanedMeta(string $modelClass): void
     {
         try {
-            $stmt = $this->db()->prepare('DELETE FROM '.$this->table(self::META_TABLE).' WHERE model_class = :model');
+            $stmt = $this->db()->prepare('DELETE FROM ' . $this->table(self::META_TABLE) . ' WHERE model_class = :model');
             $stmt->bindValue(':model', $modelClass, \SQLITE3_TEXT);
             $stmt->execute();
         } catch (\Exception) {
@@ -913,10 +963,10 @@ class SqliteEngine implements Engine
         $sqlite = $this->db()->querySingle('SELECT sqlite_version()');
 
         if (! $this->fts5Available) {
-            return 'SQLite '.$sqlite.' (FTS5 unavailable)';
+            return 'SQLite ' . $sqlite . ' (FTS5 unavailable)';
         }
 
-        return 'SQLite '.$sqlite.' | FTS5';
+        return 'SQLite ' . $sqlite . ' | FTS5';
     }
 
     public function isFts5Available(): bool
@@ -930,7 +980,7 @@ class SqliteEngine implements Engine
 
     private function table(string $name): string
     {
-        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
+        $prefix = $this->illumiConfig->tablePrefix();
 
         return $prefix . ltrim($name, '_');
     }
@@ -938,7 +988,7 @@ class SqliteEngine implements Engine
     private function probeFts5(): bool
     {
         try {
-            $db = new \SQLite3(':memory:');
+            $db = new SQLite3(':memory:');
             $db->exec('CREATE VIRTUAL TABLE _fts_probe USING fts5(content)');
             $db->close();
 
@@ -954,7 +1004,7 @@ class SqliteEngine implements Engine
             return $this->debugCollector;
         }
 
-        if (! class_exists(\DebugBar\StandardDebugBar::class)) {
+        if (! class_exists(StandardDebugBar::class)) {
             return $this->debugCollector = null;
         }
 
@@ -1017,7 +1067,7 @@ class SqliteEngine implements Engine
             try {
                 $this->db()->exec("INSERT INTO {$table}({$table}) VALUES('integrity-check')");
             } catch (\Exception $e) {
-                $errors[] = $table.': '.$e->getMessage();
+                $errors[] = $table . ': ' . $e->getMessage();
             }
         }
 
@@ -1031,15 +1081,15 @@ class SqliteEngine implements Engine
             'engine_version' => $this->getEngineVersion(),
             'database_path' => $this->getDatabasePath(),
             'database_size' => $this->getDatabaseSize(),
-            'tokenizer' => config('illumi-search.engines.sqlite.fts5.tokenizer', 'unicode61'),
-            'detail' => config('illumi-search.engines.sqlite.fts5.detail', 'full'),
-            'columnsize' => config('illumi-search.engines.sqlite.fts5.columnsize', 1) ? 'Enabled' : 'Disabled',
-            'prefix_lengths' => '[' . implode(', ', config('illumi-search.engines.sqlite.fts5.prefix_lengths', [2, 3, 4])) . ']',
-            'automerge' => config('illumi-search.engines.sqlite.fts5.automerge', 4),
-            'crisismerge' => config('illumi-search.engines.sqlite.fts5.crisismerge', 16),
-            'wal' => config('illumi-search.engines.sqlite.runtime.wal', true) ? 'Enabled' : 'Disabled',
-            'cache_size' => abs(config('illumi-search.engines.sqlite.runtime.cache_size_kb', -64000)) . ' KB',
-            'busy_timeout' => config('illumi-search.engines.sqlite.runtime.busy_timeout', 15000) . ' ms',
+            'tokenizer' => $this->illumiConfig->sqliteTokenizer(),
+            'detail' => $this->illumiConfig->sqliteDetail(),
+            'columnsize' => $this->illumiConfig->sqliteColumnsize() ? 'Enabled' : 'Disabled',
+            'prefix_lengths' => '[' . implode(', ', $this->illumiConfig->sqlitePrefixLengths()) . ']',
+            'automerge' => $this->illumiConfig->sqliteAutomerge(),
+            'crisismerge' => $this->illumiConfig->sqliteCrisismerge(),
+            'wal' => $this->illumiConfig->sqliteWal() ? 'Enabled' : 'Disabled',
+            'cache_size' => abs($this->illumiConfig->sqliteCacheSizeKb()) . ' KB',
+            'busy_timeout' => $this->illumiConfig->sqliteBusyTimeout() . ' ms',
         ];
     }
 
@@ -1048,7 +1098,7 @@ class SqliteEngine implements Engine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'SELECT value FROM '.$this->table(self::CONFIG_TABLE).' WHERE key = :key'
+            'SELECT value FROM ' . $this->table(self::CONFIG_TABLE) . ' WHERE key = :key',
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $row = $stmt->execute()->fetchArray(\SQLITE3_ASSOC);
@@ -1061,7 +1111,7 @@ class SqliteEngine implements Engine
         $this->ensureConfigTable();
 
         $stmt = $this->db()->prepare(
-            'INSERT OR REPLACE INTO '.$this->table(self::CONFIG_TABLE).' (key, value) VALUES (:key, :value)'
+            'INSERT OR REPLACE INTO ' . $this->table(self::CONFIG_TABLE) . ' (key, value) VALUES (:key, :value)',
         );
         $stmt->bindValue(':key', $key, \SQLITE3_TEXT);
         $stmt->bindValue(':value', ConfigHelper::encode($value), \SQLITE3_TEXT);

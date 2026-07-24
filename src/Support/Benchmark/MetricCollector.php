@@ -5,10 +5,14 @@ namespace Moaines\IllumiSearch\Support\Benchmark;
 class MetricCollector
 {
     private array $quantitative = [];
-
     private array $quality = [];
-
     private array $soundness = [];
+
+    /** @var float[] Individual query latencies in ms */
+    private array $latencies = [];
+
+    private float $peakMemoryBefore = 0;
+    private float $peakMemoryAfter = 0;
 
     private static function scriptsOf(string $text): array
     {
@@ -25,32 +29,21 @@ class MetricCollector
                 $found[] = $name;
             }
         }
+
         return $found ?: ['Common'];
     }
 
-    /**
-     * Extract searchable text from a result, handling both MySQL (raw.search_text)
-     * and SQLite FTS5 (individual columns).
-     */
-    private function extractSearchText(mixed $result): string
+    public function extractSearchText(mixed $result): string
     {
         if ($result === null) {
             return '';
         }
-
         if (is_string($result) || is_numeric($result)) {
             return (string) $result;
         }
-
-        // MySQL: raw has a single search_text column
         if (! empty($result->raw['search_text'])) {
-            $text = $result->raw['search_text'];
-            if (mb_strlen((string) $text) > 3) {
-                return mb_strtolower((string) $text);
-            }
+            return mb_strtolower($result->raw['search_text']);
         }
-
-        // SQLite FTS5: concatenate all text columns from raw
         if (! empty($result->raw)) {
             $parts = [];
             foreach ($result->raw as $key => $value) {
@@ -67,19 +60,24 @@ class MetricCollector
             }
         }
 
-        // Fallback: use summary or title (may not contain the search term match)
-        $fallback = $result->summary ?? $result->title ?? '';
-
-        return mb_strtolower((string) $fallback);
+        return mb_strtolower((string) ($result->summary ?? $result->title ?? ''));
     }
 
-    /**
-     * Public access to extractSearchText for external consumers (BenchmarkRunner).
-     */
-    public function extractSearchTextForSoundness(mixed $result): string
+    public function tokenize(string $text): array
     {
-        return $this->extractSearchText($result);
+        $words = preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($text));
+
+        return array_values(array_unique(array_filter($words, fn ($w) => mb_strlen($w) >= 2)));
     }
+
+    public function tokensMatch(string $docText, array $queryTokens): bool
+    {
+        $docTokens = $this->tokenize($docText);
+
+        return empty(array_diff($queryTokens, $docTokens));
+    }
+
+    // ─── Recording ──────────────────────────────────────
 
     public function recordQuant(string $metric, float $value, string $unit): void
     {
@@ -96,25 +94,37 @@ class MetricCollector
         $this->soundness[$metric] = ['value' => $passed, 'display' => $label ?: ($passed ? '✓' : '✗')];
     }
 
-    public function precisionAtK(array $results, string $expected, int $k = 5): float
+    public function recordLatency(float $ms): void
+    {
+        $this->latencies[] = $ms;
+    }
+
+    public function recordPeakMemory(): void
+    {
+        $this->peakMemoryAfter = memory_get_peak_usage(true);
+    }
+
+    public function recordPeakBefore(): void
+    {
+        $this->peakMemoryBefore = memory_get_peak_usage(true);
+    }
+
+    // ─── Quality: Precision@K ───────────────────────────
+
+    public function precisionAtK(array $results, string $query, int $k = 5): float
     {
         if (empty($results)) {
+            return 0.0;
+        }
+        $queryTokens = $this->tokenize($query);
+        if (empty($queryTokens)) {
             return 0.0;
         }
 
         $topK = array_slice($results, 0, $k);
         $found = 0;
-
-        foreach ($topK as $result) {
-            $searchText = $this->extractSearchText($result);
-
-            if (mb_strlen($searchText) <= 3) {
-                continue;
-            }
-
-            $expectedLow = mb_strtolower($expected);
-
-            if (mb_strpos($searchText, $expectedLow) !== false) {
+        foreach ($topK as $r) {
+            if ($this->tokensMatch($this->extractSearchText($r), $queryTokens)) {
                 $found++;
             }
         }
@@ -122,76 +132,112 @@ class MetricCollector
         return $found / min(count($topK), $k);
     }
 
-    private function relevanceGain(mixed $result, string $queryLow): int
+    public function precisionAt1(array $results, string $query): float
     {
-        $title = mb_strtolower((string) ($result->title ?? ''));
-        if (mb_strpos($title, $queryLow) !== false) {
-            return 3;
-        }
-
-        $allText = '';
-        if (! empty($result->raw)) {
-            $parts = [];
-            foreach ($result->raw as $key => $value) {
-                if (in_array($key, ['model_id', 'rank', 'total_count', 'id', 'model_type', 'title'], true)) {
-                    continue;
-                }
-                if (is_string($value) && mb_strlen($value) > 2) {
-                    $parts[] = $value;
-                }
-            }
-            $allText = implode(' ', $parts);
-        }
-
-        // Fallback: use summary if available
-        if (mb_strlen($allText) <= 3 && ($result->summary ?? null) !== null) {
-            $allText = $result->summary;
-        }
-
-        return mb_strpos(mb_strtolower($allText), $queryLow) !== false ? 1 : 0;
+        return $this->precisionAtK($results, $query, 1);
     }
 
-    public function ndcgAtK(array $results, string $query, int $k = 5): float
+    // ─── Quality: Recall@K ──────────────────────────────
+
+    public function recallAtK(array $results, string $query, int $k, int $totalRelevant): float
     {
-        if (empty($results)) {
+        if ($totalRelevant <= 0) {
+            return 0.0;
+        }
+        $queryTokens = $this->tokenize($query);
+        if (empty($queryTokens)) {
             return 0.0;
         }
 
-        $queryLow = mb_strtolower($query);
-        $gains = [];
+        $topK = array_slice($results, 0, $k);
+        $found = 0;
+        foreach ($topK as $r) {
+            if ($this->tokensMatch($this->extractSearchText($r), $queryTokens)) {
+                $found++;
+            }
+        }
 
-        foreach (array_slice($results, 0, $k) as $result) {
-            $gains[] = $this->relevanceGain($result, $queryLow);
+        return $found / $totalRelevant;
+    }
+
+    // ─── Quality: F1@K ──────────────────────────────────
+
+    public function f1AtK(float $precision, float $recall): float
+    {
+        return ($precision + $recall) > 0 ? 2 * $precision * $recall / ($precision + $recall) : 0.0;
+    }
+
+    // ─── Quality: NDCG with weighted relevance (0–3) ────
+
+    /**
+     * @param  array<int, int>  $relevanceMap  docId → relevance (0–3)
+     */
+    public function weightedNDCG(array $results, string $query, int $k, array $relevanceMap): float
+    {
+        $topK = array_slice($results, 0, $k);
+        if (empty($topK)) {
+            return 0.0;
+        }
+
+        $gains = [];
+        foreach ($topK as $r) {
+            $gains[] = $relevanceMap[$r->modelId] ?? 0;
         }
 
         $dcg = 0.0;
-        foreach ($gains as $i => $gain) {
-            $dcg += $gain / log($i + 2, 2);
+        foreach ($gains as $i => $g) {
+            $dcg += $g / log($i + 2, 2);
         }
 
-        $ideal = $gains;
-        rsort($ideal);
+        rsort($gains);
         $idcg = 0.0;
-        foreach ($ideal as $i => $gain) {
-            $idcg += $gain / log($i + 2, 2);
+        foreach ($gains as $i => $g) {
+            $idcg += $g / log($i + 2, 2);
         }
 
         return $idcg > 0 ? $dcg / $idcg : 0.0;
     }
+
+    // ─── Quality: Avg first relevant position ────────────
+
+    public function avgFirstRelevantPos(array $allResults, array $exactQueries): float
+    {
+        $positions = [];
+        foreach ($exactQueries as $q) {
+            $results = $allResults[$q] ?? [];
+            $queryTokens = $this->tokenize($q);
+            if (empty($queryTokens)) {
+                continue;
+            }
+
+            foreach ($results as $pos => $r) {
+                if ($this->tokensMatch($this->extractSearchText($r), $queryTokens)) {
+                    $positions[] = $pos + 1; // 1-indexed
+                    break;
+                }
+            }
+        }
+
+        return ! empty($positions) ? array_sum($positions) / count($positions) : 0.0;
+    }
+
+    // ─── Quality: MAP@K ──────────────────────────────────
 
     public function averagePrecisionAtK(array $results, string $query, int $k = 5): float
     {
         if (empty($results)) {
             return 0.0;
         }
+        $queryTokens = $this->tokenize($query);
+        if (empty($queryTokens)) {
+            return 0.0;
+        }
 
-        $queryLow = mb_strtolower($query);
         $topK = array_slice($results, 0, $k);
         $relevant = 0;
         $sum = 0.0;
-
-        foreach ($topK as $i => $result) {
-            if ($this->relevanceGain($result, $queryLow) > 0) {
+        foreach ($topK as $i => $r) {
+            if ($this->tokensMatch($this->extractSearchText($r), $queryTokens)) {
                 $relevant++;
                 $sum += $relevant / ($i + 1);
             }
@@ -200,22 +246,23 @@ class MetricCollector
         return $relevant > 0 ? $sum / min($relevant, $k) : 0.0;
     }
 
+    // ─── Quality: MRR (fixed — uses injected perfect-match docs) ──
+
     public function meanReciprocalRank(array $allResults, array $expectedMap): float
     {
-        if (empty($expectedMap)) {
-            return 0.0;
-        }
-
         $sum = 0.0;
-
-        foreach ($expectedMap as $query => $expected) {
+        foreach ($expectedMap as $query => $expectedTerm) {
+            if (! is_string($expectedTerm)) {
+                continue;
+            }
             $results = $allResults[$query] ?? [];
+            $queryTokens = $this->tokenize($expectedTerm);
+            if (empty($queryTokens)) {
+                continue;
+            }
 
-            foreach ($results as $rank => $result) {
-                $searchText = $this->extractSearchText($result);
-                $expectedLow = mb_strtolower($expected);
-
-                if (mb_strpos($searchText, $expectedLow) !== false) {
+            foreach ($results as $rank => $r) {
+                if ($this->tokensMatch($this->extractSearchText($r), $queryTokens)) {
                     $sum += 1.0 / ($rank + 1);
                     break;
                 }
@@ -225,42 +272,18 @@ class MetricCollector
         return $sum / max(1, count($expectedMap));
     }
 
-    public function meanReciprocalRankSuggest(array $suggestResults, array $expectedMap): float
-    {
-        if (empty($expectedMap)) {
-            return 0.0;
-        }
+    // ─── Suggest metrics (full set) ────────────────────
 
-        $sum = 0.0;
-        foreach ($expectedMap as $query => $expected) {
-            $suggestions = $suggestResults[$query] ?? [];
-            foreach ($suggestions as $rank => $word) {
-                if (mb_strtolower((string) $word) === mb_strtolower($expected)) {
-                    $sum += 1.0 / ($rank + 1);
-                    break;
-                }
-            }
-        }
-
-        return $sum / max(1, count($expectedMap));
-    }
-
-    /**
-     * Precision@5 for suggest: how many of the top 5 suggestions are valid.
-     * A suggestion is valid if its Levenshtein distance from the query is ≤ maxDistance.
-     */
     public function suggestPrecisionAtK(array $suggestions, string $query, int $maxDistance = 2, int $k = 5): float
     {
         $topK = array_slice($suggestions, 0, $k);
-
         if (empty($topK)) {
             return 0.0;
         }
-
         $valid = 0;
         foreach ($topK as $word) {
-            $dist = levenshtein($query, (string) $word);
-            if ($dist !== -1 && $dist <= $maxDistance) {
+            $d = levenshtein($query, (string) $word);
+            if ($d !== -1 && $d <= $maxDistance) {
                 $valid++;
             }
         }
@@ -271,121 +294,162 @@ class MetricCollector
     public function suggestScriptAwarePrecisionAtK(array $suggestions, string $query, int $maxDistance = 2, int $k = 5): float
     {
         $topK = array_slice($suggestions, 0, $k);
-
         if (empty($topK)) {
             return 0.0;
         }
-
-        $queryScripts = self::scriptsOf($query);
-        $weightSum = 0.0;
-
+        $qScripts = self::scriptsOf($query);
+        $wSum = 0.0;
         foreach ($topK as $word) {
-            $dist = levenshtein($query, (string) $word);
-
-            if ($dist === -1 || $dist > $maxDistance) {
+            $d = levenshtein($query, (string) $word);
+            if ($d === -1 || $d > $maxDistance) {
                 continue;
             }
-
-            $wordScripts = self::scriptsOf((string) $word);
-            $sameScript = ! empty(array_intersect($queryScripts, $wordScripts));
-
-            $score = ($maxDistance - $dist) / $maxDistance + ($sameScript ? 0.2 : 0);
-            $weightSum += min(1.0, $score);
+            $same = ! empty(array_intersect($qScripts, self::scriptsOf((string) $word)));
+            $wSum += min(1.0, ($maxDistance - $d) / $maxDistance + ($same ? 0.2 : 0));
         }
 
-        return $weightSum / count($topK);
+        return $wSum / count($topK);
     }
 
-    /**
-     * Top-1 accuracy for suggest: is the first suggestion the correct word?
-     */
     public function suggestTop1Accuracy(array $suggestions, string $expected): bool
     {
-        $first = $suggestions[0] ?? '';
-
-        return mb_strtolower((string) $first) === mb_strtolower($expected);
+        return mb_strtolower((string) ($suggestions[0] ?? '')) === mb_strtolower($expected);
     }
 
-    /**
-     * Coverage: % of queries with at least one suggestion (any).
-     */
     public function suggestCoverageAny(array $suggestResults, array $queries): float
     {
         $found = 0;
         foreach ($queries as $q) {
-            $results = $suggestResults[$q] ?? [];
-            if (! empty($results)) {
+            if (! empty($suggestResults[$q] ?? [])) {
                 $found++;
             }
         }
+
         return $found / max(1, count($queries));
     }
 
-    /**
-     * Coverage: % of queries with at least one suggestion within Levenshtein ≤ 2.
-     */
     public function suggestCoverageCorrect(array $suggestResults, array $queries, int $maxDistance = 2): float
     {
         $found = 0;
         foreach ($queries as $q) {
-            $results = $suggestResults[$q] ?? [];
-            foreach ($results as $word) {
-                $dist = levenshtein($q, (string) $word);
-                if ($dist !== -1 && $dist <= $maxDistance) {
+            foreach ($suggestResults[$q] ?? [] as $word) {
+                if (levenshtein($q, (string) $word) <= $maxDistance) {
                     $found++;
                     break;
                 }
             }
         }
+
         return $found / max(1, count($queries));
     }
 
-    /**
-     * Coverage: % of queries where the expected word is in the suggestions.
-     */
     public function suggestCoverageExpected(array $suggestResults, array $expectedMap): float
     {
         $found = 0;
         $total = 0;
         foreach ($expectedMap as $query => $expected) {
-            $results = $suggestResults[$query] ?? [];
-            if (in_array($expected, $results, true)) {
+            if (in_array($expected, $suggestResults[$query] ?? [], true)) {
                 $found++;
             }
             $total++;
         }
+
         return $total > 0 ? $found / $total : 0.0;
     }
+
+    public function meanReciprocalRankSuggest(array $suggestResults, array $expectedMap): float
+    {
+        $sum = 0.0;
+        foreach ($expectedMap as $query => $expected) {
+            foreach ($suggestResults[$query] ?? [] as $rank => $word) {
+                if (mb_strtolower((string) $word) === mb_strtolower($expected)) {
+                    $sum += 1.0 / ($rank + 1);
+                    break;
+                }
+            }
+        }
+
+        return $sum / max(1, count($expectedMap));
+    }
+
+    // ─── Latency percentiles ─────────────────────────────
+
+    public function computeLatencyPercentiles(): array
+    {
+        $l = $this->latencies;
+        if (empty($l)) {
+            return ['p50' => 0, 'p95' => 0, 'p99' => 0];
+        }
+        sort($l);
+        $n = count($l);
+
+        return [
+            'p50' => $l[(int) ceil($n * 0.50) - 1] ?? 0,
+            'p95' => $l[(int) ceil($n * 0.95) - 1] ?? 0,
+            'p99' => $l[(int) ceil($n * 0.99) - 1] ?? 0,
+        ];
+    }
+
+    public function getPeakMemoryMB(): float
+    {
+        return round(($this->peakMemoryAfter - $this->peakMemoryBefore) / 1048576, 1);
+    }
+
+    // ─── Empty results rate ──────────────────────────────
+
+    public function emptyResultsRate(array $allResults, array $exactQueries, array $existenceIndex = []): float
+    {
+        $total = 0;
+        $empty = 0;
+        foreach ($exactQueries as $q) {
+            $tokens = $this->tokenize($q);
+            if (! empty($existenceIndex)) {
+                $anyExists = false;
+                foreach ($tokens as $t) {
+                    if (in_array($t, $existenceIndex, true)) {
+                        $anyExists = true;
+                        break;
+                    }
+                }
+                if (! $anyExists) {
+                    continue;
+                }
+            }
+            $total++;
+            if (empty($allResults[$q] ?? [])) {
+                $empty++;
+            }
+        }
+
+        return $total > 0 ? $empty / $total : 0.0;
+    }
+
+    // ─── Accent / Fuzzy ─────────────────────────────────
 
     public function fuzzyTolerance(array $allResults, array $typoQueries): bool
     {
         foreach ($typoQueries as $item) {
             $key = is_array($item) ? ($item['query'] ?? '') : (string) $item;
             $results = $allResults[$key] ?? [];
-
             if (empty($results)) {
                 return false;
             }
-
             $needle = is_array($item) ? ($item['expected'] ?? '') : '';
             if ($needle === '') {
                 continue;
             }
 
-                $found = false;
+            $found = false;
             foreach ($results as $result) {
                 $searchText = $this->extractSearchText($result);
-
                 $needleLow = mb_strtolower($needle);
                 $needleNorm = normalizer_normalize($needleLow, \Normalizer::FORM_KD);
                 $needleNorm = $needleNorm ? preg_replace('/\p{Mn}/u', '', $needleNorm) : $needleLow;
-
-                if (mb_strpos($searchText, $needleNorm) !== false) {
+                if ($this->tokensMatch($searchText, $this->tokenize($needleLow))) {
                     $found = true;
                     break;
                 }
             }
-
             if (! $found) {
                 return false;
             }
@@ -398,24 +462,19 @@ class MetricCollector
     {
         foreach ($accentTests as $original => $ascii) {
             $results = $allResults[$ascii] ?? [];
-
             if (empty($results)) {
                 return false;
             }
-
             $found = false;
-            foreach ($results as $result) {
-                $searchText = $this->extractSearchText($result);
-
+            foreach ($results as $r) {
+                $searchText = $this->extractSearchText($r);
                 $cleanNeedle = normalizer_normalize(mb_strtolower($original), \Normalizer::FORM_KD);
                 $cleanNeedle = $cleanNeedle ? preg_replace('/\p{Mn}/u', '', $cleanNeedle) : mb_strtolower($original);
-
-                if (mb_strpos($searchText, $cleanNeedle) !== false) {
+                if ($this->tokensMatch($searchText, $this->tokenize($cleanNeedle))) {
                     $found = true;
                     break;
                 }
             }
-
             if (! $found) {
                 return false;
             }
@@ -424,29 +483,7 @@ class MetricCollector
         return true;
     }
 
-    public function scriptIsolation(array $latinSuggest, array $suggestions): bool
-    {
-        $first = $suggestions[0] ?? '';
-
-        if ($first === '') {
-            return false;
-        }
-
-        return true;
-    }
-
-    public function emptyResultsRate(array $allResults, array $exactQueries): float
-    {
-        $empty = 0;
-
-        foreach ($exactQueries as $q) {
-            if (empty($allResults[$q] ?? [])) {
-                $empty++;
-            }
-        }
-
-        return $empty / max(1, count($exactQueries));
-    }
+    // ─── Getters ────────────────────────────────────────
 
     public function getQuantitative(): array
     {
@@ -465,10 +502,13 @@ class MetricCollector
 
     public function getAll(): array
     {
-        return [
-            'quantity' => $this->quantitative,
-            'quality' => $this->quality,
-            'soundness' => $this->soundness,
-        ];
+        $q = $this->quantitative;
+        $lat = $this->computeLatencyPercentiles();
+        $q['Latency p50'] = ['value' => round($lat['p50'], 2), 'unit' => 'ms'];
+        $q['Latency p95'] = ['value' => round($lat['p95'], 2), 'unit' => 'ms'];
+        $q['Latency p99'] = ['value' => round($lat['p99'], 2), 'unit' => 'ms'];
+        $q['Peak RAM'] = ['value' => $this->getPeakMemoryMB(), 'unit' => 'MB'];
+
+        return ['quantity' => $q, 'quality' => $this->quality, 'soundness' => $this->soundness];
     }
 }

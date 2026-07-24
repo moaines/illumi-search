@@ -10,10 +10,10 @@ use Moaines\IllumiSearch\IndexManager;
 class SyncCommand extends Command
 {
     use HasProgressBar;
+
     protected $signature = 'illumi-search:sync
         {--model=* : Specific model classes to sync (multiple allowed)}
         {--since= : Only sync records updated after this datetime (ISO format: 2026-01-15 or 2026-01-15 14:30:00)}';
-
     protected $description = 'Incrementally sync changed records to the FTS5 index';
 
     public function handle(IndexManager $manager): int
@@ -26,7 +26,7 @@ class SyncCommand extends Command
         }
 
         if (! empty($models)) {
-            $this->info('Syncing models: '.implode(', ', $models));
+            $this->info('Syncing models: ' . implode(', ', $models));
         } else {
             $this->info('Syncing all indexed models...');
         }

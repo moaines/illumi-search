@@ -4,9 +4,9 @@ namespace Moaines\IllumiSearch\Tests\Unit;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 use Moaines\IllumiSearch\IllumiSearchServiceProvider;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
 class IllumiSearchServiceProviderTest extends TestCase
 {

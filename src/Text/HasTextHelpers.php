@@ -2,9 +2,7 @@
 
 namespace Moaines\IllumiSearch\Text;
 
-use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
@@ -208,35 +206,35 @@ trait HasTextHelpers
     {
         if (self::$scriptPatterns === null) {
             self::$scriptPatterns = [
-                'Latin'       => '\p{Latin}',
-                'Cyrillic'    => '\p{Cyrillic}',
-                'Arabic'      => '\p{Arabic}',
-                'Han'         => '\p{Han}',
-                'Hiragana'    => '\p{Hiragana}',
-                'Katakana'    => '\p{Katakana}',
-                'Hangul'      => '\p{Hangul}',
-                'Greek'       => '\p{Greek}',
-                'Devanagari'  => '\p{Devanagari}',
-                'Hebrew'      => '\p{Hebrew}',
-                'Thai'        => '\p{Thai}',
-                'Tamil'       => '\p{Tamil}',
-                'Bengali'     => '\p{Bengali}',
-                'Gurmukhi'    => '\p{Gurmukhi}',
-                'Gujarati'    => '\p{Gujarati}',
-                'Oriya'       => '\p{Oriya}',
-                'Telugu'      => '\p{Telugu}',
-                'Kannada'     => '\p{Kannada}',
-                'Malayalam'   => '\p{Malayalam}',
-                'Sinhala'     => '\p{Sinhala}',
-                'Myanmar'     => '\p{Myanmar}',
-                'Khmer'       => '\p{Khmer}',
-                'Lao'         => '\p{Lao}',
-                'Tibetan'     => '\p{Tibetan}',
-                'Ethiopic'    => '\p{Ethiopic}',
-                'Georgian'    => '\p{Georgian}',
-                'Armenian'    => '\p{Armenian}',
-                'Cherokee'    => '\p{Cherokee}',
-                'Mongolian'   => '\p{Mongolian}',
+                'Latin' => '\p{Latin}',
+                'Cyrillic' => '\p{Cyrillic}',
+                'Arabic' => '\p{Arabic}',
+                'Han' => '\p{Han}',
+                'Hiragana' => '\p{Hiragana}',
+                'Katakana' => '\p{Katakana}',
+                'Hangul' => '\p{Hangul}',
+                'Greek' => '\p{Greek}',
+                'Devanagari' => '\p{Devanagari}',
+                'Hebrew' => '\p{Hebrew}',
+                'Thai' => '\p{Thai}',
+                'Tamil' => '\p{Tamil}',
+                'Bengali' => '\p{Bengali}',
+                'Gurmukhi' => '\p{Gurmukhi}',
+                'Gujarati' => '\p{Gujarati}',
+                'Oriya' => '\p{Oriya}',
+                'Telugu' => '\p{Telugu}',
+                'Kannada' => '\p{Kannada}',
+                'Malayalam' => '\p{Malayalam}',
+                'Sinhala' => '\p{Sinhala}',
+                'Myanmar' => '\p{Myanmar}',
+                'Khmer' => '\p{Khmer}',
+                'Lao' => '\p{Lao}',
+                'Tibetan' => '\p{Tibetan}',
+                'Ethiopic' => '\p{Ethiopic}',
+                'Georgian' => '\p{Georgian}',
+                'Armenian' => '\p{Armenian}',
+                'Cherokee' => '\p{Cherokee}',
+                'Mongolian' => '\p{Mongolian}',
                 'Canadian_Aboriginal' => '\p{Canadian_Aboriginal}',
             ];
         }
@@ -261,5 +259,13 @@ trait HasTextHelpers
         }
 
         return array_values(array_filter($config, fn ($v) => is_string($v) && $v !== ''));
+    }
+
+    /**
+     * Normalize a column name for storage: replace dots, arrows, and dashes with underscores.
+     */
+    public function normalizeColumnName(string $key): string
+    {
+        return str_replace(['.', '->', '-'], '_', $key);
     }
 }

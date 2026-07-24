@@ -4,8 +4,8 @@ namespace Moaines\IllumiSearch\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
 use Moaines\IllumiSearch\Spellcheck;
 
 class SearchApiController extends Controller
@@ -38,8 +38,8 @@ class SearchApiController extends Controller
         }
 
         return response()->json([
-            'results'     => $results,
-            'total'       => count($results),
+            'results' => $results,
+            'total' => count($results),
             'suggestions' => $suggestions,
         ]);
     }

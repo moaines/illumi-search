@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
 use Illuminate\Support\Facades\DB;
+use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class DoctorCommandTest extends TestCase
@@ -18,7 +19,7 @@ class DoctorCommandTest extends TestCase
 
     public function test_doctor_reports_existing_database(): void
     {
-        $engine = $this->app->make(\Moaines\IllumiSearch\Contracts\Engine::class);
+        $engine = $this->app->make(Engine::class);
         $engine->createTable('App\Models\Post', ['title', 'body']);
         $engine->upsert('App\Models\Post', 1, ['title' => 'hello', 'body' => 'world']);
 

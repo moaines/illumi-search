@@ -9,7 +9,6 @@ use Moaines\IllumiSearch\Support\OperatorRegistry;
 class Spellcheck
 {
     private int $maxDistance = 2;
-
     private int $maxSuggestions = 5;
 
     public function __construct(
@@ -31,7 +30,7 @@ class Spellcheck
     }
 
     /**
-     * @param string[] $modelClasses
+     * @param  string[]  $modelClasses
      * @return Collection<int, string>
      */
     public function suggest(string $query, array $modelClasses = []): Collection

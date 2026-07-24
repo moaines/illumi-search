@@ -120,7 +120,7 @@ class QueryBuilderTest extends TestCase
         $builder = IllumiSearch::query('hello')->model('App\Models\Post');
 
         // engine is resolved lazily — setting it via the setter should work
-        $this->assertInstanceOf(\Moaines\IllumiSearch\QueryBuilder::class, $builder->engine($this->engine));
+        $this->assertInstanceOf(QueryBuilder::class, $builder->engine($this->engine));
     }
 
     private function indexPost(int $id, string $title, string $body): void

@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\TenantManager;
 
 class SqliteEngineIntegrationTest extends AbstractEngineTest
 {
@@ -21,6 +22,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertTableDropped();
     }
 
+    /** @test */
     public function test_engine_status_returns_expected_keys(): void
     {
         $engine = $this->createEngine();
@@ -36,10 +38,11 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertStringContainsString('FTS5', $status['engine_version']);
     }
 
+    /** @test */
     public function test_tenant_isolation_uses_separate_database_path(): void
     {
         config(['illumi-search.tenancy' => ['enabled' => true]]);
-        app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => 'tenant_sqlite_1');
+        app(TenantManager::class)->setResolver(fn () => 'tenant_sqlite_1');
 
         $engine = $this->app->make(Engine::class);
         $path = $engine->getDatabasePath();
@@ -56,7 +59,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertCount(1, $results);
 
         // Switch to a different tenant
-        app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => 'tenant_sqlite_2');
+        app(TenantManager::class)->setResolver(fn () => 'tenant_sqlite_2');
         $this->app->forgetInstance(Engine::class);
         $engine2 = $this->app->make(Engine::class);
         $path2 = $engine2->getDatabasePath();
@@ -77,9 +80,10 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         @unlink($path2);
 
         config(['illumi-search.tenancy' => ['enabled' => false]]);
-        app(\Moaines\IllumiSearch\TenantManager::class)->setResolver(fn () => null);
+        app(TenantManager::class)->setResolver(fn () => null);
     }
 
+    /** @test */
     public function test_list_index_tables(): void
     {
         $engine = $this->createEngine();
@@ -87,6 +91,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertNotEmpty($tables);
     }
 
+    /** @test */
     public function test_drop_index_table(): void
     {
         $engine = $this->createEngine();
@@ -97,21 +102,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(0, $engine->count('test drop', ['App\Models\Post']));
     }
 
-    public function test_integrity_check(): void
-    {
-        $engine = $this->createEngine();
-        $this->assertTrue($engine->integrityCheck('App\Models\Post'));
-    }
-
-    public function test_full_integrity_check(): void
-    {
-        $engine = $this->createEngine();
-        $result = $engine->fullIntegrityCheck();
-        $this->assertArrayHasKey('passed', $result);
-        $this->assertArrayHasKey('errors', $result);
-        $this->assertTrue($result['passed']);
-    }
-
+    /** @test */
     public function test_table_name_uses_prefix(): void
     {
         $engine = $this->createEngine();

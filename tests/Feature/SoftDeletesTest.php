@@ -2,7 +2,6 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
@@ -30,10 +29,9 @@ class SoftDeletesTest extends TestCase
     {
         $modelClass = (new class extends Model
         {
-            use SoftDeletes, Searchable;
+            use Searchable, SoftDeletes;
 
             protected $table = 'soft_posts';
-
             protected array $searchable = [
                 'title' => ['weight' => 3],
                 'body' => ['weight' => 1],

@@ -10,14 +10,14 @@ class IllumiSearchException extends Exception
     {
         return new self(sprintf(
             'The PHP extension "%s" is required but not loaded.',
-            $extension
+            $extension,
         ));
     }
 
     public static function fts5NotAvailable(): self
     {
         return new self(
-            'SQLite FTS5 is not available. Recompile PHP/SQLite with SQLITE_ENABLE_FTS5=1.'
+            'SQLite FTS5 is not available. Recompile PHP/SQLite with SQLITE_ENABLE_FTS5=1.',
         );
     }
 
@@ -26,7 +26,7 @@ class IllumiSearchException extends Exception
         return new self(sprintf(
             'Failed to parse FTS5 query "%s": %s',
             $query,
-            $message
+            $message,
         ));
     }
 
@@ -34,7 +34,7 @@ class IllumiSearchException extends Exception
     {
         return new self(sprintf(
             'The model "%s" does not use the Searchable trait.',
-            $modelClass
+            $modelClass,
         ));
     }
 
@@ -43,7 +43,7 @@ class IllumiSearchException extends Exception
         return new self(sprintf(
             'FTS index at "%s" appears corrupted: %s. Run "php artisan illumi-search:rebuild" to fix.',
             $path,
-            $message
+            $message,
         ));
     }
 
@@ -51,7 +51,7 @@ class IllumiSearchException extends Exception
     {
         return new self(sprintf(
             'FTS database at "%s" is locked. Retry later.',
-            $path
+            $path,
         ));
     }
 }

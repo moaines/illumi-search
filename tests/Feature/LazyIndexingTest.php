@@ -3,14 +3,13 @@
 namespace Moaines\IllumiSearch\Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Auth\User;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\IndexManager;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class LazyIndexingTest extends TestCase
 {

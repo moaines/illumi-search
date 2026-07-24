@@ -2,8 +2,12 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\IndexManager;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class RebuildCommandTest extends TestCase
 {
@@ -44,23 +48,23 @@ class RebuildCommandTest extends TestCase
 
     public function test_rebuild_progress_callback_called(): void
     {
-        \Illuminate\Support\Facades\Schema::create('posts', function (\Illuminate\Database\Schema\Blueprint $table) {
+        Schema::create('posts', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('body')->nullable();
             $table->timestamps();
         });
 
-        \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::withoutEvents(fn () => \Moaines\IllumiSearch\Tests\TestSupport\Models\Post::forceCreate([
+        Post::withoutEvents(fn () => Post::forceCreate([
             'title' => 'Test',
             'body' => 'Content',
         ]));
 
-        $manager = app(\Moaines\IllumiSearch\IndexManager::class);
+        $manager = app(IndexManager::class);
 
         $startedModels = [];
         $manager->rebuild(
-            modelClasses: [\Moaines\IllumiSearch\Tests\TestSupport\Models\Post::class],
+            modelClasses: [Post::class],
             progress: function (string $event, ...$args) use (&$startedModels) {
                 if ($event === 'startModel') {
                     $startedModels[] = $args[0];

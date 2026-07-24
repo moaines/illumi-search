@@ -9,8 +9,8 @@ use Moaines\IllumiSearch\Contracts\Engine;
 class StatusCommand extends Command
 {
     use HasFormatBytes;
-    protected $signature = 'illumi-search:status';
 
+    protected $signature = 'illumi-search:status';
     protected $description = 'Show index statistics';
 
     public function handle(Engine $engine): int
@@ -45,7 +45,7 @@ class StatusCommand extends Command
         } else {
             $totalRecords = collect($stats)->sum('record_count');
             $this->line("Total indexed records: {$totalRecords}");
-            $this->line('Tables: '.count($stats));
+            $this->line('Tables: ' . count($stats));
             $this->newLine();
 
             $headers = ['Model', 'Records', 'Last Synced'];

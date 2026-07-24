@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
+use Illuminate\Support\Collection;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Spellcheck;
 use Moaines\IllumiSearch\Tests\TestCase;
@@ -75,6 +76,6 @@ class SpellcheckTest extends TestCase
 
         $result = $spellcheck->suggest('hello world');
 
-        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result);
+        $this->assertInstanceOf(Collection::class, $result);
     }
 }

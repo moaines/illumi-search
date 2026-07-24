@@ -16,12 +16,11 @@ use Moaines\IllumiSearch\Console\Commands\StatusCommand;
 use Moaines\IllumiSearch\Console\Commands\SyncCommand;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
+use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
-use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
-use Moaines\IllumiSearch\Http\Requests\SearchApiRequest;
-use Moaines\IllumiSearch\Result;
+use Moaines\IllumiSearch\Support\EngineProxy;
 use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Text\FallbackTextProcessor;
 use Moaines\IllumiSearch\Text\StemmingTextProcessor;
@@ -47,7 +46,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/illumi-search.php', 'illumi-search');
+        $this->mergeConfigFrom(__DIR__ . '/../config/illumi-search.php', 'illumi-search');
 
         $this->app->singleton(TenantManager::class, function () {
             return new TenantManager;
@@ -55,35 +54,35 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
         $this->app->singleton(Engine::class, function ($app) {
             $driver = config('illumi-search.driver', 'sqlite');
-
-            // Look up in the registered engines first
-            if (isset(self::$engines[$driver])) {
-                return (self::$engines[$driver])($app);
-            }
-
-            // Built-in engines
-            if ($driver === 'mysql') {
-                return new MySqlEngine($app->make(SnippetService::class));
-            }
-
-            // Default: SQLite
-            $path = $app['config']->get('illumi-search.engines.sqlite.database_path', 'app/search/search-index.sqlite');
-            $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
-
-            // Apply tenant isolation if enabled
             $tenantManager = $app->make(TenantManager::class);
-            $fullPath = $tenantManager->tenantDatabasePath($fullPath);
 
-            $dir = dirname($fullPath);
-            File::ensureDirectoryExists($dir);
+            // Build the appropriate engine
+            $factory = function () use ($app, $driver) {
+                // Look up in the registered engines first
+                if (isset(self::$engines[$driver])) {
+                    return (self::$engines[$driver])($app);
+                }
 
-            $engine = new SqliteEngine(
-                databasePath: $fullPath,
-                snippets: $app->make(SnippetService::class),
-            );
-            $engine->setTextProcessor($app->make(TextProcessor::class));
+                if ($driver === 'mysql') {
+                    return new MySqlEngine($app->make(SnippetService::class));
+                }
 
-            return $engine;
+                if ($driver === 'file') {
+                    $basePath = $app->storagePath('app/illumi-search-file-engine');
+
+                    return new FileEngine($basePath, $app->make(SnippetService::class));
+                }
+
+                // Default: SQLite
+                return $this->createSqliteEngine($app);
+            };
+
+            // In multi-tenant mode, use a proxy that resolves fresh per tenant
+            if ($tenantManager->enabled()) {
+                return new EngineProxy($factory);
+            }
+
+            return $factory();
         });
 
         $this->app->singleton(TextProcessor::class, function () {
@@ -110,11 +109,31 @@ class IllumiSearchServiceProvider extends ServiceProvider
         $this->app->alias(TextProcessor::class, 'illumi-search.text-processor');
     }
 
+    private function createSqliteEngine($app): SqliteEngine
+    {
+        $path = $app['config']->get('illumi-search.engines.sqlite.database_path', 'app/search/search-index.sqlite');
+        $fullPath = str_starts_with($path, '/') ? $path : $app->storagePath($path);
+
+        $tenantManager = $app->make(TenantManager::class);
+        $fullPath = $tenantManager->tenantDatabasePath($fullPath);
+
+        $dir = dirname($fullPath);
+        File::ensureDirectoryExists($dir);
+
+        $engine = new SqliteEngine(
+            databasePath: $fullPath,
+            snippets: $app->make(SnippetService::class),
+        );
+        $engine->setTextProcessor($app->make(TextProcessor::class));
+
+        return $engine;
+    }
+
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/illumi-search.php' => config_path('illumi-search.php'),
+                __DIR__ . '/../config/illumi-search.php' => config_path('illumi-search.php'),
             ], 'illumi-search-config');
         }
 
@@ -141,7 +160,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
         Route::middleware([
             'api',
-            'throttle:'.config('illumi-search.api.rate_limit', 30).',1',
+            'throttle:' . config('illumi-search.api.rate_limit', 30) . ',1',
         ])
             ->prefix(config('illumi-search.api.prefix', 'api/search'))
             ->group(function () {

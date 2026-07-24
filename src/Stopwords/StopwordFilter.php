@@ -4,43 +4,60 @@ namespace Moaines\IllumiSearch\Stopwords;
 
 class StopwordFilter
 {
-    /** @var array<string, string[]> */
+    /** @var array<string, array{list: string[], flip: array<string, true>}> */
     protected static array $loaded = [];
 
     private const FALLBACK_LOCALE = 'en';
 
     public function filter(string $text, string $locale = self::FALLBACK_LOCALE): string
     {
-        $stopwords = $this->load($locale);
+        $lang = $this->resolveLanguage($locale);
 
-        if (empty($stopwords)) {
+        if (! isset(static::$loaded[$lang])) {
+            $this->load($locale);
+        }
+
+        if (empty(static::$loaded[$lang]['flip'])) {
             return $text;
         }
 
         $words = explode(' ', $text);
-        $filtered = array_filter($words, fn ($w) => ! in_array($w, $stopwords, true));
+        $filtered = array_diff_key(
+            array_fill_keys($words, true),
+            static::$loaded[$lang]['flip'],
+        );
 
-        return implode(' ', $filtered);
+        return implode(' ', array_keys($filtered));
     }
 
-    /** @return string[] */
+    /**
+     * @return string[]
+     */
     public function load(string $locale): array
     {
         $lang = $this->resolveLanguage($locale);
 
         if (isset(static::$loaded[$lang])) {
-            return static::$loaded[$lang];
+            return static::$loaded[$lang]['list'];
         }
 
         $path = $this->filePath($lang);
 
         if ($path === null) {
-            return static::$loaded[$lang] = [];
+            static::$loaded[$lang] = ['list' => [], 'flip' => []];
+
+            return [];
         }
 
         $words = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $normalized = $words !== false ? array_values(array_filter($words, fn ($w) => trim($w) !== '')) : [];
 
-        return static::$loaded[$lang] = $words !== false ? $words : [];
+        static::$loaded[$lang] = [
+            'list' => $normalized,
+            'flip' => array_fill_keys($normalized, true),
+        ];
+
+        return $normalized;
     }
 
     private function resolveLanguage(string $locale): string

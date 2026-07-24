@@ -7,12 +7,12 @@ use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class IndexModelJobTest extends TestCase
 {
-    private \Moaines\IllumiSearch\Contracts\Engine $engine;
+    private Engine $engine;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ class IndexModelJobTest extends TestCase
             $table->timestamps();
         });
 
-        $this->engine = $this->app->make(\Moaines\IllumiSearch\Contracts\Engine::class);
+        $this->engine = $this->app->make(Engine::class);
     }
 
     public function test_handle_upserts_model_to_engine(): void

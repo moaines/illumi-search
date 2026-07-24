@@ -4,8 +4,9 @@ namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
+use Moaines\IllumiSearch\Tests\TestCase;
 
-class DriverSwitchTest extends \Moaines\IllumiSearch\Tests\TestCase
+class DriverSwitchTest extends TestCase
 {
     protected function setUp(): void
     {

@@ -3,9 +3,11 @@
 namespace Moaines\IllumiSearch\Tests\Unit\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
+use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Book;
 
 class SqliteEngineTest extends TestCase
 {
@@ -352,9 +354,9 @@ class SqliteEngineTest extends TestCase
 
     public function test_is_fts5_available_before_db_initialization(): void
     {
-        $engine = new \Moaines\IllumiSearch\Engines\SqliteEngine(
+        $engine = new SqliteEngine(
             databasePath: ':memory:',
-            snippets: app(\Moaines\IllumiSearch\Support\SnippetService::class),
+            snippets: app(SnippetService::class),
         );
 
         $ref = new \ReflectionClass($engine);

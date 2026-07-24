@@ -58,7 +58,7 @@ class IndexManager
     }
 
     /**
-     * @param array<class-string>|null $modelClasses
+     * @param  array<class-string>|null  $modelClasses
      * @return array<int, array<string, mixed>>
      */
     public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false, ?\Closure $progress = null): array
@@ -168,7 +168,9 @@ class IndexManager
             ->take($batchSize)
             ->get();
 
-        if (! empty($relations)) $records->load($relations);
+        if (! empty($relations)) {
+            $records->load($relations);
+        }
 
         $syncCount = $this->indexRecords($records, $modelClass);
         $progress?->__invoke('advance', $syncCount);
@@ -200,7 +202,9 @@ class IndexManager
 
         $modelClass::query()
             ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress) {
-                if (! empty($relations)) $records->load($relations);
+                if (! empty($relations)) {
+                    $records->load($relations);
+                }
                 $synced = $this->indexRecords($records, $modelClass);
                 $syncCount += $synced;
                 $progress?->__invoke('advance', $synced);
@@ -210,8 +214,8 @@ class IndexManager
     }
 
     /**
-     * @param Collection<int, string> $models
-     * @param array<int, array<string, mixed>> $results
+     * @param  Collection<int, string>  $models
+     * @param  array<int, array<string, mixed>>  $results
      * @return array<int, array<string, mixed>>
      */
     private function cleanupOrphans(Collection $models, array $results): array
@@ -228,7 +232,9 @@ class IndexManager
                     break;
                 }
             }
-            if ($isInternal || in_array($table, $processedTables, true)) continue;
+            if ($isInternal || in_array($table, $processedTables, true)) {
+                continue;
+            }
 
             $this->engine->dropIndexTable($table);
             $results[] = ['model' => $table, 'status' => 'cleaned', 'message' => 'Orphaned index table removed'];
@@ -237,7 +243,7 @@ class IndexManager
         return $results;
     }
 
-    /** @param \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model> $records */
+    /** @param \Illuminate\Database\Eloquent\Collection<int, Model> $records */
     private function indexRecords($records, string $modelClass): int
     {
         $documents = [];
@@ -259,7 +265,7 @@ class IndexManager
     }
 
     /**
-     * @param array<class-string>|null $modelClasses
+     * @param  array<class-string>|null  $modelClasses
      * @return array<int, array{model: string, status: string, records?: int, message?: string}>
      */
     public function sync(?array $modelClasses = null, ?\DateTimeInterface $since = null, ?\Closure $progress = null): array
@@ -328,7 +334,7 @@ class IndexManager
             $declaredColumns = array_keys($instance->getSearchableColumns());
             $declaredColumns = array_map(
                 fn ($col) => /** @scrutinizer ignore-call */ $instance->searchColumnName($col),
-                $declaredColumns
+                $declaredColumns,
             );
             /** @var list<string> $declaredColumns */
             sort($declaredColumns);
@@ -383,7 +389,21 @@ class IndexManager
 
     protected function getClassNameFromFile(string $path): ?string
     {
-        $contents = File::get($path);
+        $handle = @fopen($path, 'r');
+
+        if ($handle === false) {
+            return null;
+        }
+
+        $contents = '';
+        for ($i = 0; $i < 30; $i++) {
+            $line = fgets($handle);
+            if ($line === false) {
+                break;
+            }
+            $contents .= $line;
+        }
+        fclose($handle);
 
         if (! preg_match('/^namespace\s+(.+?);\s*$/m', $contents, $nsMatch)) {
             return null;
@@ -393,6 +413,6 @@ class IndexManager
             return null;
         }
 
-        return $nsMatch[1].'\\'.$classMatch[1];
+        return $nsMatch[1] . '\\' . $classMatch[1];
     }
 }

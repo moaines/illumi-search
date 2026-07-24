@@ -8,7 +8,6 @@ use Symfony\Component\String\UnicodeString;
 class DataGenerator
 {
     private array $seedPosts = [];
-
     private array $searchQueries = [];
 
     public function loadSeed(string $seedPath): void

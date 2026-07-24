@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
-use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 use Moaines\IllumiSearch\Tests\TestCase;
+use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
 
 class IndexBatchJobTest extends TestCase
 {

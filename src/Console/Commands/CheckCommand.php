@@ -8,7 +8,6 @@ use Moaines\IllumiSearch\IndexManager;
 class CheckCommand extends Command
 {
     protected $signature = 'illumi-search:check';
-
     protected $description = 'Check FTS5 index schema status for all searchable models';
 
     public function handle(IndexManager $manager): int

@@ -8,10 +8,17 @@ interface Engine
 {
     /** Standard Boolean operators supported across all engines. */
     public const OPERATORS = ['AND', 'OR', 'NOT', 'NEAR'];
+
+    /**
+     * Signal the engine that a bulk operation is starting/ending.
+     * When true, the engine may skip per-write maintenance (vocab sync, stats rebuild).
+     */
+    public function setRebuilding(bool $isRebuilding): void;
+
     /**
      * Insert or replace a single document in the FTS index.
      *
-     * @param array<string, string> $document
+     * @param  array<string, string>  $document
      */
     public function upsert(string $modelClass, int|string $modelId, array $document): void;
 
@@ -23,14 +30,14 @@ interface Engine
     /**
      * Insert multiple documents in a single transaction.
      *
-     * @param array<int, array{model_id: int|string, document: array<string, string>}> $documents
+     * @param  array<int, array{model_id: int|string, document: array<string, string>}>  $documents
      */
     public function insertBatch(string $modelClass, array $documents): void;
 
     /**
      * Search the FTS index and return ranked results.
      *
-     * @param array<class-string> $modelClasses
+     * @param  array<class-string>  $modelClasses
      * @return Result[]
      */
     public function search(string $query, array $modelClasses, int $limit, int $offset = 0, string $mode = 'advanced', bool $withSnippets = true): array;
@@ -59,8 +66,8 @@ interface Engine
     /**
      * Create an FTS index table for a model class.
      *
-     * @param string[] $columns
-     * @param int[] $prefixLengths
+     * @param  string[]  $columns
+     * @param  int[]  $prefixLengths
      */
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void;
 
