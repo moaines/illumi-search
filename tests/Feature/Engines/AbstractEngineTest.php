@@ -562,8 +562,8 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains(3, $ids, 'Doc 3 (php in title+body)');
         $this->assertContains(4, $ids, 'Doc 4 (php in body only)');
 
-        // Ranking order varies by engine (FTS5 negative, FULLTEXT positive, custom BM25 0-100)
-        // At minimum: rank should be non-zero (some engines use negative values)
+        // Ranking order varies by engine (negated FTS5 positive, FULLTEXT positive, custom BM25 0-100)
+        // At minimum: rank should be non-zero
         $this->assertNotEquals(0, $results[0]->rank, 'Top result should have non-zero rank');
     }
 

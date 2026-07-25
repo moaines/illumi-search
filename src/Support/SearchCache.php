@@ -32,6 +32,16 @@ class SearchCache
         return substr($modelPrefix, 0, 8) . '_' . md5($data);
     }
 
+    public function enrichedKey(string $baseKey): string
+    {
+        return $baseKey . '_enriched';
+    }
+
+    public function rawKey(string $baseKey): string
+    {
+        return $baseKey . '_raw';
+    }
+
     /**
      * Get cached results for a key.
      */

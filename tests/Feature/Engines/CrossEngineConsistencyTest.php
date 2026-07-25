@@ -6,6 +6,7 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 /**
@@ -167,7 +168,7 @@ class CrossEngineConsistencyTest extends TestCase
         $results = $engine->search('php', [self::MODEL_CLASS], 10);
         $this->assertCount(2, $results, "$engineName should find both docs");
 
-        // Both results should have non-zero rank (FTS5 returns negative values, others positive)
+        // Both results should have non-zero rank (all engines return positive after -RANK negation)
         foreach ($results as $r) {
             $this->assertNotEquals(0, $r->rank, "$engineName: rank should be non-zero");
         }
@@ -247,6 +248,66 @@ class CrossEngineConsistencyTest extends TestCase
             $results = $engine->search($q, [self::MODEL_CLASS], 10);
             $this->assertIsArray($results, "$engineName: query '$q' should not throw");
             $this->assertCount(0, $results, "$engineName: query '$q' should return empty");
+        }
+
+        $this->destroyEngine($engineName, $engine);
+    }
+
+    /**
+     * @test
+     *
+     * @dataProvider engineProvider
+     */
+    public function all_engines_support_multi_language_search(string $engineName): void
+    {
+        if ($engineName === 'file') {
+            $this->markTestSkipped('FileEngine: 1 file/upsert × 144 → 2+ min timeout; use SQLite/MySQL for bulk multi-lang tests');
+        }
+
+        $engine = $this->createEngine($engineName);
+        if ($engine === null) {
+            return;
+        }
+
+        $seedPath = __DIR__ . '/fixtures/seed.json';
+        if (! file_exists($seedPath)) {
+            $this->markTestSkipped('seed.json not found');
+        }
+
+        $processor = app(TextProcessor::class);
+        $data = json_decode(file_get_contents($seedPath), true);
+        $allPosts = $data['posts'] ?? [];
+        $this->assertNotEmpty($allPosts, "$engineName: seed.json must have posts");
+
+        // Index up to 6 posts per language
+        $docId = 0;
+        foreach (['fr', 'zh', 'ru', 'ar', 'es', 'pt'] as $lang) {
+            $posts = array_values(array_filter($allPosts, fn ($p) => ($p['language'] ?? '') === $lang));
+            $limit = $engineName === 'mysql' ? 6 : 24;
+            foreach (array_slice($posts, 0, $limit) as $post) {
+                $docId++;
+                $engine->upsert(self::MODEL_CLASS, $docId, [
+                    'title' => $processor->process($post['title']),
+                    'body' => $processor->process($post['body']),
+                ]);
+            }
+        }
+
+        // Test each language
+        $langQueries = [
+            'fr' => ['logiciel'],
+            'es' => ['software'],
+            'pt' => ['software'],
+            'ru' => ['программного'],
+            'ar' => ['هندسة'],
+        ];
+
+        foreach ($langQueries as $lang => $queries) {
+            foreach ($queries as $q) {
+                $results = $engine->search($q, [self::MODEL_CLASS], 10);
+                $this->assertNotEmpty($results,
+                    "$engineName: $lang search '$q' should return results");
+            }
         }
 
         $this->destroyEngine($engineName, $engine);

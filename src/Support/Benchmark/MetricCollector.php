@@ -2,6 +2,8 @@
 
 namespace Moaines\IllumiSearch\Support\Benchmark;
 
+use Moaines\IllumiSearch\Text\HasTextHelpers;
+
 class MetricCollector
 {
     private array $quantitative = [];
@@ -41,23 +43,32 @@ class MetricCollector
         if (is_string($result) || is_numeric($result)) {
             return (string) $result;
         }
-        if (! empty($result->raw['search_text'])) {
-            return mb_strtolower($result->raw['search_text']);
+
+        $raw = $result->raw ?? [];
+
+        // Engine-computed concatenation (search_text is preferred)
+        foreach (['search_text', 'search_title'] as $col) {
+            if (! empty($raw[$col])) {
+                return mb_strtolower((string) $raw[$col]);
+            }
         }
-        if (! empty($result->raw)) {
-            $parts = [];
-            foreach ($result->raw as $key => $value) {
-                if (in_array($key, ['model_id', 'rank', 'total_count', 'id', 'model_type', 'search_text'], true)) {
-                    continue;
-                }
-                if (is_string($value) && mb_strlen($value) > 2) {
-                    $parts[] = $value;
-                }
-            }
-            $text = implode(' ', $parts);
-            if (mb_strlen($text) > 3) {
-                return mb_strtolower($text);
-            }
+
+        // Weight columns must be concatenated (a term may be in any column)
+        $weightCols = collect(['text_w1', 'text_w2', 'text_w3'])
+            ->filter(fn ($c) => ! empty($raw[$c]))
+            ->map(fn ($c) => $raw[$c])
+            ->implode(' ');
+        if ($weightCols !== '') {
+            return mb_strtolower($weightCols);
+        }
+
+        // Named columns — concatenate all (a term may be in any column, e.g. FTS5)
+        $namedCols = collect(['title', 'body', 'content'])
+            ->filter(fn ($c) => ! empty($raw[$c]))
+            ->map(fn ($c) => $raw[$c])
+            ->implode(' ');
+        if ($namedCols !== '') {
+            return mb_strtolower($namedCols);
         }
 
         return mb_strtolower((string) ($result->summary ?? $result->title ?? ''));
@@ -282,7 +293,7 @@ class MetricCollector
         }
         $valid = 0;
         foreach ($topK as $word) {
-            $d = levenshtein($query, (string) $word);
+            $d = HasTextHelpers::levenshteinDistance($query, (string) $word);
             if ($d !== -1 && $d <= $maxDistance) {
                 $valid++;
             }
@@ -300,7 +311,7 @@ class MetricCollector
         $qScripts = self::scriptsOf($query);
         $wSum = 0.0;
         foreach ($topK as $word) {
-            $d = levenshtein($query, (string) $word);
+            $d = HasTextHelpers::levenshteinDistance($query, (string) $word);
             if ($d === -1 || $d > $maxDistance) {
                 continue;
             }
@@ -333,7 +344,7 @@ class MetricCollector
         $found = 0;
         foreach ($queries as $q) {
             foreach ($suggestResults[$q] ?? [] as $word) {
-                if (levenshtein($q, (string) $word) <= $maxDistance) {
+                if (HasTextHelpers::levenshteinDistance($q, (string) $word) <= $maxDistance) {
                     $found++;
                     break;
                 }

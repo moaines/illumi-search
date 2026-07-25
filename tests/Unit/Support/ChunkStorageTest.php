@@ -95,4 +95,43 @@ class ChunkStorageTest extends TestCase
 
         $this->assertDirectoryExists($dir);
     }
+
+    /** @test */
+    public function docTextFromRow_concatenates_weighted_texts(): void
+    {
+        $row = [
+            0 => '1',
+            1 => 'test',
+            2 => '42',
+            3 => 'title text',
+            4 => 'body content',
+            5 => 'footer notes',
+            6 => '2024-01-01',
+        ];
+
+        $result = $this->storage->docTextFromRow($row);
+
+        $this->assertStringContainsString('title text', $result);
+        $this->assertStringContainsString('body content', $result);
+        $this->assertStringContainsString('footer notes', $result);
+    }
+
+    /** @test */
+    public function docTextFromRow_returns_empty_string_for_empty_input(): void
+    {
+        $row = [0 => '', 1 => '', 2 => '', 3 => '', 4 => '', 5 => '', 6 => ''];
+
+        $this->assertEquals('', $this->storage->docTextFromRow($row));
+    }
+
+    /** @test */
+    public function docTextFromRow_repeats_higher_weights_more(): void
+    {
+        // text_w1 = "a", text_w2 = "b", text_w3 = "c"
+        $row = [0 => '1', 1 => 'test', 2 => '42', 3 => 'a', 4 => 'b', 5 => 'c', 6 => '2024-01-01'];
+
+        $result = $this->storage->docTextFromRow($row);
+
+        $this->assertEquals('a b b c c c', $result);
+    }
 }

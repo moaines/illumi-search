@@ -22,7 +22,7 @@ trait HasProgressBar
             return;
         }
         $pb->finish();
-        $this->newLine(2);
+        $this->newLine();
         $pb = null;
     }
 

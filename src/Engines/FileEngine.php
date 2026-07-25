@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Engines;
 
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File as FileFacade;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Contracts\Engine;
@@ -22,6 +23,7 @@ use Moaines\IllumiSearch\Support\TrigramIndex;
 use Moaines\IllumiSearch\Support\VocabService;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasDebugCollector;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
@@ -61,11 +63,12 @@ class FileEngine implements Engine
     /** @var array<string, array|string|null> */
     private array $statsCache = [];
 
-    public function __construct(string $basePath, ?SnippetService $snippets = null)
+    public function __construct(string $basePath, ?SnippetService $snippets = null, ?IllumiSearchConfig $config = null)
     {
+        $illumiConfig = $config ?? app(IllumiSearchConfig::class);
         $this->basePath = rtrim($basePath, '/');
         $this->snippets = $snippets;
-        $this->maxWeight = (int) config('illumi-search.processing.max_weight', 3);
+        $this->maxWeight = $illumiConfig->maxWeight();
         $this->chunks = new ChunkStorage($basePath, $this->maxWeight);
         $this->stats = new StatsService($basePath);
         $this->score = new ScoreService;
@@ -91,7 +94,7 @@ class FileEngine implements Engine
 
     private function path(string $sub): string
     {
-        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
+        $prefix = app(IllumiSearchConfig::class)->tablePrefix();
         $tenantId = app(TenantManager::class)->tenantId();
         // Security: path validation is delegated to ChunkStorage (realpath ⊆ basePath)
         $prefixed = $prefix . ltrim($sub, '/');
@@ -214,7 +217,7 @@ class FileEngine implements Engine
             return;
         }
 
-        $concurrent = new ConcurrentProcessor((int) config('illumi-search.workers', 4));
+        $concurrent = new ConcurrentProcessor(app(IllumiSearchConfig::class)->workers());
         $processor = $this->textProcessor();
         $maxWeight = $this->maxWeight;
 
@@ -268,11 +271,37 @@ class FileEngine implements Engine
         ]);
     }
 
+    private function chunkVersion(string $modelClass): string
+    {
+        $dir = $this->modelDir($modelClass);
+        $chunks = $this->chunks->listChunks($dir);
+
+        if (empty($chunks)) {
+            return '';
+        }
+
+        return collect($chunks)
+            ->map(fn ($path) => (new \SplFileInfo($path))->getMTime() . ':' . (new \SplFileInfo($path))->getSize())
+            ->implode('|');
+    }
+
     private function rebuildStatsUnlessRebuilding(string $modelClass): void
     {
-        if (! $this->isRebuilding) {
-            $this->rebuildStats($modelClass);
+        if ($this->isRebuilding) {
+            return;
         }
+
+        $version = $this->chunkVersion($modelClass);
+        $versionFile = $this->stats->path($modelClass) . '.version';
+
+        if (FileFacade::exists($versionFile) && FileFacade::get($versionFile) === $version) {
+            return;
+        }
+
+        $this->rebuildStats($modelClass);
+        $temp = $versionFile . '.' . Str::random(8) . '.tmp';
+        FileFacade::put($temp, $version);
+        FileFacade::move($temp, $versionFile);
     }
 
     private function sentinelPath(): string
@@ -480,27 +509,40 @@ class FileEngine implements Engine
             return [];
         }
 
-        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
-        $cached = $this->searchCache->get($cacheKey);
-        if ($cached !== null) {
-            return $this->makeResults($cached);
-        }
+    $cacheKey = $this->searchCache->key($query . $this->basePath . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
+    $enrichedKey = $this->searchCache->enrichedKey($cacheKey);
+    $rawKey = $this->searchCache->rawKey($cacheKey);
 
-        $safeQuery = $this->normalizeQuery($query);
-        $rawTerms = $this->normalizeQueryTerms($query);
-        if (empty($rawTerms)) {
-            return [];
-        }
+    $cachedEnriched = $this->searchCache->get($enrichedKey);
+    if ($cachedEnriched !== null) {
+        return $this->makeResults($cachedEnriched);
+    }
 
-        $cleanTerms = $this->extractSearchTerms($rawTerms);
-        if (empty($cleanTerms)) {
-            return [];
-        }
+    $cachedRaw = $this->searchCache->get($rawKey);
+    if ($cachedRaw !== null) {
+        $results = $cachedRaw;
+        $searchDone = true;
+    } else {
+        $searchDone = false;
+    }
 
+    $safeQuery = $this->normalizeQuery($query);
+    $rawTerms = $this->normalizeQueryTerms($query);
+    if (empty($rawTerms)) {
+        return [];
+    }
+
+    $cleanTerms = $this->extractSearchTerms($rawTerms);
+    if (empty($cleanTerms)) {
+        return [];
+    }
+
+    $allResults = [];
+    $total = 0;
+    $keepMax = $offset + $limit + 50;
+
+    if (! $searchDone) {
         $rawTerms = $this->reorderByRarity($rawTerms, $modelClasses);
-        $allResults = [];
-        $total = 0;
-        $keepMax = $offset + $limit + 50;
 
         foreach ($modelClasses as $class) {
             $stats = $this->loadStats($class, $cleanTerms);
@@ -512,14 +554,14 @@ class FileEngine implements Engine
 
             if ($this->trigramIndex->load($class)) {
                 $results = $this->searchTrigrams($class, $stats, $rawTerms, $cleanTerms, $keepMax);
-                if ($results !== null) {
+                if (! empty($results)) {
                     $this->mergeResults($allResults, [$results], $keepMax);
                     $total += count($results);
                     continue;
                 }
             }
 
-            $concurrent = new ConcurrentProcessor((int) config('illumi-search.workers', 4));
+        $concurrent = new ConcurrentProcessor(app(IllumiSearchConfig::class)->workers());
             $partial = $concurrent->run($chunks, function ($path) use ($class, $stats, $rawTerms) {
                 $rows = $this->chunks->decodeFile($path);
                 if (! is_array($rows)) {
@@ -533,16 +575,19 @@ class FileEngine implements Engine
             $this->mergeResults($allResults, $partial, $keepMax);
         }
 
-        $this->sortByRank($allResults);
-        $results = array_slice($allResults, $offset, $limit);
-        $results = array_map(fn ($r) => array_merge($r, ['totalCount' => $total]), $results);
+            $this->sortByRank($allResults);
+            $results = array_slice($allResults, $offset, $limit);
+            $results = array_map(fn ($r) => array_merge($r, ['totalCount' => $total]), $results);
+
+            $this->searchCache->set($rawKey, $results);
+        }
 
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);
             $results = $service->enrich($results, $safeQuery);
         }
 
-        $this->searchCache->set($cacheKey, $results);
+        $this->searchCache->set($enrichedKey, $results);
         $this->setCollectorEngineInfo(['version' => $this->getEngineVersion(), 'driver' => 'FileEngine']);
 
         return $this->makeResults($results);
@@ -732,19 +777,13 @@ class FileEngine implements Engine
     public function getDatabaseSize(): ?int
     {
         $searchDir = $this->basePath;
-        if (! is_dir($searchDir)) {
+        if (! FileFacade::isDirectory($searchDir)) {
             return 0;
         }
 
-        $size = 0;
-        foreach (glob($searchDir . '/**/*.php') as $f) {
-            $s = @filesize($f);
-            if ($s !== false) {
-                $size += $s;
-            }
-        }
-
-        return $size;
+        return (int) collect(FileFacade::allFiles($searchDir))
+            ->filter(fn ($f) => $f->getExtension() === 'php')
+            ->sum(fn ($f) => $f->getSize());
     }
 
     public function integrityCheck(string $modelClass): bool
@@ -875,12 +914,18 @@ class FileEngine implements Engine
      *
      * @return array|null Result array or null if no match
      */
-    private function scoreAndBuildResult(object $obj, string $class, array $rawTerms, ?array $stats): ?array
+    private function weightTextsFromRow(array $r): array
     {
-        $weightTexts = [];
+        $texts = [];
         for ($w = 1; $w <= $this->maxWeight; $w++) {
-            $weightTexts[$w] = $obj->{"text_w{$w}"} ?? '';
+            $texts[$w] = $r[$this->chunks->colW($w)] ?? '';
         }
+        return $texts;
+    }
+
+    private function scoreAndBuildResult(array $r, string $class, array $rawTerms, ?array $stats): ?array
+    {
+        $weightTexts = $this->weightTextsFromRow($r);
 
         if (! $this->match->anyWeightText($weightTexts, $rawTerms)) {
             return null;
@@ -895,14 +940,21 @@ class FileEngine implements Engine
             $rank = $this->score->quick($concatenated, $rawTerms);
         }
 
-        $fullText = $this->chunks->docText($obj);
+        $modelId = $r[$this->chunks->colModelId()] ?? '';
+        if (ctype_digit($modelId)) {
+            $modelId = (int) $modelId;
+        }
 
         return [
             'modelClass' => $class,
-            'modelId' => ctype_digit($obj->model_id) ? (int) $obj->model_id : $obj->model_id,
+            'modelId' => $modelId,
             'rank' => $rank,
-            'title' => $obj->text_w1,
-            'row' => ['model_type' => $obj->model_type, 'model_id' => $obj->model_id, 'search_text' => $fullText],
+            'title' => $r[$this->chunks->colW(1)] ?? '',
+            'row' => [
+                'model_type' => $r[$this->chunks->colModelType()] ?? '',
+                'model_id' => $r[$this->chunks->colModelId()] ?? '',
+                'search_text' => $this->chunks->docTextFromRow($r),
+            ],
             'totalCount' => 0,
         ];
     }
@@ -911,8 +963,7 @@ class FileEngine implements Engine
     {
         $results = [];
         foreach ($rows as $r) {
-            $obj = $this->chunks->rowToObj($r);
-            $result = $this->scoreAndBuildResult($obj, $class, $rawTerms, $stats);
+            $result = $this->scoreAndBuildResult($r, $class, $rawTerms, $stats);
             if ($result !== null) {
                 $results[] = $result;
             }
@@ -946,8 +997,7 @@ class FileEngine implements Engine
             }
 
             $r = $rows[$loc['rowIdx']];
-            $obj = $this->chunks->rowToObj($r);
-            $result = $this->scoreAndBuildResult($obj, $class, $rawTerms, $stats);
+            $result = $this->scoreAndBuildResult($r, $class, $rawTerms, $stats);
             if ($result !== null) {
                 $results[] = $result;
             }

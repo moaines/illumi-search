@@ -10,6 +10,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use Moaines\IllumiSearch\Support\ConfigHelper;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
@@ -46,12 +47,14 @@ class MySqlEngine implements Engine
     private ?SnippetService $snippets = null;
     private bool $isRebuilding = false;
     private SearchCache $searchCache;
+    private IllumiSearchConfig $illumiConfig;
 
     /** @var array<string, bool> */
     private static array $checkedSearchable = [];
 
-    public function __construct(?SnippetService $snippets = null)
+    public function __construct(?SnippetService $snippets = null, ?IllumiSearchConfig $config = null)
     {
+        $this->illumiConfig = $config ?? app(IllumiSearchConfig::class);
         $this->registerConnection();
         $this->snippets = $snippets;
         $this->searchCache = new SearchCache(storage_path('app/illumi-search-mysql'));
@@ -71,12 +74,12 @@ class MySqlEngine implements Engine
 
         config([$key => [
             'driver' => 'mysql',
-            'host' => config('illumi-search.engines.mysql.connection.host', '127.0.0.1'),
-            'port' => config('illumi-search.engines.mysql.connection.port', '3306'),
-            'database' => config('illumi-search.engines.mysql.connection.database', 'illumi_search'),
-            'username' => config('illumi-search.engines.mysql.connection.username', 'root'),
-            'password' => config('illumi-search.engines.mysql.connection.password', ''),
-            'unix_socket' => config('illumi-search.engines.mysql.connection.unix_socket', ''),
+            'host' => $this->illumiConfig->mysqlHost(),
+            'port' => $this->illumiConfig->mysqlPort(),
+            'database' => $this->illumiConfig->mysqlDatabase(),
+            'username' => $this->illumiConfig->mysqlUsername(),
+            'password' => $this->illumiConfig->mysqlPassword(),
+            'unix_socket' => $this->illumiConfig->mysqlUnixSocket(),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ]]);
@@ -121,42 +124,28 @@ class MySqlEngine implements Engine
     /**
      * @return string[] Column names like text_w1, text_w2 (cached per request).
      */
-    private function getExistingWeightColumns(bool $refresh = false): array
+    private function weightColumnDefs(int $maxWeight): string
     {
-        static $columns = null;
-
-        if ($columns !== null && ! $refresh) {
-            return $columns;
+        $cols = '';
+        for ($w = 1; $w <= $maxWeight; $w++) {
+            $type = 'TEXT';
+            $cols .= ", text_w{$w} {$type} NOT NULL DEFAULT ''";
         }
-
-        $result = DB::connection($this->connection)
-            ->select("SHOW COLUMNS FROM " . $this->table(self::TABLE) . " WHERE Field LIKE 'text\\_w%'");
-
-        $columns = collect($result)->map(fn ($c) => $c->Field)->sort()->values()->all();
-
-        return $columns;
+        return $cols;
     }
 
-    private function ensureWeightColumnsExist(int $maxWeight): void
+    private function weightIndexDefs(int $maxWeight): string
     {
-        $existing = $this->getExistingWeightColumns(true);
-
+        $defs = '';
         for ($w = 1; $w <= $maxWeight; $w++) {
-            $col = "text_w{$w}";
-            if (in_array($col, $existing, true)) {
-                continue;
-            }
-
-            DB::connection($this->connection)->statement(
-                "ALTER TABLE " . $this->table(self::TABLE) . " ADD COLUMN {$col} LONGTEXT NOT NULL DEFAULT '' AFTER last_synced_at",
-            );
-            DB::connection($this->connection)->statement(
-                "ALTER TABLE " . $this->table(self::TABLE) . " ADD FULLTEXT INDEX idx_fts_w{$w} ({$col})",
-            );
+            $defs .= ", FULLTEXT INDEX idx_fts_w{$w} (text_w{$w})";
         }
+        return $defs;
+    }
 
-        // Refresh cache after adding columns
-        $this->getExistingWeightColumns(true);
+    private function weightColumnNames(int $maxWeight): string
+    {
+        return implode(', ', array_map(fn ($w) => "text_w{$w}", range(1, $maxWeight)));
     }
 
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
@@ -169,20 +158,20 @@ class MySqlEngine implements Engine
             return;
         }
 
-        $maxWeight = (int) config('illumi-search.processing.max_weight', 3);
+        $maxWeight = (int) $this->illumiConfig->maxWeight();
 
         DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $currentTable);
-        DB::connection($this->connection)->statement('
-            CREATE TABLE ' . $currentTable . ' (
+        DB::connection($this->connection)->statement("
+            CREATE TABLE {$currentTable} (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 model_type VARCHAR(255) NOT NULL,
                 model_id VARCHAR(255) NOT NULL,
-                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                {$this->weightColumnDefs($maxWeight)} ,
                 UNIQUE KEY uk_model_model_id (model_type, model_id)
+                {$this->weightIndexDefs($maxWeight)}
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ');
-
-        $this->ensureWeightColumnsExist($maxWeight);
+        ");
 
         DB::connection($this->connection)->statement('
             CREATE TABLE IF NOT EXISTS ' . $this->table(self::CONFIG_TABLE) . ' (
@@ -252,7 +241,7 @@ class MySqlEngine implements Engine
      */
     private function table(string $name): string
     {
-        $prefix = config('illumi-search.processing.table_prefix', 'illumi_search_');
+        $prefix = $this->illumiConfig->tablePrefix();
         $tenantId = app(TenantManager::class)->tenantId();
 
         $prefixed = $prefix . ltrim($name, '_');
@@ -302,7 +291,9 @@ class MySqlEngine implements Engine
 
     private function concatWeightColumns(): string
     {
-        return 'CONCAT(' . implode(", ' ', ", $this->getExistingWeightColumns()) . ')';
+        $weightCols = explode(', ', $this->weightColumnNames($this->illumiConfig->maxWeight()));
+
+        return 'CONCAT(' . implode(", ' ', ", $weightCols) . ')';
     }
 
     // ─── CRUD ───────────────────────────────────────────
@@ -434,12 +425,22 @@ class MySqlEngine implements Engine
             return [];
         }
 
-        // Try cache first
-        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
-        $cached = $this->searchCache->get($cacheKey);
+        // Two-layer cache: enriched > raw > search
+        $cacheKey = $this->searchCache->key($query . $this->connection . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
+        $enrichedKey = $this->searchCache->enrichedKey($cacheKey);
+        $rawKey = $this->searchCache->rawKey($cacheKey);
 
-        if ($cached !== null) {
-            return array_map(fn ($r) => Result::fromRaw($r), $cached);
+        $cachedEnriched = $this->searchCache->get($enrichedKey);
+        if ($cachedEnriched !== null) {
+            return array_map(fn ($r) => Result::fromRaw($r), $cachedEnriched);
+        }
+
+        $cachedRaw = $this->searchCache->get($rawKey);
+        if ($cachedRaw !== null) {
+            $results = $cachedRaw;
+            $searchDone = true;
+        } else {
+            $searchDone = false;
         }
 
         $safeQuery = $this->normalizeQuery($query);
@@ -449,20 +450,22 @@ class MySqlEngine implements Engine
             return [];
         }
 
-        $modelTypes = array_map(fn ($c) => (string) $c, $modelClasses);
-        [$inPlaceholders, $inParams] = $this->modelTypePlaceholders($modelTypes);
+        if (! $searchDone) {
+            $modelTypes = array_map(fn ($c) => (string) $c, $modelClasses);
+            [$inPlaceholders, $inParams] = $this->modelTypePlaceholders($modelTypes);
 
         $match = $this->buildWeightMatchExpressions();
 
-        $firstCol = $this->getFirstTextColumn();
-        $titleCol = $this->getTitleColumn() ?: $this->getFirstTextColumn() ?: 'text_w1';
+        $weightCols = $this->weightColumnNames($this->illumiConfig->maxWeight());
+        $concatCol = "CONCAT_WS(' ', {$weightCols})";
+        $titleCol = $this->getTitleColumn() ?: 'text_w1';
 
         $selectBindings = array_fill(0, $match['bindCount'], $booleanQuery);
         $whereBindings = array_fill(0, $match['bindCount'], $booleanQuery);
 
         $rows = DB::connection($this->connection)->select("
             SELECT model_type, model_id,
-                   {$firstCol} AS search_text,
+                   {$concatCol} AS search_text,
                    {$titleCol} AS search_title,
                    {$match['selectExpr']} AS rank,
                    COUNT(*) OVER () AS total_count
@@ -497,13 +500,15 @@ class MySqlEngine implements Engine
             ];
         }
 
+            $this->searchCache->set($rawKey, $results);
+        }
+
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);
             $results = $service->enrich($results, $safeQuery);
         }
 
-        // Cache results
-        $this->searchCache->set($cacheKey, $results);
+        $this->searchCache->set($enrichedKey, $results);
 
         return array_map(fn ($r) => Result::fromRaw($r), $results);
     }
@@ -514,7 +519,7 @@ class MySqlEngine implements Engine
             return 0;
         }
 
-        $mode = config('illumi-search.processing.mode', 'advanced');
+        $mode = $this->illumiConfig->processingMode();
         $safeQuery = $this->normalizeQuery($query);
         $booleanQuery = $this->toBooleanMode($safeQuery, $mode);
 
@@ -616,9 +621,9 @@ class MySqlEngine implements Engine
             'engine_version' => $this->getEngineVersion(),
             'connection' => $this->getDatabasePath(),
             'database_size' => $this->getDatabaseSize(),
-            'max_weight' => config('illumi-search.processing.max_weight', 3),
+            'max_weight' => $this->illumiConfig->maxWeight(),
             'collation' => 'utf8mb4_unicode_ci',
-            'vocab_limit' => config('illumi-search.spellcheck.vocab_limit', 5000),
+            'vocab_limit' => $this->illumiConfig->sqliteVocabLimit(),
         ];
     }
 
@@ -669,7 +674,7 @@ class MySqlEngine implements Engine
 
         // Phase 2: fallback prefix Levenshtein (if trigrams didn't yield enough)
         $prefix = mb_substr($queryAscii, 0, 2);
-        $vocabLimit = (int) config('illumi-search.spellcheck.vocab_limit', 5000);
+        $vocabLimit = $this->illumiConfig->sqliteVocabLimit();
 
         $fallback = DB::connection($this->connection)
             ->table($this->table(self::VOCAB_TABLE))
@@ -988,16 +993,18 @@ class MySqlEngine implements Engine
      */
     public function rebuildIndexFromScratch(): void
     {
-        $maxWeight = (int) config('illumi-search.processing.max_weight', 3);
+        $maxWeight = $this->illumiConfig->maxWeight();
 
         $createSql = "
             CREATE TABLE IF NOT EXISTS {table} (
                 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 model_type VARCHAR(255) NOT NULL,
                 model_id VARCHAR(255) NOT NULL,
-                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                {$this->weightColumnDefs($maxWeight)} ,
                 UNIQUE KEY uk_model_model_id (model_type, model_id),
                 INDEX idx_model_type (model_type)
+                {$this->weightIndexDefs($maxWeight)}
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
         $modelClasses = $this->getIndexedModelClasses();
@@ -1007,15 +1014,10 @@ class MySqlEngine implements Engine
         }
 
         $this->atomicSwapBuild($this->table(self::TABLE), $createSql, function ($temp) use ($modelClasses, $maxWeight) {
-            // Add weight columns to the temp table
-            $this->ensureWeightColumnsExist($maxWeight);
-
-            // Force column cache refresh so getExistingWeightColumns sees new columns
-            $weightCols = $this->getExistingWeightColumns(true);
-            $weightColNames = implode(', ', $weightCols);
+            $weightColNames = $this->weightColumnNames($maxWeight);
 
             // Re-read config for the correct max_weight
-            $currentMax = (int) config('illumi-search.processing.max_weight', 3);
+            $currentMax = $this->illumiConfig->maxWeight();
 
             $textProcessor = app(TextProcessor::class);
 
@@ -1026,7 +1028,7 @@ class MySqlEngine implements Engine
 
                 $instance = new $class;
 
-                $instance->chunkById(config('illumi-search.indexing.rebuild_batch_size', 100), function ($models) use ($temp, $class, $weightColNames, $currentMax, $textProcessor) {
+                $instance->chunkById($this->illumiConfig->rebuildBatchSize(), function ($models) use ($temp, $class, $weightColNames, $currentMax, $textProcessor) {
                     $valuePlaceholders = '(' . implode(', ', array_fill(0, 2 + $currentMax, '?')) . ')';
                     $values = [];
                     $params = [];
@@ -1060,7 +1062,7 @@ class MySqlEngine implements Engine
 
     private function loadStopwords(): array
     {
-        $languages = config('illumi-search.processing.stopwords', []);
+        $languages = $this->illumiConfig->stopwords();
 
         if (! is_array($languages) || empty($languages)) {
             return [];
@@ -1099,7 +1101,7 @@ class MySqlEngine implements Engine
             $searchable = [];
         }
 
-        $maxWeight = (int) config('illumi-search.processing.max_weight', 3);
+        $maxWeight = $this->illumiConfig->maxWeight();
         $result = [];
 
         for ($w = 1; $w <= $maxWeight; $w++) {
@@ -1138,7 +1140,7 @@ class MySqlEngine implements Engine
      */
     private function buildWeightMatchExpressions(): array
     {
-        $weightCols = $this->getExistingWeightColumns();
+        $weightCols = explode(', ', $this->weightColumnNames($this->illumiConfig->maxWeight()));
 
         $selectParts = [];
         $whereParts = [];
@@ -1159,7 +1161,7 @@ class MySqlEngine implements Engine
 
     private function getFirstTextColumn(): string
     {
-        return $this->getExistingWeightColumns()[0] ?? '';
+        return 'text_w1';
     }
 
     /**
@@ -1167,10 +1169,9 @@ class MySqlEngine implements Engine
      */
     private function getTitleColumn(): string
     {
-        $cols = $this->getExistingWeightColumns();
-        $lastKey = array_key_last($cols);
+        $maxWeight = $this->illumiConfig->maxWeight();
 
-        return $lastKey !== null ? $cols[$lastKey] : '';
+        return $maxWeight >= 1 ? "text_w{$maxWeight}" : 'text_w1';
     }
 
     private function modelTypePlaceholders(array $classes): array
@@ -1204,6 +1205,14 @@ class MySqlEngine implements Engine
                     'NOT' => '-',
                     'OR' => '',
                 };
+
+                // AND/NEAR requires BOTH terms: also apply + to the previous term
+                if ($pendingOperator === '+' && ! empty($parts)) {
+                    $lastKey = array_key_last($parts);
+                    if (! str_starts_with($parts[$lastKey], '+')) {
+                        $parts[$lastKey] = '+' . $parts[$lastKey];
+                    }
+                }
 
                 continue;
             }

@@ -10,6 +10,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Events\ModelIndexed;
 use Moaines\IllumiSearch\Events\RebuildComplete;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 
 class IndexManager
 {
@@ -30,7 +31,7 @@ class IndexManager
 
         $models = collect();
 
-        $paths = config('illumi-search.model_paths', [app_path('Models')]);
+        $paths = app(IllumiSearchConfig::class)->modelPaths();
 
         foreach ($paths as $path) {
             if (! is_dir($path)) {
@@ -67,7 +68,7 @@ class IndexManager
             ? collect($modelClasses)
             : $this->discoverModels();
 
-        $batchSize ??= (int) config('illumi-search.rebuild_batch_size', 0);
+        $batchSize ??= app(IllumiSearchConfig::class)->rebuildBatchSize();
         $results = [];
 
         foreach ($models as $modelClass) {
@@ -89,7 +90,20 @@ class IndexManager
         }
 
         if ($vacuum) {
+            $before = method_exists($this->engine, 'getDatabaseSize') ? $this->engine->getDatabaseSize() : 0;
             $this->engine->vacuum();
+            $after = method_exists($this->engine, 'getDatabaseSize') ? $this->engine->getDatabaseSize() : 0;
+            $reclaimed = $before - $after;
+            $hasVacuum = false;
+            foreach ($results as $r) {
+                if (($r['status'] ?? '') === 'vacuumed') {
+                    $hasVacuum = true;
+                    break;
+                }
+            }
+            if (! $hasVacuum) {
+                $results[] = ['model' => 'vacuum', 'status' => 'vacuumed', 'reclaimed' => $reclaimed];
+            }
         }
 
         return $results;
@@ -121,7 +135,7 @@ class IndexManager
             }
 
             $this->engine->dropTable($modelClass);
-            $this->engine->createTable($modelClass, array_keys($columns), config('illumi-search.engines.sqlite.fts5.prefix_lengths', [2, 3, 4]));
+            $this->engine->createTable($modelClass, array_keys($columns), app(IllumiSearchConfig::class)->sqlitePrefixLengths());
 
             if (method_exists($this->engine, 'setRebuilding')) {
                 $this->engine->setRebuilding(true);
@@ -169,10 +183,11 @@ class IndexManager
             ->get();
 
         if (! empty($relations)) {
+            $progress?->__invoke('loading', 'relations', implode(', ', $relations));
             $records->load($relations);
         }
 
-        $syncCount = $this->indexRecords($records, $modelClass);
+        $syncCount = $this->indexRecords($records, $modelClass, $progress);
         $progress?->__invoke('advance', $syncCount);
 
         $lastId = $records->last()?->getKey() ?? 0;
@@ -186,7 +201,7 @@ class IndexManager
                 modelClass: $modelClass,
                 lastId: $lastId,
                 limit: $take,
-            )->onConnection(config('illumi-search.queue_connection'));
+            )->onConnection(app(IllumiSearchConfig::class)->queueConnection());
 
             $queuedCount += $take;
             $lastId += $take;
@@ -199,13 +214,18 @@ class IndexManager
     private function rebuildSyncAll(string $modelClass, string $keyName, array $relations, ?\Closure $progress): int
     {
         $syncCount = 0;
+        $relationsLoaded = false;
 
         $modelClass::query()
-            ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress) {
-                if (! empty($relations)) {
+            ->chunkById(100, function ($records) use ($modelClass, &$syncCount, $relations, $progress, &$relationsLoaded) {
+                if (! empty($relations) && ! $relationsLoaded) {
+                    $progress?->__invoke('loading', 'relations', implode(', ', $relations));
+                    $relationsLoaded = true;
+                    $records->load($relations);
+                } elseif (! empty($relations)) {
                     $records->load($relations);
                 }
-                $synced = $this->indexRecords($records, $modelClass);
+                $synced = $this->indexRecords($records, $modelClass, $progress);
                 $syncCount += $synced;
                 $progress?->__invoke('advance', $synced);
             }, $keyName);
@@ -244,12 +264,16 @@ class IndexManager
     }
 
     /** @param \Illuminate\Database\Eloquent\Collection<int, Model> $records */
-    private function indexRecords($records, string $modelClass): int
+    private function indexRecords($records, string $modelClass, ?\Closure $progress = null): int
     {
         $documents = [];
         $count = 0;
 
         foreach ($records as $record) {
+            $title = method_exists($record, 'searchTitle')
+                ? $record->searchTitle()
+                : $record->getKey();
+            $progress?->__invoke('processing', $record->getKey(), $title);
             $documents[] = [
                 'model_id' => $record->getKey(),
                 'document' => $record->processDocument($record, $this->processor),

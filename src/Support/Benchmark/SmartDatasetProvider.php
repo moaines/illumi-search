@@ -146,17 +146,21 @@ class SmartDatasetProvider
         }
 
         // 5. AND queries (frequent + rare)
-        for ($i = 0; $i < 4; $i++) {
-            $f = $frequent[array_rand($frequent)] ?? 'software';
-            $r = $rare[array_rand($rare)] ?? 'algorithm';
-            $queries[] = $this->buildQuery('and', "$f AND $r", $allPosts);
+        if (! empty($frequent) && ! empty($rare)) {
+            for ($i = 0; $i < min(4, count($frequent), count($rare)); $i++) {
+                $f = $frequent[array_rand($frequent)] ?? 'software';
+                $r = $rare[array_rand($rare)] ?? 'algorithm';
+                $queries[] = $this->buildQuery('and', "$f AND $r", $allPosts);
+            }
         }
 
         // 6. OR queries
-        for ($i = 0; $i < 3; $i++) {
-            $f1 = $frequent[array_rand($frequent)] ?? 'development';
-            $f2 = $domain[array_rand($domain)] ?? 'programming';
-            $queries[] = $this->buildQuery('or', "$f1 OR $f2", $allPosts);
+        if (! empty($frequent) && ! empty($domain)) {
+            for ($i = 0; $i < min(3, count($frequent), count($domain)); $i++) {
+                $f1 = $frequent[array_rand($frequent)] ?? 'development';
+                $f2 = $domain[array_rand($domain)] ?? 'programming';
+                $queries[] = $this->buildQuery('or', "$f1 OR $f2", $allPosts);
+            }
         }
 
         // 7. Wildcard prefixes
@@ -222,6 +226,86 @@ class SmartDatasetProvider
         }
 
         return compact('query', 'type', 'mustMatch', 'mustNotMatch', 'idealOrder', 'cleanTokens') + ['tokens' => $cleanTokens];
+    }
+
+    /**
+     * Generate queries filtered by language.
+     *
+     * @return array<int, array{query: string, type: string, mustMatch: int[], mustNotMatch: int[], idealOrder?: int[], tokens: string[]}>
+     */
+    public function generateQueriesByLanguage(string $lang, int $count = 10): array
+    {
+        $langPosts = array_values(array_filter($this->posts, fn ($p) => ($p['language'] ?? '') === $lang));
+        if (empty($langPosts)) {
+            return [];
+        }
+
+        if (empty($this->vocabAnalysis)) {
+            $this->analyzeVocabulary();
+        }
+
+        mt_srand(self::SEED + strlen($lang));
+
+        $queries = [];
+        $texts = array_map(fn ($p) => mb_strtolower(($p['title'] ?? '') . ' ' . ($p['body'] ?? '')), $langPosts);
+
+        // Build language-specific frequency map
+        $freq = [];
+        foreach ($texts as $txt) {
+            $words = preg_split('/[^\p{L}\p{N}]+/u', $txt) ?? [];
+            foreach (array_unique($words) as $w) {
+                if (mb_strlen($w) >= 4) {
+                    $freq[$w] = ($freq[$w] ?? 0) + 1;
+                }
+            }
+        }
+        arsort($freq);
+        $topWords = array_slice(array_keys($freq), 0, min(20, count($freq)));
+
+        // Simple words (top 3 frequent)
+        foreach (array_slice($topWords, 0, 3) as $word) {
+            $queries[] = $this->buildQuery("{$lang}_simple", $word, $langPosts);
+        }
+
+        // Rare words (bottom of freq)
+        $bottomWords = array_slice(array_keys($freq), max(0, count($freq) - 10), 3);
+        foreach ($bottomWords as $word) {
+            $queries[] = $this->buildQuery("{$lang}_rare", $word, $langPosts);
+        }
+
+        // Phrases from titles
+        $titles = array_map(fn ($p) => trim($p['title'] ?? ''), $langPosts);
+        $longTitles = array_values(array_filter($titles, fn ($t) => str_word_count($t) >= 3 && strlen($t) > 20));
+        foreach (array_slice($longTitles, 0, 2) as $title) {
+            $phrase = implode(' ', array_slice(explode(' ', $title), 0, 2));
+            if (strlen($phrase) > 5) {
+                $queries[] = $this->buildQuery("{$lang}_phrase", "\"{$phrase}\"", $langPosts);
+            }
+        }
+
+        // Accent tests for Latin-script languages
+        if (in_array($lang, ['fr', 'es', 'pt'], true)) {
+            $seen = [];
+            foreach ($texts as $txt) {
+                $words = preg_split('/[^\p{L}\p{N}]+/u', $txt) ?? [];
+                foreach ($words as $word) {
+                    if (count($seen) >= 2) break 2;
+                    try {
+                        $ascii = (new \Symfony\Component\String\UnicodeString($word))->ascii();
+                    } catch (\Symfony\Component\String\Exception\InvalidArgumentException) {
+                        continue;
+                    }
+                    if ($word !== (string) $ascii && mb_strlen($word) >= 4 && ! in_array((string) $ascii, $seen, true)) {
+                        $seen[] = (string) $ascii;
+                        $queries[] = $this->buildQuery("{$lang}_accent", (string) $ascii, $langPosts);
+                    }
+                }
+            }
+        }
+
+        $this->generatedQueries = array_slice($queries, 0, $count);
+
+        return $this->generatedQueries;
     }
 
     /**

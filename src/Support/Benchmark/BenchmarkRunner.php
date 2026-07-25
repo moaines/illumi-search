@@ -104,7 +104,7 @@ class BenchmarkRunner
     {
         $tokens = [];
         foreach ($posts as $post) {
-            $text = ($post['title'] ?? '') . ' ' . ($post['body'] ?? '');
+            $text = $this->processDocument($post['title'] ?? '') . ' ' . $this->processDocument($post['body'] ?? '');
             foreach (preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($text)) as $w) {
                 if (mb_strlen(trim($w)) >= 2) {
                     $tokens[trim($w)] = true;
@@ -541,19 +541,16 @@ class BenchmarkRunner
         $weightSoundness = ! empty($weightResults);
         $this->metrics->recordSound('Weight-3 column search', $weightSoundness);
 
-        // wildcard (only for engines that support it)
-        if ($this->engine->supportsPrefixWildcard()) {
-            $wildcardResults = $this->engine->search('prog*', [$this->testModelClass], 10);
-            $wildcardOk = false;
-            foreach ($wildcardResults as $r) {
-                $t = $this->metrics->extractSearchText($r);
-                if (mb_strpos($t, 'programming') !== false || mb_strpos($t, 'prog') !== false) {
-                    $wildcardOk = true;
-                    break;
-                }
+        $wildcardResults = $this->engine->search('prog*', [$this->testModelClass], 10);
+        $wildcardOk = false;
+        foreach ($wildcardResults as $r) {
+            $t = $this->metrics->extractSearchText($r);
+            if (mb_strpos($t, 'programming') !== false || mb_strpos($t, 'prog') !== false) {
+                $wildcardOk = true;
+                break;
             }
-            $this->metrics->recordSound('Prefix wildcard (prog*)', $wildcardOk);
         }
+        $this->metrics->recordSound('Prefix wildcard (prog*)', $wildcardOk);
 
         if ($verbose) {
             echo "  Soundness: AND=" . ($andWorks ? '✓' : '✗')

@@ -139,12 +139,35 @@ trait HasTextHelpers
 
     /**
      * Normalize a search query using the configured TextProcessor.
+     *
+     * Operators (AND, OR, NOT, NEAR) are masked before processing because
+     * the stopword filter in TextProcessor removes them as common English
+     * words (e.g. "and", "or", "not"), preventing the engines from
+     * recognizing them as boolean operators.
+     *
+     * OperatorRegistry::maskOperators() replaces them with __OP{N}__
+     * placeholders that survive stopword filtering. After processing,
+     * OperatorRegistry::unmaskOperators() restores the original operators.
+     *
+     * The replacement keys are lowercased to match the TextProcessor's
+     * lowercase normalization step.
+     *
+     * @see OperatorRegistry::maskOperators()
+     * @see OperatorRegistry::unmaskOperators()
      */
     public function normalizeQuery(string $query): string
     {
-        $processor = app(TextProcessor::class);
+        [$masked, $replacements] = OperatorRegistry::maskOperators($query);
 
-        return $processor->process($query);
+        $processor = app(TextProcessor::class);
+        $processed = $processor->process($masked);
+
+        // TextProcessor lowercases the query, so replacement keys must match
+        $lowerReplacements = collect($replacements)->mapWithKeys(
+            fn ($value, $key) => [Str::lower($key) => $value],
+        )->all();
+
+        return OperatorRegistry::unmaskOperators($processed, $lowerReplacements);
     }
 
     /**

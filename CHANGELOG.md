@@ -1,5 +1,61 @@
 # Changelog
 
+## v1.17.0 — FTS5 ranking fix, multi-language tests, 100% soundness
+
+### Fixed
+
+- **SQLite FTS5: ORDER BY rank DESC reversed** → `-RANK AS rank` with DESC. FTS5 BM25
+  returns negative scores (more negative = better match). DESC ranked worst results first.
+  The fix negates the score (`-RANK`) to make it positive; DESC now correctly ranks the
+  best matches first. Avg first relevant: 3.3th → 1.1th, Precision@5: 0.31 → 0.82.
+- **MySQL: AND operator** → `toBooleanMode()` now applies `+` to BOTH terms (previously
+  only the second). AND/OR now work correctly in BOOLEAN MODE.
+- **MySQL: search_text** → `CONCAT_WS(' ', text_w1, ..., text_wN)` instead of `text_w1` alone.
+  Benchmark verification now includes all weight columns.
+
+### Added
+
+- **Multi-language tests** — `MultiLanguageEngineTest`: 10 tests covering FR, ES, PT, ZH,
+  RU, AR with accents, CJK, Cyrillic, Arabic. Real data from `seed.json` (1364 posts, 7 languages).
+- **`SmartDatasetProvider::generateQueriesByLanguage()`** — language-filtered query generation.
+- **Cross-language consistency test** — `all_engines_support_multi_language_search` verifies
+  5 languages across all engines.
+- **2-layer cache** — raw results (`_raw`) + enriched results (`_enriched`). If snippet
+  enrichment fails, the raw cache still serves results without a DB query.
+- **Chunk stats versioning** — `chunkVersion()` + `.version` file → `rebuildStats()` is a no-op
+  when chunks haven't changed. Eliminates unnecessary rebuilds after every upsert.
+- **FileEngine `getDatabaseSize()`** — `File::allFiles()` + `collect()->sum()` (replaces `glob('**')`).
+- **`normalizeQuery()` operator masking** — `maskOperators()` before TextProcessor prevents
+  stopword filters from removing AND/OR/NOT/NEAR from queries.
+
+### Changed
+
+- **`extractSearchText()`** — concatenates weight columns (`text_w1/2/3`) and named columns
+  (`title`, `body`, `content`) instead of returning the first match only.
+- **Benchmark tables** — updated with new results (Soundness 100%, SQLite Precision@5 0.82).
+- **Meta descriptions** — updated to reflect multi-engine architecture.
+- **Frontend docs** — rewritten for multi-engine support.
+- **`LONGTEXT` → `TEXT`** — weight columns w3+ downgraded from MEDIUMTEXT (16 MB) to TEXT (64 KB).
+
+### Refactored
+
+- **MySqlEngine**: removed `ensureWeightColumnsExist()` — weight columns are now generated
+  inline in `CREATE TABLE`, eliminating the ALTER TABLE race condition.
+- **Removed unused `createMySqlEngine()`** from test file.
+- **`HasFormatBytes`**: uses local variable instead of modifying the parameter.
+- **`IndexManager`**: `indexRecords()` accepts a `progress` closure for real-time display.
+- **`HasProgressBar::processingDetail()`**: removed (dead code).
+- **`IllumiSearchConfig`**: added 13 new methods covering indexing mode, tenancy, queue,
+  model paths, authorization, max results, etc.
+
+### Tests
+
+- **572 tests** (was 540), **1308 assertions** (was 1209).
+- New test suites: `MultiLanguageEngineTest`, `CrossEngineConsistencyTest` (multi-lang).
+- All Soundness checks pass across all 3 engines (AND, OR, NOT, phrase, wildcard, accent).
+
+---
+
 ## v1.16.1 — Tenant isolation fix + stubs traits
 
 ### Fixed

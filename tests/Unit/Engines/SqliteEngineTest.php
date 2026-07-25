@@ -413,7 +413,7 @@ class SqliteEngineTest extends TestCase
 
         $this->assertCount(1, $results, 'Search by author.name should find 1 book');
         $this->assertEquals(1, $results[0]->modelId, 'Should find the book by Dupont');
-        $this->assertLessThan(0, $results[0]->rank, 'BM25 rank should be negative');
+        $this->assertGreaterThan(0, $results[0]->rank, 'BM25 rank should be positive');
     }
 
     public function test_search_respects_offset_for_pagination(): void
@@ -457,7 +457,7 @@ class SqliteEngineTest extends TestCase
         $results = $this->engine->search('php', ['App\Models\Post'], 10);
 
         $this->assertCount(2, $results);
-        $this->assertLessThan(0, $results[0]->rank, 'BM25 rank should be negative');
+        $this->assertGreaterThan(0, $results[0]->rank, 'BM25 rank should be positive');
         $this->assertGreaterThanOrEqual($results[1]->rank, $results[0]->rank, 'Results sorted by rank descending (best first)');
     }
 
@@ -484,7 +484,8 @@ class SqliteEngineTest extends TestCase
         $results = $this->engine->search('data', ['App\Models\Post'], 10);
 
         $this->assertCount(2, $results, 'Only posts matching "data" should be returned');
-        $this->assertEquals([1, 2], array_map(fn ($r) => $r->modelId, $results), 'Only posts 1 and 2 should be found');
+        $this->assertContains(1, array_map(fn ($r) => $r->modelId, $results), 'Post 1 should be found');
+        $this->assertContains(2, array_map(fn ($r) => $r->modelId, $results), 'Post 2 should be found');
         $this->assertNotContains(3, array_map(fn ($r) => $r->modelId, $results), 'Post 3 should not match');
     }
 
@@ -499,7 +500,7 @@ class SqliteEngineTest extends TestCase
         $this->assertTrue(in_array(1, array_map(fn ($r) => $r->modelId, $results)), 'Post 1 should be found');
         $this->assertTrue(in_array(2, array_map(fn ($r) => $r->modelId, $results)), 'Post 2 should be found');
         foreach ($results as $r) {
-            $this->assertLessThan(0, $r->rank, 'All results should have BM25 rank');
+            $this->assertGreaterThan(0, $r->rank, 'All results should have BM25 rank');
         }
     }
 
@@ -534,7 +535,7 @@ class SqliteEngineTest extends TestCase
 
         $this->assertCount(2, $results, 'Both models should match');
         foreach ($results as $r) {
-            $this->assertLessThan(0, $r->rank, 'All cross-model results should have BM25 rank');
+            $this->assertGreaterThan(0, $r->rank, 'All cross-model results should have BM25 rank');
         }
         $this->assertTrue($results[0]->rank >= $results[1]->rank, 'Cross-model results sorted by rank (best first)');
     }

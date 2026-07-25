@@ -347,23 +347,29 @@ class SqliteEngine implements Engine
             return [];
         }
 
-        // Try cache first
-        $cacheKey = $this->searchCache->key($query . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
-        $cached = $this->searchCache->get($cacheKey);
+        // Two-layer cache: enriched > raw > search
+        $cacheKey = $this->searchCache->key($query . $this->databasePath . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
+        $enrichedKey = $this->searchCache->enrichedKey($cacheKey);
+        $rawKey = $this->searchCache->rawKey($cacheKey);
 
-        if ($cached !== null) {
-            // Cache the raw results
-            $this->searchCache->set($cacheKey, $results);
+        $cachedEnriched = $this->searchCache->get($enrichedKey);
+        if ($cachedEnriched !== null) {
+            return array_map(fn ($r) => Result::fromRaw($r), $cachedEnriched);
+        }
 
-            return array_map(
-                fn ($r) => Result::fromRaw($r),
-                $cached,
-            );
+        $cachedRaw = $this->searchCache->get($rawKey);
+        if ($cachedRaw !== null) {
+            $results = $cachedRaw;
+            $searchDone = true;
+        } else {
+            $searchDone = false;
         }
 
         $safeQuery = $this->escapeQuery($query, $mode);
         $results = [];
-        $seenIds = [];
+
+        if (! $searchDone) {
+            $seenIds = [];
 
         $perModel = ! empty($modelClasses) ? max(1, (int) ceil($limit / count($modelClasses))) : $limit;
 
@@ -376,7 +382,7 @@ class SqliteEngine implements Engine
             $queryStart = microtime(true);
 
             try {
-                $sql = "SELECT *, rank, COUNT(*) OVER () as total_count FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
+                $sql = "SELECT *, -RANK AS rank, COUNT(*) OVER () as total_count FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
                 $stmt = $this->db()->prepare($sql);
                 $stmt->bindValue(':query', $safeQuery, SQLITE3_TEXT);
                 $stmt->bindValue(':limit', $perModel, SQLITE3_INTEGER);
@@ -440,15 +446,20 @@ class SqliteEngine implements Engine
         }
 
         // Sort by rank across all model classes
-        $results = collect($results)->sortByDesc('rank')->values()->all();
+            $results = collect($results)->sortByDesc('rank')->values()->all();
 
-        $results = array_slice($results, 0, $limit);
+            $results = array_slice($results, 0, $limit);
+
+            $this->searchCache->set($rawKey, $results);
+        }
 
         // Enrich with snippets from original models
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);
             $results = $service->enrich($results, $query);
         }
+
+        $this->searchCache->set($enrichedKey, $results);
 
         return array_map(
             fn ($r) => Result::fromRaw($r),

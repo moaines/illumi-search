@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch;
 
 use Closure;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 
 class TenantManager
 {
@@ -26,7 +27,7 @@ class TenantManager
 
     public function enabled(): bool
     {
-        return config('illumi-search.tenancy.enabled', false) && $this->resolver !== null;
+        return app(IllumiSearchConfig::class)->tenancyEnabled() && $this->resolver !== null;
     }
 
     public function tenantDatabasePath(string $basePath): string
@@ -41,7 +42,7 @@ class TenantManager
             return $basePath;
         }
 
-        $dir = config('illumi-search.tenancy.directory', 'app/search/tenants');
+        $dir = app(IllumiSearchConfig::class)->tenancyDirectory();
         $filename = basename($basePath);
 
         return storage_path($dir . '/' . $tenantId . '/' . $filename);

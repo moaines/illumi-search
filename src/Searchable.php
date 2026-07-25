@@ -9,6 +9,7 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 
 /**
@@ -21,13 +22,13 @@ trait Searchable
 {
     public static function bootSearchable(): void
     {
-        $indexing = config('illumi-search.indexing.mode', 'queue');
+        $indexing = app(IllumiSearchConfig::class)->indexingMode();
 
         if ($indexing === 'manual') {
             return;
         }
 
-        $queue = config('illumi-search.queue_connection');
+        $queue = app(IllumiSearchConfig::class)->queueConnection();
 
         $indexOnSave = function (Model $model) use ($indexing, $queue): void {
             if ($model->shouldSync()) {
@@ -108,7 +109,7 @@ trait Searchable
             }
 
             if ($related instanceof Collection || $related instanceof \Illuminate\Database\Eloquent\Collection) {
-                $max = config('illumi-search.processing.max_related_values', 100);
+                $max = app(IllumiSearchConfig::class)->maxRelatedValues();
 
                 return $related->pluck($last)->filter()->take($max)->implode(' ');
             }

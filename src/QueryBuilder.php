@@ -7,6 +7,7 @@ use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 
 class QueryBuilder
 {
@@ -76,7 +77,7 @@ class QueryBuilder
 
     public function limit(int $limit): static
     {
-        $this->limit = max(1, min($limit, config('illumi-search.processing.max_results', 50)));
+        $this->limit = max(1, min($limit, app(IllumiSearchConfig::class)->maxResults()));
 
         return $this;
     }
@@ -139,7 +140,7 @@ class QueryBuilder
             mode: $this->mode,
         ));
 
-        if ($this->authorizationEnabled || config('illumi-search.authorization.enabled', false)) {
+        if ($this->authorizationEnabled || app(IllumiSearchConfig::class)->authorizationEnabled()) {
             $results = $this->filterAuthorized($results);
         }
 

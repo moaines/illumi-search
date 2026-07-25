@@ -26,6 +26,16 @@ class ChunkStorage
         $this->totalColumns = self::COL_TEXT_W_BASE + $maxWeight + 1;
     }
 
+    public function colModelType(): int
+    {
+        return self::COL_MODEL_TYPE;
+    }
+
+    public function colModelId(): int
+    {
+        return self::COL_MODEL_ID;
+    }
+
     public function colW(int $weight): int
     {
         return self::COL_TEXT_W_BASE + $weight - 1;
@@ -185,11 +195,21 @@ class ChunkStorage
 
     public function docText(object $doc): string
     {
+        $values = [];
+        for ($w = 1; $w <= $this->maxWeight; $w++) {
+            $col = "text_w{$w}";
+            $values[$this->colW($w)] = $doc->$col ?? '';
+        }
+
+        return $this->docTextFromRow($values);
+    }
+
+    public function docTextFromRow(array $r): string
+    {
         $parts = [];
 
         for ($w = 1; $w <= $this->maxWeight; $w++) {
-            $col = "text_w{$w}";
-            $value = $doc->$col ?? '';
+            $value = $r[$this->colW($w)] ?? '';
             if ($value !== '') {
                 $parts[] = str_repeat($value . ' ', $w);
             }

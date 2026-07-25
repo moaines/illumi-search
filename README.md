@@ -8,10 +8,10 @@
     <img src="art/banner_1024x640.png" alt="Illumi Search" width="800">
 </p>
 
-**Full-text search for Laravel — 3 engines, 1 interface.**  
+**Full-text search for Laravel — multi-engine, 1 interface.**  
 SQLite FTS5 (default), MySQL 8.0+ FULLTEXT, or FileEngine (zero-dependency flat-file).
 
-BM25 relevance ranking with field boosting, boolean operators (AND/OR/NOT/NEAR/phrase/preﬁx), trigram spellcheck, multi-tenant isolation, search results caching, concurrent chunk processing. Drop-in `Searchable` trait. No external services.
+BM25 relevance ranking with field boosting, boolean operators (AND/OR/NOT/NEAR/phrase/preﬁx), trigram spellcheck, multi-tenant isolation, search results caching, concurrent chunk processing, **570+ tests**, cross-engine consistency. Drop-in `Searchable` trait. No external services.
 
 ```bash
 composer require moaines/illumi-search
@@ -487,53 +487,51 @@ Options:
   --cache=cold       Cache mode: cold (clear cache) or warm
 ```
 
-**Example output:**
+**Example output (1000 docs, 3 engines):**
 
 ```
-Tests: 479, Assertions: 1090
-
 📊 Quantity (higher is better)
 +----------------------+------------+----------+--------+----------+--------+----------+
 | Metric               | FileEngine |          | SQLite |          | MySQL  |          |
 +----------------------+------------+----------+--------+----------+--------+----------+
-| Upsert (fast)        | 676.1      | docs/sec | 1376   | docs/sec | 127.2  | docs/sec |
-| Search (exact)       | 23.9       | q/sec    | 807.5  | q/sec    | 202.7  | q/sec    |
-| Rebuild              | 2601.2     | docs/sec | 5582.3 | docs/sec | 1263.8 | docs/sec |
-| Latency p50          | 37.83      | ms       | 0.58   | ms       | 4.54   | ms       |
-| Latency p95          | 41.08      | ms       | 2.24   | ms       | 5.81   | ms       |
-| Latency p99          | 44.26      | ms       | 15.13  | ms       | 5.96   | ms       |
-| Peak RAM             | 27.3       | MB       | 0      | MB       | 0      | MB       |
+| Upsert (fast)        | 345.4      | docs/sec | 1048.4 | docs/sec | 140.2  | docs/sec |
+| Search (exact)       | 10.0       | q/sec    | 474.6  | q/sec    | 149.2  | q/sec    |
+| Rebuild              | 2679.4     | docs/sec | 3056.3 | docs/sec | 1526.9 | docs/sec |
+| Latency p50          | 99.32      | ms       | 1.65   | ms       | 6.81   | ms       |
+| Latency p95          | 105.52     | ms       | 4.11   | ms       | 8.09   | ms       |
+| Latency p99          | 112.8      | ms       | 4.43   | ms       | 12.3   | ms       |
+| Peak RAM             | 42         | MB       | 0      | MB       | 0      | MB       |
 +----------------------+------------+----------+--------+----------+--------+----------+
 
 🎯 Quality (higher is better)
 +----------------------------+------------+--------+-------+
 | Metric                     | FileEngine | SQLite | MySQL |
 +----------------------------+------------+--------+-------+
-| Precision@5                | 0.90       | 0.78   | 0.80  |
+| Precision@5                | 0.88       | 0.82   | 0.80  |
 | Recall@5                   | 0.56       | 0.55   | 0.55  |
-| F1@5                       | 0.61       | 0.57   | 0.58  |
-| NDCG@5                     | 0.88       | 0.76   | 0.83  |
-| MAP@5                      | 0.90       | 0.76   | 0.84  |
-| Precision@1                | 0.90       | 0.65   | 0.85  |
-| MRR                        | 1.00       | 1.00   | 1.00  |
-| Avg first relevant         | 1.0th      | 1.4th  | 1.0th |
-| Fuzzy tolerance            | ✓          | ✓      | ✓     |
+| F1@5                       | 0.59       | 0.58   | 0.57  |
+| NDCG@5                     | 0.88       | 0.85   | 0.83  |
+| MAP@5                      | 0.90       | 0.85   | 0.84  |
+| Precision@1                | 0.90       | 0.85   | 0.85  |
+| MRR                        | 1.0        | 1.0    | 1.0   |
+| Avg first relevant         | 1th        | 1th    | 1th   |
 | Accent insensitivity       | ✓          | ✓      | ✓     |
 +----------------------------+------------+--------+-------+
 
 🧠 Soundness (expected behaviour)
-+---------------------------+--------------------------------+--------------------------------+-----------------------------+
-| Metric                    | FileEngine                     | SQLite                         | MySQL                       |
-+---------------------------+--------------------------------+--------------------------------+-----------------------------+
-| AND operator narrows      | All results contain both terms | All results contain both terms | Some results missing a term |
-| OR operator broadens      | ✓                             | ✓                              | ✓                           |
-| NOT operator excludes     | ✓                             | ✓                              | ✓                           |
-| Phrase exacte             | ✓                             | ✓                              | ✓                           |
-| Special chars no error    | ✓                             | ✓                              | ✓                           |
-| Order stability           | ✓                             | ✓                              | ✓                           |
-| Weight-3 column search    | ✓                             | ✓                              | ✓                           |
-| Prefix wildcard (prog*)   | ✓                             | ✓                              | ✓                           |
-+---------------------------+--------------------------------+--------------------------------+-----------------------------+
++---------------------------+--------------------------------+--------------------------------+--------------------------------+
+| Metric                    | FileEngine                     | SQLite                         | MySQL                          |
++---------------------------+--------------------------------+--------------------------------+--------------------------------+
+| AND operator narrows      | All results contain both terms | All results contain both terms | All results contain both terms |
+| OR operator broadens      | Returned 3 results             | Returned 3 results             | Returned 3 results             |
+| NOT operator excludes     | ✓                             | ✓                              | ✓                              |
+| Phrase exacte             | ✓                             | ✓                              | ✓                              |
+| Empty query returns empty | ✓                             | ✓                              | ✓                              |
+| Special chars no error    | ✓                             | ✓                              | ✓                              |
+| Order stability           | ✓                             | ✓                              | ✓                              |
+| Weight-3 column search    | ✓                             | ✓                              | ✓                              |
+| Prefix wildcard (prog*)   | ✓                             | ✓                              | ✓                              |
++---------------------------+--------------------------------+--------------------------------+--------------------------------+
 ```
 
 ### Other commands
@@ -669,21 +667,22 @@ Filters results through Laravel's Gate/Policy system.
 ## Testing
 
 ```bash
-phpunit                                # Run all tests (479)
+phpunit                                # Run all tests (572)
 phpunit --testdox                      # Named tests
 phpunit --filter="FileEngine"          # FileEngine-specific
-phpunit --filter="CrossEngineConsistency"  # Cross-engine tests
+phpunit --filter="CrossEngine"         # Cross-engine + multi-language tests
 ```
 
 ### Test structure
 
-**479 tests** (1090 assertions) across all 3 engines:
+**572 tests** (1308 assertions) across all 3 engines:
 
 - **`AbstractEngineTest`** — 34 cross-engine tests (ranking, operators, pagination, snippets, modes)
 - **`FileEngineIntegrationTest`** — cache, crash recovery, sentinel, concurrent processor, large batches
 - **`SqliteEngineIntegrationTest`** — tenant isolation, table naming, engine status
 - **`MySqlEngineIntegrationTest`** — trigram spellcheck, last_synced_at, custom prefix, rebuild
 - **`CrossEngineConsistencyTest`** — same queries → same results across all 3 engines
+- **`MultiLanguageEngineTest`** — accent, CJK, Cyrillic, Arabic, wildcard, phrase (7 languages, real data)
 - **`SmartDatasetTestProvider`** — intelligent queries from seed.json with ranking assertions
 
 ---
@@ -803,7 +802,7 @@ All implementations must pass `AbstractEngineTest`.
 ### MySQL FULLTEXT
 
 - **FTS5-specific features** (`getPragma`, `vacuum`, `queryVocab`) return null/no-op
-- **AND operator** in BOOLEAN MODE not 100% reliable (known MySQL limitation)
+- **CJK search** requires `ngram` parser (not configured by default)
 - **No native stemming** — relies on PHP preprocessing
 - **Dedicated connection** — uses `illumi-search-mysql` connection
 

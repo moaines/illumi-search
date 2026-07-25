@@ -102,7 +102,7 @@ class IllumiSearchConfig
 
     public function sqliteVocabLimit(): int
     {
-        return (int) config('illumi-search.spellcheck.vocab_limit', 1000);
+        return (int) config('illumi-search.spellcheck.vocab_limit', 5000);
     }
 
     /**
@@ -175,4 +175,82 @@ class IllumiSearchConfig
     {
         return config('illumi-search.engines.mysql.connection.password', '');
     }
+
+    public function mysqlUnixSocket(): string
+    {
+        return config('illumi-search.engines.mysql.connection.unix_socket', '');
+    }
+
+    // ─── Search behaviour ────────────────────────────────
+
+    public function processingMode(): string
+    {
+        return $this->processingMode ??= config('illumi-search.processing.mode', 'advanced');
+    }
+
+    public function maxResults(): int
+    {
+        return $this->maxResults ??= (int) config('illumi-search.processing.max_results', 50);
+    }
+
+    public function maxRelatedValues(): int
+    {
+        return $this->maxRelatedValues ??= (int) config('illumi-search.processing.max_related_values', 100);
+    }
+
+    public function maxSearchTextLength(): int
+    {
+        return $this->maxSearchTextLength ??= (int) config('illumi-search.processing.max_search_text_length', 65535);
+    }
+
+    // ─── Indexing ────────────────────────────────────────
+
+    public function indexingMode(): string
+    {
+        return $this->indexingMode ??= config('illumi-search.indexing.mode', 'queue');
+    }
+
+    public function rebuildBatchSize(): int
+    {
+        return (int) config('illumi-search.indexing.rebuild_batch_size', 0);
+    }
+
+    // ─── Multi-tenancy ───────────────────────────────────
+
+    public function tenancyEnabled(): bool
+    {
+        return (bool) config('illumi-search.tenancy.enabled', false);
+    }
+
+    public function tenancyDirectory(): string
+    {
+        return config('illumi-search.tenancy.directory', 'app/search/tenants');
+    }
+
+    // ─── Model discovery ─────────────────────────────────
+
+    public function modelPaths(): array
+    {
+        return config('illumi-search.model_paths', [app_path('Models')]);
+    }
+
+    // ─── Queue ──────────────────────────────────────────
+
+    public function queueConnection(): ?string
+    {
+        return config('illumi-search.queue_connection');
+    }
+
+    // ─── Authorization ──────────────────────────────────
+
+    public function authorizationEnabled(): bool
+    {
+        return (bool) config('illumi-search.authorization.enabled', false);
+    }
+
+    private ?string $processingMode = null;
+    private ?int $maxResults = null;
+    private ?int $maxRelatedValues = null;
+    private ?int $maxSearchTextLength = null;
+    private ?string $indexingMode = null;
 }
