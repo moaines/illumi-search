@@ -12,7 +12,9 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\ChunkStorage;
 use Moaines\IllumiSearch\Support\ConcurrentProcessor;
+use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
 use Moaines\IllumiSearch\Support\IllumiSearchHelper;
+use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\Support\MatchService;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\ScoreService;
@@ -38,6 +40,7 @@ class FileEngine implements Engine
     use NullPragma;
     use StubQueryVocab;
 
+    use HasOperatorProcessor;
     private const CACHE_LOAD_FAILED = '__FAILED__';
     private const SEARCH_OVERFETCH_MARGIN = 50;
     private const VOCAB_WORDS_FILE = 'words.php';
@@ -63,9 +66,10 @@ class FileEngine implements Engine
     /** @var array<string, array|string|null> */
     private array $statsCache = [];
 
-    public function __construct(string $basePath, ?SnippetService $snippets = null, ?IllumiSearchConfig $config = null)
+    public function __construct(string $basePath, ?SnippetService $snippets = null, ?IllumiSearchConfig $config = null, ?OperatorProcessor $operatorProcessor = null)
     {
         $illumiConfig = $config ?? app(IllumiSearchConfig::class);
+        $this->injectOperatorProcessor($operatorProcessor);
         $this->basePath = rtrim($basePath, '/');
         $this->snippets = $snippets;
         $this->maxWeight = $illumiConfig->maxWeight();
@@ -528,6 +532,8 @@ class FileEngine implements Engine
 
     $safeQuery = $this->normalizeQuery($query);
     $rawTerms = $this->normalizeQueryTerms($query);
+    // NEAR → AND fallback (distance check is handled by OperatorProcessor post-filter)
+    $rawTerms = array_map(fn ($t) => strtoupper($t) === 'NEAR' ? 'AND' : $t, $rawTerms);
     if (empty($rawTerms)) {
         return [];
     }
@@ -581,6 +587,9 @@ class FileEngine implements Engine
 
             $this->searchCache->set($rawKey, $results);
         }
+
+        // NEAR post-filter: apply distance check before caching
+        $results = $this->nearFilterResults($results, $safeQuery);
 
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);

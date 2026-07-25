@@ -14,6 +14,8 @@ use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
+use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasScoring;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
@@ -24,6 +26,7 @@ use Symfony\Component\String\UnicodeString;
 
 class MySqlEngine implements Engine
 {
+    use HasOperatorProcessor;
     use HasScoring;
     use HasTextHelpers;
     use NoopVacuum;
@@ -52,9 +55,10 @@ class MySqlEngine implements Engine
     /** @var array<string, bool> */
     private static array $checkedSearchable = [];
 
-    public function __construct(?SnippetService $snippets = null, ?IllumiSearchConfig $config = null)
+    public function __construct(?SnippetService $snippets = null, ?IllumiSearchConfig $config = null, ?OperatorProcessor $operatorProcessor = null)
     {
         $this->illumiConfig = $config ?? app(IllumiSearchConfig::class);
+        $this->injectOperatorProcessor($operatorProcessor);
         $this->registerConnection();
         $this->snippets = $snippets;
         $this->searchCache = new SearchCache(storage_path('app/illumi-search-mysql'));
@@ -501,6 +505,9 @@ class MySqlEngine implements Engine
                 'totalCount' => (int) ($row->total_count ?? 0),
             ];
         }
+
+            // NEAR post-filter: apply distance check before caching raw results
+            $results = $this->nearFilterResults($results, $safeQuery);
 
             $this->searchCache->set($rawKey, $results);
         }
@@ -1200,17 +1207,11 @@ class MySqlEngine implements Engine
                 continue;
             }
 
-            // Propagate parentheses as-is (MySQL BOOLEAN MODE grouping)
-            if ($term === '(' || $term === ')') {
-                $parts[] = $term;
-                continue;
-            }
-
             $upper = strtoupper($term);
 
             if (OperatorRegistry::isOperator($term)) {
                 $pendingOperator = match ($upper) {
-                    'AND', 'NEAR' => '+',
+                    'AND', 'NEAR' => '+',   // NEAR → AND in engine, PHP filter later
                     'NOT' => '-',
                     'OR' => '',
                 };

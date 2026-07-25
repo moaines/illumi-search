@@ -21,7 +21,7 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="ILLUMI_SEARCH_MYSQL_HOST" value="127.0.0.1"/>
         <env name="ILLUMI_SEARCH_MYSQL_PORT" value="3306"/>
-        <env name="ILLUMI_SEARCH_MYSQL_DATABASE" value="illumi-search-test-db"/>
+        <env name="ILLUMI_SEARCH_MYSQL_DATABASE" value="test"/>
         <env name="ILLUMI_SEARCH_MYSQL_USERNAME" value="root"/>
         <env name="ILLUMI_SEARCH_MYSQL_PASSWORD" value="password"/>
     </php>

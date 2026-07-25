@@ -11,7 +11,7 @@
 **Full-text search for Laravel — multi-engine, 1 interface.**  
 SQLite FTS5 (default), MySQL 8.0+ FULLTEXT, or FileEngine (zero-dependency flat-file).
 
-BM25 relevance ranking with field boosting, boolean operators (AND/OR/NOT/NEAR/phrase/preﬁx), trigram spellcheck, multi-tenant isolation, search results caching, concurrent chunk processing, **570+ tests**, cross-engine consistency. Drop-in `Searchable` trait. No external services.
+BM25 relevance ranking with field boosting, boolean operators (AND/OR/NOT/NEAR/"exact phrase"/prefix*), trigram spellcheck, multi-tenant isolation, search results caching, concurrent chunk processing, **684 tests**, cross-engine consistency. Drop-in `Searchable` trait. No external services.
 
 ```bash
 composer require moaines/illumi-search
@@ -128,6 +128,7 @@ php artisan vendor:publish --tag=illumi-search-config
 | `ILLUMI_SEARCH_AUTHORIZATION` | `authorization.enabled` | `false` | `true`, `false` |
 | `ILLUMI_SEARCH_TENANCY` | `tenancy.enabled` | `false` | `true`, `false` |
 | `ILLUMI_SEARCH_SPELLCHECK_VOCAB_LIMIT` | `spellcheck.vocab_limit` | `5000` | Max vocab entries |
+| `ILLUMI_SEARCH_NEAR_DISTANCE` | `spellcheck.near_max_distance` | `5` | NEAR token distance threshold |
 | `ILLUMI_SEARCH_MAX_TEXT_LENGTH` | `processing.max_search_text_length` | `65535` | Truncation limit |
 | `ILLUMI_SEARCH_MAX_WEIGHT` | `processing.max_weight` | `3` | Maximum column weight |
 | — | `processing.stopwords` | `['en']` | Language codes |
@@ -306,9 +307,11 @@ class Result {
 | AND | `laravel AND vuejs` | Both terms required |
 | OR | `php OR python` | At least one term |
 | NOT | `php NOT laravel` | Exclude |
-| Phrase | `"software engineering"` | Consecutive words |
-| Wildcard | `soft*` | Prefix matching |
-| NEAR | `php NEAR framework` | Fallback to AND on some engines |
+| Phrase | `"software engineering"` | Exact phrase (SQLite/MySQL), term fallback (FileEngine) |
+| Prefix | `soft*` | Prefix matching |
+| NEAR | `php NEAR framework` | AND + PHP distance filter (configurable, default 5 tokens) |
+
+> **Note:** `()` grouping is not supported. Use simple AND/OR/NOT/NEAR/phrase combinations.
 
 ---
 
@@ -351,7 +354,7 @@ MATCH(text_w3) AGAINST('php') * 3 AS rank
 | `NOT word` | `-word*` |
 | `"exact phrase"` | `"exact phrase"` |
 | `word*` | `word*` |
-| `word NEAR other` | `+word* +other*` (fallback AND) |
+| `word NEAR other` | `+word* +other*` (+ PHP distance post-filter) |
 
 ### Spellcheck
 
@@ -666,7 +669,7 @@ Filters results through Laravel's Gate/Policy system.
 
 ## Testing
 
-**636 tests** — 1424 assertions — 0 failures. 3 engines, 7 languages.
+**684 tests** — 1540 assertions — 0 failures. 3 engines, 7 languages.
 
 ```bash
 phpunit                                # Run all 636 tests
@@ -684,7 +687,7 @@ Any new engine must pass all of them to be considered compatible:
 
 | Group | Tests | What it verifies |
 |---|---|---|
-| Operators | 10 | AND/OR/NOT/NEAR/parentheses/combined, leading/trailing safety |
+| Operators | 7 | AND/OR/NOT/NEAR/phrase/prefix/combined, leading/trailing safety |
 | Modes | 5 | advanced, basic, raw — overlapping results |
 | Results | 3 | rank > 0, all fields present, accent-insensitive matching |
 | Suggestions | 3 | typo tolerance, garbage safety |

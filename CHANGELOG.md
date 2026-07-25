@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.19.0 — OperatorProcessor, NEAR distance filter, HasOperatorProcessor trait
+
+### Added
+- **OperatorProcessor** — centralized operator parsing with `nearFilterResults()` post-filter.
+- **NEAR distance filter** — `php NEAR laravel` → AND + PHP distance check on results.
+  Configurable via `ILLUMI_SEARCH_NEAR_DISTANCE` (default: 5 tokens).
+- **HasOperatorProcessor trait** — shared operator injection for all 3 engines.
+- **ChecksMySql trait** — unified MySQL availability check for tests.
+- **`nearMaxDistance()`** — config method in IllumiSearchConfig.
+
+### Changed
+- **Operators** — `()` parentheses removed from the operator set.
+  All engines support: `term`, `"phrase"`, `AND`, `OR`, `NOT`, `NEAR`, `prefix*`.
+- **SqliteEngine::dropIndexTable()** — accepts both model class and raw table names
+  (detected via `Str::startsWith`). Fixes orphan table cleanup during rebuild.
+- **CJK search** — re-enabled for SQLite and MySQL (TextProcessor separates CJK
+  before indexing — all engines handle separated text).
+- **MultiLanguageEngineTest** — centralized indexing (all languages indexed once in setUp).
+- **12 skips eliminated** (CJK, parentheses, dropIndexTable, MySQL database, etc.).
+
+### Fixed
+- **MySQL `test` database** — `ILLUMI_SEARCH_MYSQL_DATABASE` changed from
+  non-existent `illumi-search-test-db` to `test`.
+- **Doctor MySQL test** — uses PDO check instead of `DB::connection('mysql')`.
+
+### Tests
+- **684 tests** (was 652), **1540 assertions** (was 1461).
+- 0 deprecations, 0 failures, 3 skipped (documented stopword tests).
+
+---
+
 ## v1.18.1 — PHPUnit attributes, test quality
 
 ### Changed

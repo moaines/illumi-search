@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Log;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
+use Illuminate\Support\Str;
+use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
+use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\ConfigHelper;
 use Moaines\IllumiSearch\Support\IllumiSearchConfig;
@@ -22,7 +25,8 @@ use SQLite3;
 class SqliteEngine implements Engine
 {
     use HasScoring;
-
+    use HasOperatorProcessor;
+ 
     private const META_TABLE = 'meta';
 
     private const CONFIG_TABLE = 'config';
@@ -52,9 +56,11 @@ class SqliteEngine implements Engine
         private readonly string $databasePath,
         private readonly ?SnippetService $snippets = null,
         ?IllumiSearchConfig $illumiConfig = null,
+        ?OperatorProcessor $operatorProcessor = null,
     ) {
         $this->searchCache = new SearchCache(dirname($databasePath));
         $this->illumiConfig = $illumiConfig ?? app(IllumiSearchConfig::class);
+        $this->injectOperatorProcessor($operatorProcessor);
     }
 
     public function setTextProcessor(TextProcessor $processor): void
@@ -450,6 +456,9 @@ class SqliteEngine implements Engine
 
             $results = array_slice($results, 0, $limit);
 
+            // NEAR post-filter: apply distance check before caching raw results
+            $results = $this->nearFilterResults($results, $safeQuery);
+
             $this->searchCache->set($rawKey, $results);
         }
 
@@ -560,11 +569,12 @@ class SqliteEngine implements Engine
         return $tables;
     }
 
-    public function dropIndexTable(string $tableName): void
+    public function dropIndexTable(string $modelClass): void
     {
-        $vocabTable = $tableName . '_vocab';
-        $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
-        $this->db()->exec("DROP TABLE IF EXISTS {$tableName}");
+        $prefix = $this->table('');
+        $table = Str::startsWith($modelClass, $prefix) ? $modelClass : $this->tableName($modelClass);
+        $this->db()->exec('DROP TABLE IF EXISTS ' . $table);
+        $this->db()->exec('DROP TABLE IF EXISTS ' . $table . '_vocab');
     }
 
     /** @return array<class-string> */
@@ -819,7 +829,10 @@ class SqliteEngine implements Engine
                 continue;
             }
 
-            if ($baseOp === 'NEAR' && $operatorsConfig === null) {
+            // NEAR is handled by OperatorProcessor PHP filter — engine fallback to AND
+            $nearOp = in_array($baseOp, ['NEAR'], true) && $operatorsConfig === null;
+
+            if ($nearOp) {
                 $escaped[] = 'AND';
 
                 continue;

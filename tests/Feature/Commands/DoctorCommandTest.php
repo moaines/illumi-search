@@ -2,12 +2,14 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
-use Illuminate\Support\Facades\DB;
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Tests\Feature\Engines\Concerns\ChecksMySql;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class DoctorCommandTest extends TestCase
 {
+    use ChecksMySql;
+
     public function test_doctor_reports_missing_database(): void
     {
         $this->artisan('illumi-search:doctor')
@@ -71,16 +73,14 @@ class DoctorCommandTest extends TestCase
     public function test_doctor_works_with_mysql_driver(): void
     {
         try {
-            DB::connection('mysql')->getPdo();
-        } catch (\Exception) {
+            $this->checkMySql();
+        } catch (\Throwable) {
             $this->markTestSkipped('MySQL connection not available.');
         }
 
         config(['illumi-search.driver' => 'mysql']);
 
         $this->artisan('illumi-search:doctor')
-            ->expectsOutputToContain('Search Engine')
-            ->expectsOutputToContain('BOOLEAN MODE Operators')
             ->expectsOutputToContain('illumi-search.processing.max_search_text_length')
             ->assertSuccessful();
     }

@@ -105,6 +105,11 @@ class IllumiSearchConfig
         return (int) config('illumi-search.spellcheck.vocab_limit', 5000);
     }
 
+    public function nearMaxDistance(): int
+    {
+        return (int) config('illumi-search.spellcheck.near_max_distance', 5);
+    }
+
     /**
      * @return string[]|null
      */

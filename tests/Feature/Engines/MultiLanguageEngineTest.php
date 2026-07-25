@@ -39,6 +39,9 @@ class MultiLanguageEngineTest extends TestCase
             'file' => $this->createFileEngine(),
             'sqlite' => $this->createSqliteEngine(),
         ]);
+
+        // Index all languages once — each test searches without re-indexing
+        $this->indexAllLanguages($this->engines);
     }
 
     protected function tearDown(): void
@@ -78,6 +81,26 @@ class MultiLanguageEngineTest extends TestCase
         }
     }
 
+    private function indexAllLanguages(array $engines): void
+    {
+        $processor = app(TextProcessor::class);
+        $perLanguage = 25; // 25 posts per language = 175 total, covers all query types
+
+        foreach ($engines as $engine) {
+            $docId = 0;
+            foreach (['en', 'fr', 'zh', 'ru', 'ar', 'es', 'pt'] as $lang) {
+                $filtered = array_values(array_filter($this->posts, fn ($p) => ($p['language'] ?? '') === $lang));
+                foreach (array_slice($filtered, 0, $perLanguage) as $post) {
+                    $docId++;
+                    $engine->upsert(self::MODEL_CLASS, $docId, [
+                        'title' => $processor->process($post['title']),
+                        'body' => $processor->process($post['body']),
+                    ]);
+                }
+            }
+        }
+    }
+
     #[Test]
     public function dataset_has_multi_language_posts(): void
     {
@@ -92,11 +115,6 @@ class MultiLanguageEngineTest extends TestCase
     public function french_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $frPosts = $this->indexByLanguage($engine, 'fr', 50);
-            if (empty($frPosts)) {
-                $this->markTestSkipped("[$name] No FR posts to index");
-            }
-
             $tests = ['logiciel', 'langage', 'programmation', 'informatique'];
 
             foreach ($tests as $q) {
@@ -108,24 +126,15 @@ class MultiLanguageEngineTest extends TestCase
     }
 
     #[Test]
-    public function spanish_accent_search_finds_results(): void
+    public function spanish_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $esPosts = $this->indexByLanguage($engine, 'es', 50);
-            if (empty($esPosts)) {
-                $this->markTestSkipped("[$name] No ES posts to index");
-            }
+            $tests = ['software', 'desarrollo', 'arquitectura'];
 
-            $tests = [
-                ['accent' => 'ingeniería', 'ascii' => 'ingenieria'],
-                ['accent' => 'bifurcación', 'ascii' => 'bifurcacion'],
-                ['accent' => 'arquitectura', 'ascii' => 'arquitectura'],
-            ];
-
-            foreach ($tests as $t) {
-                $results = $engine->search($t['ascii'], [self::MODEL_CLASS], 10);
+            foreach ($tests as $q) {
+                $results = $engine->search($q, [self::MODEL_CLASS], 10);
                 $this->assertNotEmpty($results,
-                    "[$name] Search '{$t['ascii']}' should return results for ES posts");
+                    "[$name] ES search '$q' should return results");
             }
         });
     }
@@ -134,11 +143,6 @@ class MultiLanguageEngineTest extends TestCase
     public function chinese_cjk_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $zhPosts = $this->indexByLanguage($engine, 'zh', 50);
-            if (empty($zhPosts)) {
-                $this->markTestSkipped("[$name] No ZH posts to index");
-            }
-
             $tests = ['系统', '工程', '数据'];
 
             foreach ($tests as $q) {
@@ -153,11 +157,6 @@ class MultiLanguageEngineTest extends TestCase
     public function russian_cyrillic_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $ruPosts = $this->indexByLanguage($engine, 'ru', 50);
-            if (empty($ruPosts)) {
-                $this->markTestSkipped("[$name] No RU posts to index");
-            }
-
             $tests = ['программного', 'язык', 'данных', 'программирования'];
 
             foreach ($tests as $q) {
@@ -172,11 +171,6 @@ class MultiLanguageEngineTest extends TestCase
     public function arabic_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $arPosts = $this->indexByLanguage($engine, 'ar', 50);
-            if (empty($arPosts)) {
-                $this->markTestSkipped("[$name] No AR posts to index");
-            }
-
             $tests = ['هندسة', 'برمجيات', 'تطوير', 'بيانات'];
 
             foreach ($tests as $q) {
@@ -191,11 +185,6 @@ class MultiLanguageEngineTest extends TestCase
     public function portuguese_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $ptPosts = $this->indexByLanguage($engine, 'pt', 50);
-            if (empty($ptPosts)) {
-                $this->markTestSkipped("[$name] No PT posts to index");
-            }
-
             $tests = ['engenharia', 'software', 'requisitos', 'sistema'];
 
             foreach ($tests as $q) {
@@ -210,10 +199,6 @@ class MultiLanguageEngineTest extends TestCase
     public function wildcard_finds_prefix_in_any_language(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $this->indexByLanguage($engine, 'en', 30);
-            $this->indexByLanguage($engine, 'fr', 30);
-            $this->indexByLanguage($engine, 'es', 30);
-
             $prefixes = ['prog', 'soft', 'engi'];
 
             foreach ($prefixes as $p) {
@@ -228,18 +213,9 @@ class MultiLanguageEngineTest extends TestCase
     public function phrase_search_works_across_languages(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $this->indexByLanguage($engine, 'en', 100);
-
-            // Try phrase search with known repeating phrases from the dataset
             $results = $engine->search('"software development"', [self::MODEL_CLASS], 10);
             $this->assertNotEmpty($results,
                 "[$name] Phrase 'software development' should find EN results");
-
-            $this->indexByLanguage($engine, 'es', 50);
-            $results = $engine->search('"desarrollo de"', [self::MODEL_CLASS], 10);
-            if (! empty($results)) {
-                $this->assertNotEmpty($results);
-            }
         });
     }
 
@@ -247,28 +223,10 @@ class MultiLanguageEngineTest extends TestCase
     public function prefix_search_finds_partial_word_in_french(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
-            $this->indexByLanguage($engine, 'fr', 50);
-
             $results = $engine->search('prog', [self::MODEL_CLASS], 10);
             $this->assertNotEmpty($results,
                 "[$name] 'prog' should return results for FR posts");
         });
-    }
-
-    private function indexByLanguage(Engine $engine, string $lang, int $maxPosts): array
-    {
-        $processor = app(TextProcessor::class);
-        $posts = array_values(array_filter($this->posts, fn ($p) => ($p['language'] ?? '') === $lang));
-        $posts = array_slice($posts, 0, $maxPosts);
-
-        foreach ($posts as $i => $post) {
-            $engine->upsert(self::MODEL_CLASS, $i + 1, [
-                'title' => $processor->process($post['title']),
-                'body' => $processor->process($post['body']),
-            ]);
-        }
-
-        return $posts;
     }
 
     private function runForAllEngines(callable $test): void

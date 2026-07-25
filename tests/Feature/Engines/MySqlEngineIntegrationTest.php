@@ -7,9 +7,11 @@ use Illuminate\Support\Facades\DB;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\TenantManager;
+use Moaines\IllumiSearch\Tests\Feature\Engines\Concerns\ChecksMySql;
 
 class MySqlEngineIntegrationTest extends AbstractEngineTest
 {
+    use ChecksMySql;
     private static ?MySqlEngine $sharedEngine = null;
     private const MYSQL_TABLES = ['illumi_search_index', 'illumi_search_vocab_trigrams'];
 
@@ -34,27 +36,6 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         }
 
         return self::$sharedEngine;
-    }
-
-    private function mysqlAvailable(): bool
-    {
-        static $available = null;
-        if ($available !== null) {
-            return $available;
-        }
-        try {
-            new \PDO(
-                'mysql:host=' . env('ILLUMI_SEARCH_MYSQL_HOST', '127.0.0.1') . ';port=' . env('ILLUMI_SEARCH_MYSQL_PORT', '3306'),
-                env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
-                env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
-                [\PDO::ATTR_TIMEOUT => 2]
-            );
-            $available = true;
-        } catch (\Throwable) {
-            $available = false;
-        }
-
-        return $available;
     }
 
     #[Test]

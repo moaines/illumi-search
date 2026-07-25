@@ -238,12 +238,8 @@ public function phrase_search_requires_consecutive_words(string $engineName): vo
     /** */
 #[Test]
 #[DataProvider('engineProvider')]
-public function and_operator_requires_both_terms(string $engineName): void
+    public function and_operator_requires_both_terms(string $engineName): void
     {
-        if ($engineName === 'mysql') {
-            $this->markTestSkipped('MySQL FULLTEXT + operator is not 100% reliable (known limitation)');
-        }
-
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
             return;
@@ -285,12 +281,8 @@ public function all_engines_handle_empty_and_special_queries(string $engineName)
     /** */
 #[Test]
 #[DataProvider('engineProvider')]
-public function all_engines_support_multi_language_search(string $engineName): void
+    public function all_engines_support_multi_language_search(string $engineName): void
     {
-        if ($engineName === 'file') {
-            $this->markTestSkipped('FileEngine: 1 file/upsert × 144 → 2+ min timeout; use SQLite/MySQL for bulk multi-lang tests');
-        }
-
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
             return;
@@ -310,7 +302,11 @@ public function all_engines_support_multi_language_search(string $engineName): v
         $docId = 0;
         foreach (['fr', 'zh', 'ru', 'ar', 'es', 'pt'] as $lang) {
             $posts = array_values(array_filter($allPosts, fn ($p) => ($p['language'] ?? '') === $lang));
-            $limit = $engineName === 'mysql' ? 6 : 24;
+            $limit = match ($engineName) {
+                'mysql' => 6,
+                'file' => 6,
+                default => 24,
+            };
             foreach (array_slice($posts, 0, $limit) as $post) {
                 $docId++;
                 $engine->upsert(self::MODEL_CLASS, $docId, [

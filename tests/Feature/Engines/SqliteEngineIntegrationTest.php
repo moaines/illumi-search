@@ -99,7 +99,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $engine->upsert('App\Models\Post', 1, ['title' => 'test drop', 'body' => 'data']);
 
         $this->assertEquals(1, $engine->count('test drop', ['App\Models\Post']));
-        $engine->dropIndexTable($engine->tableName('App\Models\Post'));
+        $engine->dropIndexTable('App\Models\Post');
         $this->assertEquals(0, $engine->count('test drop', ['App\Models\Post']));
     }
 

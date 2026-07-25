@@ -400,11 +400,6 @@ trait QualityTestSuite
     #[Test]
     public function phrase_respects_word_order(): void
     {
-        // FileEngine does not support exact phrase matching (token-only, no position)
-        if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'FileEngine') {
-            $this->markTestSkipped('FileEngine does not support exact phrase matching');
-        }
-
         $e = $this->qtEngine();
         $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering', 'body' => 'software engineering guide']);
         $e->upsert(self::QT_MODEL, 2, ['title' => 'engineering software', 'body' => 'engineering software tools']);
@@ -412,8 +407,14 @@ trait QualityTestSuite
         $results = $e->search('"software engineering"', [self::QT_MODEL], 10);
         $ids = array_map(fn ($r) => $r->modelId, $results);
 
-        $this->assertContains(1, $ids, 'Phrase "software engineering" must match doc with exact order');
-        $this->assertNotContains(2, $ids, 'Phrase "software engineering" must not match reversed order');
+        // FileEngine fallback: phrase → AND (both terms required, order not enforced)
+        if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'FileEngine') {
+            $this->assertContains(1, $ids, 'AND fallback: doc with both terms must be found');
+            $this->assertContains(2, $ids, 'AND fallback: doc with both terms (reversed) must also be found');
+        } else {
+            $this->assertContains(1, $ids, 'Phrase "software engineering" must match doc with exact order');
+            $this->assertNotContains(2, $ids, 'Phrase "software engineering" must not match reversed order');
+        }
     }
 
     #[Test]
@@ -611,5 +612,249 @@ trait QualityTestSuite
         $e = $this->qtEngine();
         $results = $e->search('!@#$%^&*()_+{}[]|\\:;"\'<>,.?/~`', [self::QT_MODEL], 10);
         $this->assertIsArray($results, 'Query with special chars should not crash');
+    }
+
+    // ──────────────────────────────────────────────
+    // G9 — Phrase-to-phrase operator combinations
+    // ──────────────────────────────────────────────
+
+    #[Test]
+    public function phrase_and_phrase(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering web framework', 'body' => 'software engineering web framework guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering guide', 'body' => 'software engineering guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'web framework guide', 'body' => 'web framework guide']);
+
+        $results = $e->search('"software engineering" AND "web framework"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with both phrases must be found');
+        $this->assertNotContains(2, $ids, 'Doc without "web framework" must be excluded');
+        $this->assertNotContains(3, $ids, 'Doc without "software engineering" must be excluded');
+    }
+
+    #[Test]
+    public function phrase_or_phrase(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering web framework', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'python guide', 'body' => 'guide']);
+
+        $results = $e->search('"software engineering" OR "web framework"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with both phrases must be found');
+        $this->assertContains(2, $ids, 'Doc with first phrase must be found');
+        $this->assertCount(2, $ids, 'Only docs with at least one phrase');
+    }
+
+    #[Test]
+    public function phrase_not_phrase(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering wordpress', 'body' => 'software engineering wordpress guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering laravel', 'body' => 'software engineering laravel guide']);
+
+        $results = $e->search('"software engineering" NOT "wordpress"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(2, $ids, 'Doc without "wordpress" must be found');
+        $this->assertNotContains(1, $ids, 'Doc with "wordpress" must be excluded');
+    }
+
+    #[Test]
+    public function phrase_and_phrase_and_term(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering design patterns php', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering design patterns', 'body' => 'guide']);
+
+        $results = $e->search('"software engineering" AND "design patterns" AND php', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with 2 phrases + term must be found');
+        $this->assertNotContains(2, $ids, 'Doc without "php" must be excluded');
+    }
+
+    #[Test]
+    public function phrase_or_phrase_or_term(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'web framework guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'python guide', 'body' => 'guide']);
+
+        $results = $e->search('"software engineering" OR "web framework" OR python', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids);
+        $this->assertContains(2, $ids);
+        $this->assertContains(3, $ids);
+        $this->assertCount(3, $ids, 'All 3 docs have at least one matching phrase/term');
+    }
+
+    // ──────────────────────────────────────────────
+    // G10 — Multiple operators combined
+    // ──────────────────────────────────────────────
+
+    #[Test]
+    public function multiple_and(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel framework web', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php laravel guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'php guide', 'body' => 'guide']);
+
+        $results = $e->search('php AND laravel AND framework', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with all 3 terms must be found');
+        $this->assertNotContains(2, $ids, 'Doc missing "framework" must be excluded');
+        $this->assertNotContains(3, $ids, 'Doc missing both "laravel" and "framework" must be excluded');
+    }
+
+    #[Test]
+    public function multiple_or(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'python guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'javascript guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 4, ['title' => 'java guide', 'body' => 'guide']);
+
+        $results = $e->search('php OR python OR javascript', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids);
+        $this->assertContains(2, $ids);
+        $this->assertContains(3, $ids);
+        $this->assertNotContains(4, $ids, 'Doc without any term must be excluded');
+    }
+
+    #[Test]
+    public function multiple_not(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel guide', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php symfony wordpress', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'php laravel wordpress', 'body' => 'guide']);
+
+        $results = $e->search('php NOT laravel NOT wordpress', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertEmpty($results, 'All docs have laravel or wordpress — none should match');
+    }
+
+    // ──────────────────────────────────────────────
+    // G11 — Phrase edge cases
+    // ──────────────────────────────────────────────
+
+    #[Test]
+    public function empty_phrase_does_not_crash(): void
+    {
+        $e = $this->qtEngine();
+        $results = $e->search('""', [self::QT_MODEL], 10);
+        $this->assertIsArray($results, 'Empty phrase should not crash');
+    }
+
+    #[Test]
+    public function phrase_with_special_chars(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'C plus plus guide', 'body' => 'C plus plus tutorial']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'C sharp guide', 'body' => 'C sharp tutorial']);
+
+        $results = $e->search('"C plus plus"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'Phrase with plus signs should find doc');
+    }
+
+    #[Test]
+    public function phrase_only_stopwords_returns_empty(): void
+    {
+        $this->markTestSkipped('Stopword filtering transforms "the and of" → "AND" (single operator), making phrase test unreliable. This requires integration-level testing with TextProcessor.');
+    }
+
+    #[Test]
+    public function phrase_very_long_does_not_crash(): void
+    {
+        $e = $this->qtEngine();
+        $long = '"' . str_repeat('word ', 100) . '"';
+        $results = $e->search($long, [self::QT_MODEL], 10);
+        $this->assertIsArray($results, 'Very long phrase should not crash');
+    }
+
+    // ──────────────────────────────────────────────
+    // G12 — Quality / Ranking
+    // ──────────────────────────────────────────────
+
+    #[Test]
+    public function phrase_ranks_above_term(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering guide', 'body' => 'software engineering full guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'engineering software guide', 'body' => 'engineering software full guide']);
+
+        $results = $e->search('"software engineering"', [self::QT_MODEL], 10);
+
+        // FileEngine fallback: phrase → AND (both terms required, order not enforced)
+        if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'FileEngine') {
+            $this->assertNotEmpty($results, 'FileEngine should find both docs via AND fallback');
+            $this->assertGreaterThan(0, $results[0]->rank, 'Results should have positive rank');
+            return;
+        }
+
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'Doc with exact phrase order must be found');
+
+        $rank1 = $results[array_search(1, $ids)]->rank ?? 0;
+        $rank2 = $results[array_search(2, $ids)]->rank ?? 0;
+        $this->assertGreaterThanOrEqual($rank2, $rank1, 'Exact phrase should rank >= non-phrase');
+    }
+
+    #[Test]
+    public function multiple_and_ranking(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel framework guide', 'body' => 'php laravel framework guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'guide only', 'body' => 'no search terms here']);
+
+        $results = $e->search('php AND laravel AND framework', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with all 3 terms must be found');
+        $this->assertNotContains(2, $ids, 'Doc with no terms must be excluded');
+    }
+
+    #[Test]
+    public function combined_query_stable_ranking(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering php laravel', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering php symfony', 'body' => 'guide']);
+
+        $first = $e->search('"software engineering" AND php', [self::QT_MODEL], 10);
+        $second = $e->search('"software engineering" AND php', [self::QT_MODEL], 10);
+
+        $firstIds = array_map(fn ($r) => $r->modelId, $first);
+        $secondIds = array_map(fn ($r) => $r->modelId, $second);
+
+        $this->assertEquals($firstIds, $secondIds, 'Same combined query should return stable ranking');
+    }
+
+    #[Test]
+    public function phrase_score_higher_for_both_phrases(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering design patterns', 'body' => 'software engineering design patterns guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software engineering guide', 'body' => 'software engineering guide']);
+
+        $results = $e->search('"software engineering" AND "design patterns"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with both phrases must be found');
+        $this->assertNotContains(2, $ids, 'Doc without "design patterns" must be excluded');
     }
 }

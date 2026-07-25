@@ -4,6 +4,7 @@ namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Tests\TestCase;
 
@@ -520,14 +521,8 @@ abstract class AbstractEngineTest extends TestCase
     public function drop_index_table_removes_table(): void
     {
         $engine = $this->createEngine();
-
         $isMysql = str_contains(get_class($engine), 'MySql');
         $isSqlite = str_contains(get_class($engine), 'Sqlite');
-
-        // SqliteEngine's dropIndexTable expects a table name, not model class
-        if ($isSqlite) {
-            $this->markTestSkipped('SqliteEngine dropIndexTable uses different parameter semantics');
-        }
 
         $engine->upsert($this->testModelClass, 1, ['title' => 'test', 'body' => 'data']);
 
@@ -636,21 +631,22 @@ abstract class AbstractEngineTest extends TestCase
     public function cjk_search_returns_results(): void
     {
         $engine = $this->createEngine();
+        $isMysql = str_contains(get_class($engine), 'MySql');
+        $processor = app(TextProcessor::class);
 
-        // SQLite and MySQL don't support CJK tokenization natively
-        $isFileEngine = str_contains(get_class($engine), 'FileEngine');
-        if (! $isFileEngine) {
-            $this->markTestSkipped('CJK search requires FileEngine\'s CJK separation');
-        }
-
-        $engine->upsert($this->testModelClass, 1, ['title' => 'PHP编程入门', 'body' => '学习PHP编程']);
-        $engine->upsert($this->testModelClass, 2, ['title' => 'Python数据科学', 'body' => '数据分析']);
+        $engine->upsert($this->testModelClass, 1, [
+            'title' => $processor->process('PHP编程入门'),
+            'body' => $processor->process('学习PHP编程'),
+        ]);
 
         $results = $engine->search('PHP', [$this->testModelClass], 10);
         $this->assertNotEmpty($results, 'CJK mixed with Latin should be searchable');
 
-        $cjResults = $engine->search('学习', [$this->testModelClass], 10);
-        $this->assertNotEmpty($cjResults, 'CJK word "学习" should match tokenized "学 习"');
+        // MySQL without ngram parser doesn't tokenize CJK single characters
+        if (! $isMysql) {
+            $cjResults = $engine->search('学习', [$this->testModelClass], 10);
+            $this->assertNotEmpty($cjResults, 'CJK word "学习" should match tokenized "学 习"');
+        }
     }
 
     #[Test]
