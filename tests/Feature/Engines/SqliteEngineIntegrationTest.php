@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\TenantManager;
@@ -16,13 +17,13 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         return $engine;
     }
 
-    /** @test */
+    #[Test]
     public function table_drop_removes_access(): void
     {
         $this->assertTableDropped();
     }
 
-    /** @test */
+    #[Test]
     public function test_engine_status_returns_expected_keys(): void
     {
         $engine = $this->createEngine();
@@ -38,7 +39,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertStringContainsString('FTS5', $status['engine_version']);
     }
 
-    /** @test */
+    #[Test]
     public function test_tenant_isolation_uses_separate_database_path(): void
     {
         config(['illumi-search.tenancy' => ['enabled' => true]]);
@@ -83,7 +84,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         app(TenantManager::class)->setResolver(fn () => null);
     }
 
-    /** @test */
+    #[Test]
     public function test_list_index_tables(): void
     {
         $engine = $this->createEngine();
@@ -91,7 +92,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertNotEmpty($tables);
     }
 
-    /** @test */
+    #[Test]
     public function test_drop_index_table(): void
     {
         $engine = $this->createEngine();
@@ -102,7 +103,7 @@ class SqliteEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(0, $engine->count('test drop', ['App\Models\Post']));
     }
 
-    /** @test */
+    #[Test]
     public function test_table_name_uses_prefix(): void
     {
         $engine = $this->createEngine();

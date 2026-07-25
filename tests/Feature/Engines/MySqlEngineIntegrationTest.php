@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\Test;
 
 use Illuminate\Support\Facades\DB;
 use Moaines\IllumiSearch\Contracts\Engine;
@@ -56,7 +57,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         return $available;
     }
 
-    /** @test */
+    #[Test]
     public function mysql_table_stays_after_drop(): void
     {
         $engine = $this->createEngine();
@@ -67,7 +68,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
 
     // ─── MySQL-specific tests ─────────────────────────────
 
-    /** @test */
+    #[Test]
     public function test_snippets_contain_mark_tags(): void
     {
         $engine = $this->createEngine();
@@ -81,7 +82,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertCount(1, $results);
     }
 
-    /** @test */
+    #[Test]
     public function test_paginate_via_query_builder(): void
     {
         $engine = $this->createEngine();
@@ -96,7 +97,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(5, $total);
     }
 
-    /** @test */
+    #[Test]
     public function test_spellcheck_suggestions(): void
     {
         $engine = $this->createEngine();
@@ -118,7 +119,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertContains('framework', $suggestions);
     }
 
-    /** @test */
+    #[Test]
     public function test_rebuild_vocab_from_scratch(): void
     {
         $engine = $this->createEngine();
@@ -144,7 +145,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertContains('science', $suggestions);
     }
 
-    /** @test */
+    #[Test]
     public function test_rebuild_index_from_scratch(): void
     {
         $engine = $this->createEngine();
@@ -162,7 +163,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         }
     }
 
-    /** @test */
+    #[Test]
     public function test_engine_status_returns_expected_keys(): void
     {
         $engine = $this->createEngine();
@@ -179,7 +180,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertStringContainsString('MySQL', $status['engine_version']);
     }
 
-    /** @test */
+    #[Test]
     public function test_tenant_prefix_is_applied_to_tables(): void
     {
         if (! $this->mysqlAvailable()) {
@@ -222,7 +223,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         app(TenantManager::class)->setResolver(fn () => null);
     }
 
-    /** @test */
+    #[Test]
     public function test_drop_index_table(): void
     {
         $engine = $this->createEngine();
@@ -233,14 +234,14 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(0, $engine->count('test', ['App\Models\Post']));
     }
 
-    /** @test */
+    #[Test]
     public function test_get_indexed_model_classes(): void
     {
         $engine = $this->createEngine();
         $this->assertIsArray($engine->getIndexedModelClasses());
     }
 
-    /** @test */
+    #[Test]
     public function test_database_size(): void
     {
         $engine = $this->createEngine();
@@ -249,7 +250,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertGreaterThan(0, $size);
     }
 
-    /** @test */
+    #[Test]
     public function test_suggest_via_trigram_finds_word(): void
     {
         $engine = $this->createEngine();
@@ -265,7 +266,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             'Trigram phase should find "laravel" from "laravil" via shared trigrams #la, lar, ara, rav');
     }
 
-    /** @test */
+    #[Test]
     public function test_trigram_ranks_by_frequency(): void
     {
         $engine = $this->createEngine();
@@ -287,7 +288,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             'More frequent word "php" (3×) should rank before "phar" (1×) in trigram scoring');
     }
 
-    /** @test */
+    #[Test]
     public function test_trigram_vs_levenshtein_fallback(): void
     {
         $engine = $this->createEngine();
@@ -303,7 +304,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertContains('xyzabc', $suggestions);
     }
 
-    /** @test */
+    #[Test]
     public function test_rebuild_trigram_table(): void
     {
         $engine = $this->createEngine();
@@ -321,7 +322,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             'After rebuildTrigramTable, trigram-based suggest should still find "laravel"');
     }
 
-    /** @test */
+    #[Test]
     public function test_last_synced_at_updates_on_upsert(): void
     {
         $engine = $this->createEngine();
@@ -347,7 +348,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         $this->assertNotSame($first, $second, 'last_synced_at should change after re-upsert');
     }
 
-    /** @test */
+    #[Test]
     public function test_custom_table_prefix(): void
     {
         if (! $this->mysqlAvailable()) {

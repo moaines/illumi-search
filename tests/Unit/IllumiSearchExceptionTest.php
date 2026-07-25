@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Unit;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Tests\TestCase;
@@ -19,7 +20,7 @@ class IllumiSearchExceptionTest extends TestCase
         ];
     }
 
-    /** @dataProvider factoryMethodProvider */
+    #[DataProvider('factoryMethodProvider')]
     public function test_factory_methods(string $method, array $args, string $needle): void
     {
         $e = IllumiSearchException::$method(...$args);

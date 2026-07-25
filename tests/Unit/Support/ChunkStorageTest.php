@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Unit\Support;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Support\ChunkStorage;
 use Moaines\IllumiSearch\Tests\TestCase;
@@ -27,7 +28,7 @@ class ChunkStorageTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
+    #[Test]
     public function atomic_write_then_decode_returns_same_data(): void
     {
         $path = $this->tempDir . '/test.php';
@@ -39,7 +40,7 @@ class ChunkStorageTest extends TestCase
         $this->assertEquals($data, $decoded);
     }
 
-    /** @test */
+    #[Test]
     public function decode_rejects_tampered_hmac(): void
     {
         $path = $this->tempDir . '/test.php';
@@ -55,7 +56,7 @@ class ChunkStorageTest extends TestCase
         $this->storage->decodeFile($path);
     }
 
-    /** @test */
+    #[Test]
     public function decode_handles_hmac_only_not_throw_for_valid(): void
     {
         $path = $this->tempDir . '/test.php';
@@ -72,7 +73,7 @@ class ChunkStorageTest extends TestCase
         $this->assertEquals($data, $decoded);
     }
 
-    /** @test */
+    #[Test]
     public function list_chunks_returns_php_files(): void
     {
         file_put_contents($this->tempDir . '/0000.php', 'data');
@@ -87,7 +88,7 @@ class ChunkStorageTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function ensure_dir_creates_directory(): void
     {
         $dir = $this->tempDir . '/nested/sub/dir';
@@ -96,7 +97,7 @@ class ChunkStorageTest extends TestCase
         $this->assertDirectoryExists($dir);
     }
 
-    /** @test */
+    #[Test]
     public function docTextFromRow_concatenates_weighted_texts(): void
     {
         $row = [
@@ -116,7 +117,7 @@ class ChunkStorageTest extends TestCase
         $this->assertStringContainsString('footer notes', $result);
     }
 
-    /** @test */
+    #[Test]
     public function docTextFromRow_returns_empty_string_for_empty_input(): void
     {
         $row = [0 => '', 1 => '', 2 => '', 3 => '', 4 => '', 5 => '', 6 => ''];
@@ -124,7 +125,7 @@ class ChunkStorageTest extends TestCase
         $this->assertEquals('', $this->storage->docTextFromRow($row));
     }
 
-    /** @test */
+    #[Test]
     public function docTextFromRow_repeats_higher_weights_more(): void
     {
         // text_w1 = "a", text_w2 = "b", text_w3 = "c"

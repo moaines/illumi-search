@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Unit\Support;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Support\ChunkStorage;
 use Moaines\IllumiSearch\Tests\TestCase;
@@ -27,7 +28,7 @@ class VocabServiceTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_decodes_hmac_format(): void
     {
         $path = $this->tempDir . '/test.php';
@@ -39,7 +40,7 @@ class VocabServiceTest extends TestCase
         $this->assertEquals($data, $decoded);
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_rejects_tampered_hmac(): void
     {
         $path = $this->tempDir . '/test.php';
@@ -54,7 +55,7 @@ class VocabServiceTest extends TestCase
         $this->storage->decodeFile($path);
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_decodes_legacy_php_format(): void
     {
         $path = $this->tempDir . '/legacy.php';
@@ -66,7 +67,7 @@ class VocabServiceTest extends TestCase
         $this->assertEquals(['word' => 'php', 'count' => 10], $decoded);
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_returns_null_for_empty_file(): void
     {
         $path = $this->tempDir . '/empty.php';
@@ -75,7 +76,7 @@ class VocabServiceTest extends TestCase
         $this->assertNull($this->storage->decodeFile($path));
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_returns_null_for_corrupt_file(): void
     {
         $path = $this->tempDir . '/corrupt.php';
@@ -84,7 +85,7 @@ class VocabServiceTest extends TestCase
         $this->assertNull($this->storage->decodeFile($path));
     }
 
-    /** @test */
+    #[Test]
     public function chunck_storage_decodes_plain_serialize(): void
     {
         $path = $this->tempDir . '/plain.php';

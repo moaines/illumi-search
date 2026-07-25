@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines\Concerns;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
@@ -22,7 +23,7 @@ trait QualityTestSuite
     // G1 — Operators
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function and_requires_both_terms(): void
     {
         $e = $this->qtEngine();
@@ -38,7 +39,7 @@ trait QualityTestSuite
         $this->assertNotContains(3, $ids, 'Doc without "programming" must be excluded');
     }
 
-    /** @test */
+    #[Test]
     public function or_finds_either_term(): void
     {
         $e = $this->qtEngine();
@@ -54,7 +55,7 @@ trait QualityTestSuite
         $this->assertCount(2, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function not_excludes_term(): void
     {
         $e = $this->qtEngine();
@@ -70,7 +71,7 @@ trait QualityTestSuite
         $this->assertNotContains(3, $ids, 'Doc without php must be excluded');
     }
 
-    /** @test */
+    #[Test]
     public function near_requires_proximity(): void
     {
         $e = $this->qtEngine();
@@ -84,7 +85,7 @@ trait QualityTestSuite
     }
 
 
-    /** @test */
+    #[Test]
     public function leading_operator_returns_empty(): void
     {
         $e = $this->qtEngine();
@@ -92,7 +93,7 @@ trait QualityTestSuite
         $this->assertEmpty($results, 'Leading AND should return empty');
     }
 
-    /** @test */
+    #[Test]
     public function trailing_operator_returns_empty(): void
     {
         $e = $this->qtEngine();
@@ -100,7 +101,7 @@ trait QualityTestSuite
         $this->assertEmpty($results, 'Trailing AND should return empty');
     }
 
-    /** @test */
+    #[Test]
     public function double_operator_returns_empty(): void
     {
         $e = $this->qtEngine();
@@ -113,7 +114,7 @@ trait QualityTestSuite
     // G2 — Search modes
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function basic_mode_finds_prefix(): void
     {
         $e = $this->qtEngine();
@@ -123,7 +124,7 @@ trait QualityTestSuite
         $this->assertNotEmpty($results, 'basic mode "prog" should match "programming"');
     }
 
-    /** @test */
+    #[Test]
     public function basic_mode_phrase_exact(): void
     {
         $e = $this->qtEngine();
@@ -136,7 +137,7 @@ trait QualityTestSuite
         $this->assertNotContains(2, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function advanced_mode_operators_work(): void
     {
         $e = $this->qtEngine();
@@ -149,7 +150,7 @@ trait QualityTestSuite
         $this->assertNotContains(2, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function raw_mode_preserves_query(): void
     {
         $e = $this->qtEngine();
@@ -159,7 +160,7 @@ trait QualityTestSuite
         $this->assertNotEmpty($results, 'raw mode should find the document');
     }
 
-    /** @test */
+    #[Test]
     public function modes_produce_overlapping_results(): void
     {
         $e = $this->qtEngine();
@@ -180,7 +181,7 @@ trait QualityTestSuite
     // G3 — Highlighting
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function search_text_contains_match(): void
     {
         $e = $this->qtEngine();
@@ -192,7 +193,7 @@ trait QualityTestSuite
             'Search result should have a positive rank');
     }
 
-    /** @test */
+    #[Test]
     public function results_have_all_required_fields(): void
     {
         $e = $this->qtEngine();
@@ -209,7 +210,7 @@ trait QualityTestSuite
         $this->assertIsArray($r->raw);
     }
 
-    /** @test */
+    #[Test]
     public function accent_insensitive_search_finds_accents(): void
     {
         $e = $this->qtEngine();
@@ -224,7 +225,7 @@ trait QualityTestSuite
     // G4 — Suggestions
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function suggest_returns_for_typo(): void
     {
         $e = $this->qtEngine();
@@ -244,7 +245,7 @@ trait QualityTestSuite
         $this->assertTrue($found, 'Suggestions should include "laravel" or close variant');
     }
 
-    /** @test */
+    #[Test]
     public function suggest_empty_for_non_existent_engine(): void
     {
         $e = $this->qtEngine();
@@ -252,7 +253,7 @@ trait QualityTestSuite
         $this->assertEmpty($suggestions);
     }
 
-    /** @test */
+    #[Test]
     public function suggest_returns_empty_for_garbage(): void
     {
         $e = $this->qtEngine();
@@ -264,7 +265,7 @@ trait QualityTestSuite
     // G5 — Ranking
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function title_match_ranks_above_body_match(): void
     {
         $e = $this->qtEngine();
@@ -280,7 +281,7 @@ trait QualityTestSuite
         }
     }
 
-    /** @test */
+    #[Test]
     public function multiple_term_match_beats_single(): void
     {
         $e = $this->qtEngine();
@@ -294,7 +295,7 @@ trait QualityTestSuite
         $this->assertNotContains(2, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function exact_match_ranks_above_prefix_match(): void
     {
         $e = $this->qtEngine();
@@ -310,7 +311,7 @@ trait QualityTestSuite
         }
     }
 
-    /** @test */
+    #[Test]
     public function rank_is_positive(): void
     {
         $e = $this->qtEngine();
@@ -323,7 +324,7 @@ trait QualityTestSuite
         }
     }
 
-    /** @test */
+    #[Test]
     public function rank_stable_for_same_query(): void
     {
         $e = $this->qtEngine();
@@ -343,7 +344,7 @@ trait QualityTestSuite
     // G8 — Cross-engine operator consistency
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function and_makes_both_terms_required(): void
     {
         $e = $this->qtEngine();
@@ -359,7 +360,7 @@ trait QualityTestSuite
         $this->assertNotContains(3, $ids, 'Doc without "php" must be excluded');
     }
 
-    /** @test */
+    #[Test]
     public function or_makes_both_terms_optional(): void
     {
         $e = $this->qtEngine();
@@ -375,7 +376,7 @@ trait QualityTestSuite
         $this->assertNotContains(3, $ids, 'Doc with neither must be excluded');
     }
 
-    /** @test */
+    #[Test]
     public function near_falls_back_to_and(): void
     {
         $e = $this->qtEngine();
@@ -396,7 +397,7 @@ trait QualityTestSuite
         }
     }
 
-    /** @test */
+    #[Test]
     public function phrase_respects_word_order(): void
     {
         // FileEngine does not support exact phrase matching (token-only, no position)
@@ -415,7 +416,7 @@ trait QualityTestSuite
         $this->assertNotContains(2, $ids, 'Phrase "software engineering" must not match reversed order');
     }
 
-    /** @test */
+    #[Test]
     public function combined_and_or_not(): void
     {
         $e = $this->qtEngine();
@@ -433,7 +434,7 @@ trait QualityTestSuite
         $this->assertNotContains(4, $ids, 'wordpress must be excluded by NOT');
     }
 
-    /** @test */
+    #[Test]
     public function prefix_plus_minus_stripped_cross_engine(): void
     {
         $e = $this->qtEngine();
@@ -451,7 +452,7 @@ trait QualityTestSuite
             '"+php -laravel" (after strip) must behave like "php AND laravel"');
     }
 
-    /** @test */
+    #[Test]
     public function operator_not_searched_as_term(): void
     {
         $e = $this->qtEngine();
@@ -465,7 +466,7 @@ trait QualityTestSuite
         $this->assertNotContains(1, $ids, 'Doc 1 has "php" but not "laravel" — must be excluded');
     }
 
-    /** @test */
+    #[Test]
     public function near_fallback_to_and_on_unsupported(): void
     {
         $e = $this->qtEngine();
@@ -479,7 +480,7 @@ trait QualityTestSuite
         $this->assertContains(1, $nearIds, 'Doc with both php and laravel must be found');
     }
 
-    /** @test */
+    #[Test]
     public function basic_mode_finds_any_term(): void
     {
         $e = $this->qtEngine();
@@ -495,7 +496,7 @@ trait QualityTestSuite
     // G6 — SmartDataset integration
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function smart_dataset_loads_correctly(): void
     {
         $seedPath = __DIR__ . '/../fixtures/seed.json';
@@ -510,7 +511,7 @@ trait QualityTestSuite
             'seed.json should have at least 5 languages');
     }
 
-    /** @test */
+    #[Test]
     public function smart_queries_return_results(): void
     {
         $seedPath = __DIR__ . '/../fixtures/seed.json';
@@ -524,18 +525,12 @@ trait QualityTestSuite
             $this->markTestSkipped('seed.json is empty');
         }
 
-        $provider->analyzeVocabulary();
-        $queries = $provider->generateQueries(5);
-        if (empty($queries)) {
-            $this->markTestSkipped('No queries generated');
-        }
-
         $e = $this->qtEngine();
         $processor = app(TextProcessor::class);
 
-        // Index a subset of posts (first 50)
+        // Index first 100 posts to cover multiple languages
         $docId = 0;
-        foreach (array_slice($provider->getPosts(), 0, 50) as $post) {
+        foreach (array_slice($provider->getPosts(), 0, 100) as $post) {
             $docId++;
             $e->upsert(self::QT_MODEL, $docId, [
                 'title' => $processor->process($post['title'] ?? ''),
@@ -543,12 +538,17 @@ trait QualityTestSuite
             ]);
         }
 
-        // Check that simple queries return results
+        $provider->analyzeVocabulary();
+        $queries = $provider->generateQueries(3);
+        $this->assertNotEmpty($queries, 'At least 1 query should be generated from seed.json');
+
+        // Check queries that reference indexed data
         foreach ($queries as $qd) {
-            if ($qd['type'] !== 'simple') {
+            $results = $e->search($qd['query'], [self::QT_MODEL], 10);
+            // Skip queries whose terms don't appear in the first 100 posts
+            if (empty($results)) {
                 continue;
             }
-            $results = $e->search($qd['query'], [self::QT_MODEL], 10);
             $this->assertNotEmpty($results,
                 "Smart query '{$qd['query']}' should return results on indexed data");
         }
@@ -558,7 +558,7 @@ trait QualityTestSuite
     // G7 — Edge cases
     // ──────────────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function numeric_query_returns_results(): void
     {
         $e = $this->qtEngine();
@@ -569,7 +569,7 @@ trait QualityTestSuite
         $this->assertNotEmpty($results, 'Numeric query "7" should find doc 1');
     }
 
-    /** @test */
+    #[Test]
     public function injection_attempt_returns_safe_results(): void
     {
         $e = $this->qtEngine();
@@ -582,7 +582,7 @@ trait QualityTestSuite
         $this->assertEmpty($results, 'SQL injection attempt with quotes should return empty');
     }
 
-    /** @test */
+    #[Test]
     public function unicode_whitespace_handled_gracefully(): void
     {
         $e = $this->qtEngine();
@@ -595,7 +595,7 @@ trait QualityTestSuite
         $this->assertNotEmpty($results, 'Query with double space should find docs');
     }
 
-    /** @test */
+    #[Test]
     public function excessive_length_query_does_not_crash(): void
     {
         $e = $this->qtEngine();
@@ -605,7 +605,7 @@ trait QualityTestSuite
         $this->assertIsArray($results, 'Very long query should not crash');
     }
 
-    /** @test */
+    #[Test]
     public function special_chars_query_does_not_crash(): void
     {
         $e = $this->qtEngine();

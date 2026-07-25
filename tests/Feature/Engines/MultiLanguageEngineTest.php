@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
@@ -77,7 +78,7 @@ class MultiLanguageEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function dataset_has_multi_language_posts(): void
     {
         $langs = array_count_values(array_column($this->posts, 'language'));
@@ -87,7 +88,7 @@ class MultiLanguageEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function french_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -106,7 +107,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function spanish_accent_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -129,7 +130,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function chinese_cjk_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -148,7 +149,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function russian_cyrillic_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -167,7 +168,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function arabic_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -186,7 +187,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function portuguese_search_finds_results(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -205,7 +206,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function wildcard_finds_prefix_in_any_language(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -223,7 +224,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function phrase_search_works_across_languages(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {
@@ -242,7 +243,7 @@ class MultiLanguageEngineTest extends TestCase
         });
     }
 
-    /** @test */
+    #[Test]
     public function prefix_search_finds_partial_word_in_french(): void
     {
         $this->runForAllEngines(function (Engine $engine, string $name) {

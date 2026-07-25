@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Unit\Support;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Support\EngineProxy;
@@ -8,7 +9,7 @@ use Moaines\IllumiSearch\Tests\TestCase;
 
 class EngineProxyTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function proxy_delegates_search_to_engine(): void
     {
         $engine = $this->createMock(Engine::class);
@@ -23,7 +24,7 @@ class EngineProxyTest extends TestCase
         $this->assertIsArray($result);
     }
 
-    /** @test */
+    #[Test]
     public function proxy_caches_engine_across_calls(): void
     {
         $callCount = 0;
@@ -40,7 +41,7 @@ class EngineProxyTest extends TestCase
         $this->assertEquals(1, $callCount, 'Engine should be resolved once and cached');
     }
 
-    /** @test */
+    #[Test]
     public function refresh_creates_new_engine(): void
     {
         $callCount = 0;
@@ -57,7 +58,7 @@ class EngineProxyTest extends TestCase
         $this->assertEquals(2, $callCount, 'After refresh, a new engine should be resolved');
     }
 
-    /** @test */
+    #[Test]
     public function proxy_delegates_all_engine_methods(): void
     {
         $engine = $this->createMock(Engine::class);

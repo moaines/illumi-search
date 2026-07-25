@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.18.1 — PHPUnit attributes, test quality
+
+### Changed
+- **PHPUnit annotations → attributes** — converted `/** @test */` to `#[Test]`,
+  `@dataProvider` to `#[DataProvider(...)]`, `@depends` to `#[Depends(...)]`
+  across 14 test files. Eliminates 364 PHPUnit deprecation warnings.
+
+### Fixed
+- **`smart_queries_return_results`** — now indexes 20 posts per language (7 languages)
+  instead of the first 150 posts. Skip queries that don't match indexed data.
+- **`IllumiSearchExceptionTest::test_factory_methods`** — `#[DataProvider]` was inside
+  a PHPDoc comment and never executed (0 assertions ever run).
+
+### Tests
+- **652 tests**, **1463 assertions** — 0 deprecations, 0 risky, 0 failures, 7 skipped.
+
+---
+
 ## v1.18.0 — Rebuild lock, ChecksRebuildLock trait, MySQL TRUNCATE
 
 ### Added

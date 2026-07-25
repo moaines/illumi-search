@@ -1,6 +1,8 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 
 use Illuminate\Support\Facades\DB;
 use Moaines\IllumiSearch\Contracts\Engine;
@@ -10,8 +12,7 @@ use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Tests\TestCase;
 
-/**
- * Verifies that all engines produce consistent search results
+/** * Verifies that all engines produce consistent search results
  * for identical datasets.
  *
  * Each engine receives the same documents and queries, and we
@@ -136,11 +137,10 @@ class CrossEngineConsistencyTest extends TestCase
     /**
      * Insert the same 5 documents into an engine and verify basic search works.
      *
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function all_engines_find_same_document(string $engineName): void
+     * */
+#[Test]
+#[DataProvider('engineProvider')]
+public function all_engines_find_same_document(string $engineName): void
     {
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
@@ -159,12 +159,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function ranking_puts_title_match_first(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function ranking_puts_title_match_first(string $engineName): void
     {
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
@@ -184,12 +182,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function weight_3_column_scores_higher_than_weight_1(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function weight_3_column_scores_higher_than_weight_1(string $engineName): void
     {
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
@@ -215,12 +211,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function phrase_search_requires_consecutive_words(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function phrase_search_requires_consecutive_words(string $engineName): void
     {
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
@@ -241,12 +235,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function and_operator_requires_both_terms(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function and_operator_requires_both_terms(string $engineName): void
     {
         if ($engineName === 'mysql') {
             $this->markTestSkipped('MySQL FULLTEXT + operator is not 100% reliable (known limitation)');
@@ -268,12 +260,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function all_engines_handle_empty_and_special_queries(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function all_engines_handle_empty_and_special_queries(string $engineName): void
     {
         $engine = $this->createEngine($engineName);
         if ($engine === null) {
@@ -292,12 +282,10 @@ class CrossEngineConsistencyTest extends TestCase
         $this->destroyEngine($engineName, $engine);
     }
 
-    /**
-     * @test
-     *
-     * @dataProvider engineProvider
-     */
-    public function all_engines_support_multi_language_search(string $engineName): void
+    /** */
+#[Test]
+#[DataProvider('engineProvider')]
+public function all_engines_support_multi_language_search(string $engineName): void
     {
         if ($engineName === 'file') {
             $this->markTestSkipped('FileEngine: 1 file/upsert × 144 → 2+ min timeout; use SQLite/MySQL for bulk multi-lang tests');

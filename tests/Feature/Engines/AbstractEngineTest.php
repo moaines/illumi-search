@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\TenantManager;
@@ -12,7 +13,7 @@ abstract class AbstractEngineTest extends TestCase
 
     protected string $testModelClass = 'App\Models\Post';
 
-    /** @test */
+    #[Test]
     public function upsert_then_search_finds_document(): void
     {
         $engine = $this->createEngine();
@@ -24,7 +25,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function upsert_then_count_returns_correct_number(): void
     {
         $engine = $this->createEngine();
@@ -34,7 +35,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(2, $engine->count('php', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function delete_removes_document(): void
     {
         $engine = $this->createEngine();
@@ -45,7 +46,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(0, $engine->count('php', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function empty_query_returns_empty(): void
     {
         $engine = $this->createEngine();
@@ -53,7 +54,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(0, $engine->count('', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function search_returns_empty_for_no_match(): void
     {
         $engine = $this->createEngine();
@@ -61,7 +62,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEmpty($engine->search('xyznonexistent', [$this->testModelClass], 10));
     }
 
-    /** @test */
+    #[Test]
     public function pagination_with_offset_returns_correct_pages(): void
     {
         $engine = $this->createEngine();
@@ -86,7 +87,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals([1, 2, 3, 4, 5], $allIds);
     }
 
-    /** @test */
+    #[Test]
     public function insert_batch_works(): void
     {
         $engine = $this->createEngine();
@@ -98,7 +99,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(2, $engine->count('data', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function get_index_stats_returns_expected_structure(): void
     {
         $engine = $this->createEngine();
@@ -111,7 +112,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertArrayHasKey('last_synced_at', $stats[0]);
     }
 
-    /** @test */
+    #[Test]
     public function table_exists_returns_bool(): void
     {
         $engine = $this->createEngine();
@@ -125,7 +126,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertFalse($engine->tableExists($this->testModelClass));
     }
 
-    /** @test */
+    #[Test]
     public function update_replaces_content(): void
     {
         $engine = $this->createEngine();
@@ -138,7 +139,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $engine->count('updated', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function total_count_matches_expected_count(): void
     {
         $engine = $this->createEngine();
@@ -149,7 +150,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(5, $results[0]->totalCount);
     }
 
-    /** @test */
+    #[Test]
     public function suggest_returns_sorted_relevant_suggestions(): void
     {
         $engine = $this->createEngine();
@@ -191,7 +192,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function suggest_prefers_same_script_over_ascii_proximity(): void
     {
         $engine = $this->createEngine();
@@ -211,7 +212,7 @@ abstract class AbstractEngineTest extends TestCase
             'Latin query should suggest Latin word, not Cyrillic with same ASCII');
     }
 
-    /** @test */
+    #[Test]
     public function optimize_does_not_crash(): void
     {
         $engine = $this->createEngine();
@@ -221,7 +222,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertArrayHasKey('tables_optimized', $result);
     }
 
-    /** @test */
+    #[Test]
     public function get_supported_operators_returns_non_empty_array(): void
     {
         $engine = $this->createEngine();
@@ -233,7 +234,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains('OR', $operators);
     }
 
-    /** @test */
+    #[Test]
     public function engine_supports_standard_search_features(): void
     {
         $engine = $this->createEngine();
@@ -246,7 +247,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains('OR', $operators);
     }
 
-    /** @test */
+    #[Test]
     public function and_operator_narrows_results(): void
     {
         $engine = $this->createEngine();
@@ -258,7 +259,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function not_operator_excludes_results(): void
     {
         $engine = $this->createEngine();
@@ -270,7 +271,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function exact_phrase_requires_all_words_consecutive(): void
     {
         $engine = $this->createEngine();
@@ -287,7 +288,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertNotContains(3, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function title_match_ranks_above_body_match(): void
     {
         $engine = $this->createEngine();
@@ -299,7 +300,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertGreaterThanOrEqual($results[1]->rank, $results[0]->rank, 'Better match should rank first (or equal)');
     }
 
-    /** @test */
+    #[Test]
     public function index_emoji_without_crash(): void
     {
         $engine = $this->createEngine();
@@ -309,7 +310,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function index_html_content_is_stripped(): void
     {
         $engine = $this->createEngine();
@@ -323,7 +324,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertCount(1, $results, 'italic should be findable after HTML stripping');
     }
 
-    /** @test */
+    #[Test]
     public function sql_injection_attempt_does_not_break_search(): void
     {
         $engine = $this->createEngine();
@@ -333,7 +334,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertCount(0, $results, 'SQL injection pattern should not match');
     }
 
-    /** @test */
+    #[Test]
     public function search_with_special_chars_does_not_crash(): void
     {
         $engine = $this->createEngine();
@@ -353,7 +354,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function not_operator_quality_check(): void
     {
         $engine = $this->createEngine();
@@ -366,7 +367,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(3, $results[0]->modelId, 'Post 3 has laravel without php');
     }
 
-    /** @test */
+    #[Test]
     public function or_operator_finds_either_term(): void
     {
         $engine = $this->createEngine();
@@ -381,7 +382,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains(2, $ids);
     }
 
-    /** @test */
+    #[Test]
     public function wildcard_matches_prefix(): void
     {
         $engine = $this->createEngine();
@@ -394,7 +395,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEquals(1, $results[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function search_with_modes_produces_results(): void
     {
         $engine = $this->createEngine();
@@ -407,7 +408,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function search_with_snippets_returns_marked_text(): void
     {
         $engine = $this->createEngine();
@@ -430,7 +431,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertTrue($foundPhp, 'Doc 1 should be found with snippet');
     }
 
-    /** @test */
+    #[Test]
     public function search_with_only_operators_returns_empty(): void
     {
         $engine = $this->createEngine();
@@ -443,7 +444,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertCount(0, $resultsSnippets, 'Only operators with snippets enabled should return empty');
     }
 
-    /** @test */
+    #[Test]
     public function snippet_does_not_highlight_operators(): void
     {
         $engine = $this->createEngine();
@@ -473,7 +474,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function integrity_check_passes_for_valid_data(): void
     {
         $engine = $this->createEngine();
@@ -483,7 +484,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertTrue($engine->integrityCheck($this->testModelClass));
     }
 
-    /** @test */
+    #[Test]
     public function full_integrity_check_returns_passed(): void
     {
         $engine = $this->createEngine();
@@ -494,7 +495,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertEmpty($result['errors']);
     }
 
-    /** @test */
+    #[Test]
     public function get_database_size_returns_positive_integer(): void
     {
         $engine = $this->createEngine();
@@ -505,7 +506,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertGreaterThan(0, $size);
     }
 
-    /** @test */
+    #[Test]
     public function list_index_tables_returns_tables(): void
     {
         $engine = $this->createEngine();
@@ -515,7 +516,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertNotEmpty($tables);
     }
 
-    /** @test */
+    #[Test]
     public function drop_index_table_removes_table(): void
     {
         $engine = $this->createEngine();
@@ -543,7 +544,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function ranking_is_consistent_with_weights_and_rarity(): void
     {
         $engine = $this->createEngine();
@@ -567,7 +568,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertNotEquals(0, $results[0]->rank, 'Top result should have non-zero rank');
     }
 
-    /** @test */
+    #[Test]
     public function search_with_quotes_works(): void
     {
         $engine = $this->createEngine();
@@ -579,7 +580,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertNotEmpty($results, 'Quoted phrase should find matching docs');
     }
 
-    /** @test */
+    #[Test]
     public function prefix_search_finds_partial_word(): void
     {
         $engine = $this->createEngine();
@@ -597,7 +598,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertCount(2, $phpResults, 'Prefix "ph" should match "php" docs');
     }
 
-    /** @test */
+    #[Test]
     public function exact_match_ranks_above_prefix_match(): void
     {
         $engine = $this->createEngine();
@@ -621,7 +622,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function prefix_search_does_not_match_nonsense(): void
     {
         $engine = $this->createEngine();
@@ -631,7 +632,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertCount(0, $results, 'Non-existent prefix should return empty');
     }
 
-    /** @test */
+    #[Test]
     public function cjk_search_returns_results(): void
     {
         $engine = $this->createEngine();
@@ -652,7 +653,7 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertNotEmpty($cjResults, 'CJK word "学习" should match tokenized "学 习"');
     }
 
-    /** @test */
+    #[Test]
     public function tenant_isolation_prefixes_tables(): void
     {
         $engine = $this->createEngine();
@@ -691,7 +692,7 @@ abstract class AbstractEngineTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function prefix_search_returns_more_results_than_exact(): void
     {
         $engine = $this->createEngine();

@@ -1,7 +1,7 @@
 {
     "name": "moaines/illumi-search",
-    "description": "Multi-engine full-text search for Laravel — SQLite FTS5, MySQL 8.0+ FULLTEXT, or FileEngine (flat-file, zero extension). BM25 ranking with field boosting, trigram index, search-as-you-type prefix indexing, CJK/Thai support, accent-insensitive, boolean operators, spellcheck, multi-tenant, authorization. Built-in benchmark with Recall/NDCG/MRR metrics. 572 tests.",
-    "version": "1.18.0",
+    "description": "Multi-engine full-text search for Laravel — SQLite FTS5, MySQL 8.0+ FULLTEXT, or FileEngine (flat-file, zero extension). BM25 ranking with field boosting, trigram index, search-as-you-type prefix indexing, CJK/Thai support, accent-insensitive, boolean operators, spellcheck, multi-tenant, authorization. Built-in benchmark with Recall/NDCG/MRR metrics. 652 tests.",
+    "version": "1.18.1",
     "type": "library",
     "keywords": ["laravel", "self-hosted", "fulltext-search", "search", "sqlite", "fts5", "string"],
     "license": "MIT",
@@ -30,7 +30,8 @@
         "phpstan/phpstan": "^2.0",
         "laravel/pint": "^1.0",
         "filament/filament": "^3.0",
-        "php-debugbar/php-debugbar": "^2.0"
+        "php-debugbar/php-debugbar": "^2.0",
+        "rector/rector": "^2.5"
     },
     "autoload": {
         "psr-4": {

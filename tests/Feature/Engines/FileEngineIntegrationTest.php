@@ -1,6 +1,7 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
+use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\FileEngine;
@@ -61,7 +62,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
 
     // ─── Cache tests ────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function cache_speeds_up_repeated_search(): void
     {
         $engine = $this->createEngine();
@@ -78,7 +79,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(1, $cached[0]->modelId);
     }
 
-    /** @test */
+    #[Test]
     public function cache_cleared_on_upsert(): void
     {
         $engine = $this->createEngine();
@@ -97,7 +98,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertCount(1, $afterNew, 'New data should be searchable after cache clear');
     }
 
-    /** @test */
+    #[Test]
     public function cache_cleared_on_delete(): void
     {
         $engine = $this->createEngine();
@@ -110,7 +111,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertCount(0, $after, 'Cache should be cleared after delete');
     }
 
-    /** @test */
+    #[Test]
     public function sentinel_with_live_pid_not_removed(): void
     {
         $engine = $this->createEngine();
@@ -130,7 +131,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
 
     // ─── Concurrent processor tests ─────────────────────
 
-    /** @test */
+    #[Test]
     public function concurrent_processor_falls_back_to_sequential_in_tests(): void
     {
         // In tests, app()->runningUnitTests() returns true, so canFork() = false
@@ -147,7 +148,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
 
     // ─── Write operation tests ──────────────────────────
 
-    /** @test */
+    #[Test]
     public function upsert_then_delete_then_upsert_same_id(): void
     {
         $engine = $this->createEngine();
@@ -162,7 +163,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(1, $engine->count('php', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function large_insert_batch_of_500_documents(): void
     {
         $engine = $this->createEngine();
@@ -182,7 +183,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertEquals(1, $engine->count('zxyword500abc', [$this->testModelClass]));
     }
 
-    /** @test */
+    #[Test]
     public function insert_batch_with_multiple_chunks(): void
     {
         $engine = $this->createEngine();
@@ -205,7 +206,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
 
     // ─── Integrity & status tests ───────────────────────
 
-    /** @test */
+    #[Test]
     public function engine_status_returns_correct_driver(): void
     {
         $engine = $this->createEngine();
@@ -216,7 +217,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertArrayHasKey('database_size', $status);
     }
 
-    /** @test */
+    #[Test]
     public function table_operations_create_drop_exists(): void
     {
         $engine = $this->createEngine();
@@ -233,7 +234,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertFalse($engine->tableExists($this->testModelClass));
     }
 
-    /** @test */
+    #[Test]
     public function get_index_stats_after_multiple_upserts(): void
     {
         $engine = $this->createEngine();
@@ -247,7 +248,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
 
     // ─── Edge cases ─────────────────────────────────────
 
-    /** @test */
+    #[Test]
     public function concurrent_read_and_write_safety(): void
     {
         $engine = $this->createEngine();
@@ -268,7 +269,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertCount(0, $results, 'Deleted document should not appear');
     }
 
-    /** @test */
+    #[Test]
     public function get_database_size_returns_positive_integer(): void
     {
         $engine = $this->createEngine();
@@ -279,7 +280,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertGreaterThan(0, $size);
     }
 
-    /** @test */
+    #[Test]
     public function get_supported_operators_for_file_engine(): void
     {
         $engine = $this->createEngine();
@@ -290,7 +291,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertContains('NOT', $operators);
     }
 
-    /** @test */
+    #[Test]
     public function supports_phrase_and_prefix(): void
     {
         $engine = $this->createEngine();
@@ -299,7 +300,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $this->assertTrue($engine->supportsPrefixWildcard());
     }
 
-    /** @test */
+    #[Test]
     public function model_class_with_special_chars_in_name(): void
     {
         $engine = $this->createEngine();
@@ -314,7 +315,7 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $engine->dropTable($modelClass);
     }
 
-    /** @test */
+    #[Test]
     public function upsert_without_stats_file_does_not_crash(): void
     {
         $engine = $this->createEngine();
