@@ -4,12 +4,14 @@ namespace Moaines\IllumiSearch\Console\Commands;
 
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Moaines\IllumiSearch\Console\Commands\Concerns\ChecksRebuildLock;
 use Moaines\IllumiSearch\Console\Commands\Concerns\HasProgressBar;
 use Moaines\IllumiSearch\IndexManager;
 
 class SyncCommand extends Command
 {
     use HasProgressBar;
+    use ChecksRebuildLock;
 
     protected $signature = 'illumi-search:sync
         {--model=* : Specific model classes to sync (multiple allowed)}
@@ -18,6 +20,12 @@ class SyncCommand extends Command
 
     public function handle(IndexManager $manager): int
     {
+        if (! $this->checkRebuildLock()) {
+            $this->warn('A rebuild is in progress. Skipping sync.');
+
+            return Command::SUCCESS;
+        }
+
         $models = $this->option('model');
         $since = null;
 

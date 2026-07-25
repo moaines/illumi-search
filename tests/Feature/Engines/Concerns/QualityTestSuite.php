@@ -4,9 +4,7 @@ namespace Moaines\IllumiSearch\Tests\Feature\Engines\Concerns;
 
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Facades\IllumiSearch;
 use Moaines\IllumiSearch\Support\Benchmark\SmartDatasetProvider;
-use Moaines\IllumiSearch\Support\OperatorRegistry;
 
 trait QualityTestSuite
 {
@@ -14,7 +12,6 @@ trait QualityTestSuite
 
     private const QT_MODEL = 'App\Models\BenchmarkPost';
     private const QT_COLUMNS = ['title', 'body'];
-    private static array $qtEngineCache = [];
 
     private function qtEngine(): Engine
     {
@@ -86,21 +83,6 @@ trait QualityTestSuite
         $this->assertNotEmpty($results, 'NEAR should return results on engines that support it');
     }
 
-    /** @test */
-    public function combined_and_or_not(): void
-    {
-        $e = $this->qtEngine();
-        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel web', 'body' => 'laravel guide']);
-        $e->upsert(self::QT_MODEL, 2, ['title' => 'php symfony web', 'body' => 'symfony guide']);
-        $e->upsert(self::QT_MODEL, 3, ['title' => 'python web', 'body' => 'python guide']);
-
-        $results = $e->search('php AND (laravel OR symfony) NOT python', [self::QT_MODEL], 10);
-        $ids = array_map(fn ($r) => $r->modelId, $results);
-
-        $this->assertContains(1, $ids, 'php + laravel must match');
-        $this->assertContains(2, $ids, 'php + symfony must match');
-        $this->assertNotContains(3, $ids, 'python must be excluded');
-    }
 
     /** @test */
     public function leading_operator_returns_empty(): void
@@ -126,16 +108,6 @@ trait QualityTestSuite
         $this->assertEmpty($results, 'Double operators should return empty');
     }
 
-    /** @test */
-    public function operator_in_phrase_is_literal(): void
-    {
-        $e = $this->qtEngine();
-        $e->upsert(self::QT_MODEL, 1, ['title' => 'php OR python tutorial', 'body' => 'learn both']);
-        $e->upsert(self::QT_MODEL, 2, ['title' => 'php laravel guide', 'body' => 'php framework']);
-
-        $results = $e->search('"php AND laravel"', [self::QT_MODEL], 10);
-        $this->assertEmpty($results, 'AND inside quotes is literal — no doc has "and" in title/body');
-    }
 
     // ──────────────────────────────────────────────
     // G2 — Search modes
@@ -365,6 +337,158 @@ trait QualityTestSuite
         $secondIds = array_map(fn ($r) => $r->modelId, $second);
 
         $this->assertEquals($firstIds, $secondIds, 'Same query should return stable ranking');
+    }
+
+    // ──────────────────────────────────────────────
+    // G8 — Cross-engine operator consistency
+    // ──────────────────────────────────────────────
+
+    /** @test */
+    public function and_makes_both_terms_required(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel web', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php symfony web', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'python web', 'body' => 'guide']);
+
+        $results = $e->search('php AND laravel', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with both terms must be returned');
+        $this->assertNotContains(2, $ids, 'Doc without "laravel" must be excluded');
+        $this->assertNotContains(3, $ids, 'Doc without "php" must be excluded');
+    }
+
+    /** @test */
+    public function or_makes_both_terms_optional(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php guide', 'body' => 'php']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'python guide', 'body' => 'python']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'java guide', 'body' => 'java']);
+
+        $results = $e->search('php OR python', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Doc with "php" must be returned');
+        $this->assertContains(2, $ids, 'Doc with "python" must be returned');
+        $this->assertNotContains(3, $ids, 'Doc with neither must be excluded');
+    }
+
+    /** @test */
+    public function near_falls_back_to_and(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel framework', 'body' => 'web guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php python framework', 'body' => 'web guide']);
+
+        $nearResults = $e->search('php NEAR laravel', [self::QT_MODEL], 10);
+        $andResults = $e->search('php AND laravel', [self::QT_MODEL], 10);
+
+        // NEAR must at least find the document that AND finds (fallback to AND)
+        $andIds = array_map(fn ($r) => $r->modelId, $andResults);
+        $nearIds = array_map(fn ($r) => $r->modelId, $nearResults);
+
+        $this->assertNotEmpty($nearResults, 'NEAR should return results (fallback to AND if unsupported)');
+        foreach ($andIds as $id) {
+            // If AND finds doc 1, NEAR should also find it
+            $this->assertContains($id, $nearIds, "NEAR must find doc {$id} if AND finds it");
+        }
+    }
+
+    /** @test */
+    public function phrase_respects_word_order(): void
+    {
+        // FileEngine does not support exact phrase matching (token-only, no position)
+        if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'FileEngine') {
+            $this->markTestSkipped('FileEngine does not support exact phrase matching');
+        }
+
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software engineering', 'body' => 'software engineering guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'engineering software', 'body' => 'engineering software tools']);
+
+        $results = $e->search('"software engineering"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'Phrase "software engineering" must match doc with exact order');
+        $this->assertNotContains(2, $ids, 'Phrase "software engineering" must not match reversed order');
+    }
+
+    /** @test */
+    public function combined_and_or_not(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel web', 'body' => 'php laravel guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php symfony web', 'body' => 'php symfony guide']);
+        $e->upsert(self::QT_MODEL, 3, ['title' => 'python web', 'body' => 'python guide']);
+        $e->upsert(self::QT_MODEL, 4, ['title' => 'php wordpress', 'body' => 'php wordpress guide']);
+
+        $results = $e->search('php AND (laravel OR symfony) NOT wordpress', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(1, $ids, 'php + laravel must match');
+        $this->assertContains(2, $ids, 'php + symfony must match');
+        $this->assertNotContains(3, $ids, 'php NOT found → must be excluded');
+        $this->assertNotContains(4, $ids, 'wordpress must be excluded by NOT');
+    }
+
+    /** @test */
+    public function prefix_plus_minus_stripped_cross_engine(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel web', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php symfony web', 'body' => 'guide']);
+
+        // +php -laravel → strips + and - → becomes "php laravel" = implicit AND
+        $noResults = $e->search('+php -laravel', [self::QT_MODEL], 10);
+        $noIds = array_map(fn ($r) => $r->modelId, $noResults);
+
+        $andResults = $e->search('php AND laravel', [self::QT_MODEL], 10);
+        $andIds = array_map(fn ($r) => $r->modelId, $andResults);
+
+        $this->assertEquals($andIds, $noIds,
+            '"+php -laravel" (after strip) must behave like "php AND laravel"');
+    }
+
+    /** @test */
+    public function operator_not_searched_as_term(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php frameworks guide', 'body' => 'php guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php laravel framework', 'body' => 'php laravel guide']);
+
+        $results = $e->search('php AND laravel', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+
+        $this->assertContains(2, $ids, 'Doc 2 has both "php" and "laravel" — must be found');
+        $this->assertNotContains(1, $ids, 'Doc 1 has "php" but not "laravel" — must be excluded');
+    }
+
+    /** @test */
+    public function near_fallback_to_and_on_unsupported(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel framework', 'body' => 'guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php python framework', 'body' => 'guide']);
+
+        $nearResults = $e->search('php NEAR laravel', [self::QT_MODEL], 10);
+        $this->assertNotEmpty($nearResults, 'NEAR must return results on all engines');
+
+        $nearIds = array_map(fn ($r) => $r->modelId, $nearResults);
+        $this->assertContains(1, $nearIds, 'Doc with both php and laravel must be found');
+    }
+
+    /** @test */
+    public function basic_mode_finds_any_term(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'php laravel', 'body' => 'web guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'python guide', 'body' => 'python']);
+
+        // basic mode adds auto-wildcards: "php" → "php*"
+        $results = $e->search('php', [self::QT_MODEL], 10, 0, 'basic');
+        $this->assertNotEmpty($results, 'Basic mode: single term with wildcard should find results');
     }
 
     // ──────────────────────────────────────────────

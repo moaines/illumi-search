@@ -38,6 +38,22 @@ class StatusCommand extends Command
 
         $this->newLine();
 
+        // Rebuild metadata (stored via setConfig after each rebuild)
+        $completedAt = $engine->getConfig('rebuild_completed_at');
+        if ($completedAt) {
+            $ago = \Carbon\Carbon::parse($completedAt)->diffForHumans();
+            $duration = $engine->getConfig('rebuild_duration_ms');
+            $durationStr = $duration ? ' (' . round($duration / 1000, 1) . 's)' : '';
+            $this->line("Last rebuild: <fg=yellow>{$ago}</>{$durationStr}");
+        }
+
+        $totalRecords = $engine->getConfig('rebuild_total_records');
+        if ($totalRecords) {
+            $this->line("Documents at rebuild: <fg=yellow>" . number_format((int) $totalRecords) . "</>");
+        }
+
+        $this->newLine();
+
         $stats = $engine->getIndexStats();
 
         if (empty($stats)) {

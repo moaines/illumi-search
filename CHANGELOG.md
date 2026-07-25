@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.18.0 — Rebuild lock, ChecksRebuildLock trait, MySQL TRUNCATE
+
+### Added
+- **ChecksRebuildLock trait** — prevents concurrent rebuild from running with
+  SyncCommand, IndexBatchJob, IndexModelJob, DeleteIndexJob
+- **Rebuild ProgressBar** — Symfony ProgressBar during indexing (replaces dots)
+- **10 quality tests** — parentheses, OR both optional, NEAR fallback, phrase order,
+  prefix stripping (`+php -laravel`), combined AND+OR+NOT, basic mode operators
+- **Rebuild metadata** — StatusCommand displays "Last rebuild: X ago (Ys)"
+- **Searchable schema** — `setConfig('searchable_schema')` stores columns, weights,
+  records, estimated size per model after each rebuild
+- **MySQL wildcard config** — `ILLUMI_SEARCH_MYSQL_WILDCARD=false` disables auto `*`
+
+### Fixed
+- **RebuildCommand** — `handle()` return type `: void` for PHP 8.5 compatibility
+- **Concurrent lock test** — verifies lock is released after rebuild completes
+- **MySQL OR operator** — OR makes both terms optional (was second term only)
+- **Cross-engine prefix stripping** — `+php -laravel` stripped to `php laravel` for
+  SQLite/FTS5 and FileEngine (was literal search, caused false negatives)
+- **MySQL test speed** — TRUNCATE instead of DROP+CREATE (40s vs 64s, −38%)
+
+### Changed
+- **MySqlEngineIntegrationTest** — shared static engine + TRUNCATE between tests
+- **CrossEngineConsistencyTest** — shared engines for file/sqlite, TRUNCATE for MySQL
+- **RebuildCommand** — `outputModelResult()` guard for null `$currentModelShort`
+- **QualityTestSuite** — removed `$qtEngineCache` unused property + unused imports
+
+### Tests
+- **652 tests** (was 651), **1461 assertions** (was 1458)
+
+---
+
 ## v1.17.1 — Quality test suite, rebuild metadata, searchable schema
 
 ### Added

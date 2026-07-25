@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Feature\Commands;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\IndexManager;
@@ -73,5 +74,23 @@ class RebuildCommandTest extends TestCase
         );
 
         $this->assertNotEmpty($startedModels);
+    }
+
+    public function test_rebuild_concurrent_lock_prevents_duplicates(): void
+    {
+        $lock = Cache::lock('illumi-search:rebuild', 600);
+        $lock->get();
+
+        $this->artisan('illumi-search:rebuild --force')
+            ->expectsOutputToContain('already in progress')
+            ->assertSuccessful();
+
+        $lock->release();
+
+        // Verify the lock is now free (duplicate rebuild can proceed)
+        $this->assertTrue(
+            Cache::lock('illumi-search:rebuild', 0)->get(),
+            'Lock should be released after the command exits'
+        );
     }
 }

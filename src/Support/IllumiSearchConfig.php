@@ -181,6 +181,11 @@ class IllumiSearchConfig
         return config('illumi-search.engines.mysql.connection.unix_socket', '');
     }
 
+    public function mysqlWildcard(): bool
+    {
+        return (bool) config('illumi-search.engines.mysql.wildcard', true);
+    }
+
     // ─── Search behaviour ────────────────────────────────
 
     public function processingMode(): string

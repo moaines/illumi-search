@@ -2,6 +2,7 @@
 
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 
+use Illuminate\Support\Facades\DB;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
@@ -80,11 +81,21 @@ class CrossEngineConsistencyTest extends TestCase
     private function createMySqlEngine(): ?Engine
     {
         try {
-            $engine = new MySqlEngine;
-            $engine->dropTable(self::MODEL_CLASS);
-            $engine->createTable(self::MODEL_CLASS, self::COLUMNS);
+            if (! isset(self::$sharedEngines['mysql'])) {
+                $engine = new MySqlEngine;
+                $engine->dropTable(self::MODEL_CLASS);
+                $engine->createTable(self::MODEL_CLASS, self::COLUMNS);
+                self::$sharedEngines['mysql'] = $engine;
+            }
 
-            return $engine;
+            // Re-register connection (Testbench resets between tests)
+            new MySqlEngine;
+
+            // TRUNCATE is instant vs DROP + CREATE (~5s)
+            $conn = MySqlEngine::CONNECTION_NAME;
+            DB::connection($conn)->statement('TRUNCATE TABLE illumi_search_index');
+
+            return self::$sharedEngines['mysql'];
         } catch (\Exception $e) {
             $this->markTestSkipped("MySQL not available: " . $e->getMessage());
 
@@ -107,7 +118,9 @@ class CrossEngineConsistencyTest extends TestCase
                 $engine->dropTable(self::MODEL_CLASS);
                 @unlink($path);
             } elseif ($name === 'mysql') {
-                $engine->dropTable(self::MODEL_CLASS);
+                // TRUNCATE is instant vs DROP + CREATE (~5s)
+                $conn = MySqlEngine::CONNECTION_NAME;
+                DB::connection($conn)->statement('TRUNCATE TABLE illumi_search_index');
             }
         } catch (\Exception) {
             // cleanup best-effort

@@ -3,9 +3,11 @@
 namespace Moaines\IllumiSearch\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Moaines\IllumiSearch\Console\Commands\Concerns\HasProgressBar;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\IndexManager;
+use Symfony\Component\Console\Helper\ProgressBar;
 
 class RebuildCommand extends Command
 {
@@ -18,22 +20,21 @@ class RebuildCommand extends Command
         {--batch-size= : Records to sync before switching to queue (default: config)}';
     protected $description = 'Rebuild the search index from scratch';
 
+    private ?ProgressBar $progressBar = null;
     private ?float $modelStartTime = null;
     private ?string $currentModelShort = null;
     private int $currentModelRecords = 0;
     private int $currentModelTotal = 0;
     private int $totalRecords = 0;
     private int $totalModels = 0;
-    private float $totalDuration = 0;
     private int $totalWarnings = 0;
     private int $totalQueued = 0;
     private int $totalSkipped = 0;
     private int $totalErrors = 0;
     private ?float $startTime = null;
     private int $processingCounter = 0;
-    private int $modelProgress = 0;
 
-    public function handle(IndexManager $manager, Engine $engine): int
+    public function handle(IndexManager $manager, Engine $engine): void
     {
         $driver = config('illumi-search.driver');
         $version = $engine->getEngineVersion();
@@ -51,12 +52,22 @@ class RebuildCommand extends Command
             }
         }
 
+        // Prevent concurrent rebuilds (Cache::lock works on any Laravel cache driver)
+        $lock = Cache::lock('illumi-search:rebuild', 600);
+        if (! $lock->get()) {
+            $this->warn('A rebuild is already in progress. Skipping duplicate.');
+
+            return;
+        }
+
+        register_shutdown_function(fn () => $lock->release());
+
         $models = $this->option('model');
 
         if (empty($models) && ! $this->option('force')) {
             if (! $this->confirm('This will rebuild ALL indexed models. Continue?')) {
                 $this->info('Rebuild cancelled.');
-                return Command::SUCCESS;
+                return;
             }
         }
 
@@ -100,34 +111,35 @@ class RebuildCommand extends Command
 
         $this->showSummary();
 
-        return Command::SUCCESS;
+                return;
     }
 
     private function onStartModel(string $modelClass, int $total): void
     {
         if ($this->currentModelShort !== null) {
+            $this->finishProgressBar($this->progressBar);
             $this->outputModelResult();
         }
         $this->totalModels++;
         $this->modelStartTime = microtime(true);
         $this->currentModelShort = class_basename($modelClass);
-        $this->currentModelRecords = 0;
         $this->currentModelTotal = $total;
+        $this->currentModelRecords = 0;
         $this->processingCounter = 0;
-        $this->modelProgress = 0;
-        $this->line("  <fg=yellow>{$this->currentModelShort}</>");
+        $this->startProgressBar($this->progressBar, $modelClass, $total);
     }
 
     private function onAdvance(int $count): void
     {
-        $this->modelProgress += $count;
         $this->currentModelRecords += $count;
         $this->totalRecords += $count;
+        $this->progressBar?->advance($count);
     }
 
     private function onFinishModel(): void
     {
         if ($this->currentModelShort !== null) {
+            $this->finishProgressBar($this->progressBar);
             $this->outputModelResult();
             $this->currentModelShort = null;
         }
@@ -135,11 +147,14 @@ class RebuildCommand extends Command
 
     private function outputModelResult(): void
     {
+        if ($this->currentModelShort === null) {
+            return;
+        }
         $duration = $this->modelStartTime !== null ? microtime(true) - $this->modelStartTime : 0;
-        $rate = $duration > 0 ? round($this->totalRecords / $duration, 1) : 0;
+        $rate = $duration > 0 ? round($this->currentModelRecords / $duration, 1) : 0;
 
         $this->line("  ✓ {$this->currentModelShort}: {$this->currentModelRecords}/{$this->currentModelTotal}");
-        $this->line("    <fg=gray>" . round($duration, 1) . "s {$rate} docs/s</>");
+        $this->line("    <fg=white>" . round($duration, 1) . "s {$rate} docs/s</>");
     }
 
     private function onProcessing(int|string $id, string $title): void
@@ -151,15 +166,17 @@ class RebuildCommand extends Command
         if ($this->processingCounter % 50 !== 0) {
             return;
         }
+        $this->clearProgressBar($this->progressBar);
         $display = mb_strlen($title) > 50 ? mb_substr($title, 0, 50) . '…' : $title;
-        $this->output->write("\r    <fg=gray>#{$id}: {$display}</>");
+        $this->line("    <fg=white>#{$id}: {$display}</>");
+        $this->progressBar?->display();
     }
 
     private function onLoading(string $label): void
     {
-        $this->newLine();
-        $this->line("    <fg=gray>loading {$label}...</>");
-        $this->output->write("    ");
+        $this->clearProgressBar($this->progressBar);
+        $this->line("    <fg=white>loading {$label}...</>");
+        $this->progressBar?->display();
     }
 
     /** @param array{model: string, records?: int, queued?: int, total?: int, message?: string, warnings?: array} $result */
@@ -177,7 +194,7 @@ class RebuildCommand extends Command
     {
         $this->totalSkipped++;
         $short = class_basename($result['model']);
-        $this->line("  — {$short}: <fg=gray>{$result['message']}</>");
+        $this->line("  — {$short}: <fg=white>{$result['message']}</>");
     }
 
     private function errorResult(array $result): void
@@ -205,7 +222,7 @@ class RebuildCommand extends Command
     private function cleanedResult(array $result): void
     {
         $short = class_basename($result['model']);
-        $this->line("  <fg=gray>◇ cleaned orphaned table: {$short}</>");
+        $this->line("  <fg=white>◇ cleaned orphaned table: {$short}</>");
     }
 
     private function showSummary(): void
@@ -219,7 +236,7 @@ class RebuildCommand extends Command
         $this->line("  {$this->totalModels} models indexed  {$this->totalRecords} records  " . round($totalTime, 1) . "s  {$overallRate} docs/s");
 
         if ($this->totalQueued > 0) {
-            $this->line("  <fg=gray>  +{$this->totalQueued} records queued for background processing</>");
+            $this->line("  <fg=white>  +{$this->totalQueued} records queued for background processing</>");
         }
 
         $issues = [];
@@ -244,6 +261,8 @@ class RebuildCommand extends Command
 
         $this->newLine();
         $this->info('Rebuild complete.');
+
+        return;
     }
 
     private function parseMemory(string $setting): int

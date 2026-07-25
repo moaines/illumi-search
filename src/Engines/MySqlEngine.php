@@ -1193,9 +1193,16 @@ class MySqlEngine implements Engine
         $terms = OperatorRegistry::tokenize($query);
         $parts = [];
         $pendingOperator = '';
+        $useWildcard = $this->illumiConfig->mysqlWildcard();
 
         foreach ($terms as $term) {
             if (empty($term)) {
+                continue;
+            }
+
+            // Propagate parentheses as-is (MySQL BOOLEAN MODE grouping)
+            if ($term === '(' || $term === ')') {
+                $parts[] = $term;
                 continue;
             }
 
@@ -1216,9 +1223,16 @@ class MySqlEngine implements Engine
                     }
                 }
 
+                // OR makes BOTH terms optional: remove + from previous term
+                if ($pendingOperator === '' && ! empty($parts)) {
+                    $lastKey = array_key_last($parts);
+                    $parts[$lastKey] = ltrim($parts[$lastKey], '+');
+                }
+
                 continue;
             }
 
+            // Quoted phrase — preserve operator prefix
             if (str_starts_with($term, '"') && str_ends_with($term, '"')) {
                 $parts[] = $pendingOperator . $term;
                 $pendingOperator = '';
@@ -1226,23 +1240,25 @@ class MySqlEngine implements Engine
                 continue;
             }
 
-            $clean = Str::of($term)->replaceMatches('/[^\p{L}\p{N}\*\-]/u', '')->toString();
+            $clean = Str::of($term)->replaceMatches('/[^\p{L}\p{N}\*\-()]/u', '')->toString();
 
-            // Skip terms that are only operators (empty, single asterisk, dashes)
-            if ($clean === '' || $clean === '-' || $clean === '--' || $clean === '*' || preg_match('/^[\*\-\+]+$/', $clean)) {
+            if ($clean === '' || $clean === '-' || $clean === '--' || $clean === '*') {
                 continue;
             }
 
-            if ($mode === 'basic' && ! str_starts_with($clean, '"')) {
+            if ($mode === 'basic') {
                 $clean = rtrim($clean, '*') . '*';
             }
 
             $operator = $pendingOperator;
             $pendingOperator = '';
 
-            $withWildcard = rtrim($clean, '*') . '*';
+            $suffix = $useWildcard && $mode !== 'basic' ? '*' : '';
+            $withWildcard = rtrim($clean, '*') . $suffix;
             $needsQuoting = preg_match('/[^a-zA-Z0-9\*\-]+/', $clean);
-            $parts[] = $needsQuoting ? $operator . "\"{$clean}\"" : $operator . $withWildcard;
+            $parts[] = $needsQuoting
+                ? $operator . "\"{$clean}\""
+                : $operator . $withWildcard;
         }
 
         if ($pendingOperator === '+') {

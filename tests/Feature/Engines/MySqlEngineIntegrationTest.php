@@ -9,7 +9,8 @@ use Moaines\IllumiSearch\TenantManager;
 
 class MySqlEngineIntegrationTest extends AbstractEngineTest
 {
-    private ?MySqlEngine $engine = null;
+    private static ?MySqlEngine $sharedEngine = null;
+    private const MYSQL_TABLES = ['illumi_search_index', 'illumi_search_vocab_trigrams'];
 
     protected function createEngine(): Engine
     {
@@ -17,25 +18,21 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             $this->markTestSkipped('MySQL connection not available.');
         }
 
-        $this->engine = new MySqlEngine;
-        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_index');
-        DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_vocab_trigrams');
-        $this->engine->createTable('App\Models\Post', ['title', 'body']);
-
-        return $this->engine;
-    }
-
-    protected function tearDown(): void
-    {
-        if ($this->engine && $this->mysqlAvailable()) {
-            $conn = MySqlEngine::CONNECTION_NAME;
-            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_index');
-            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_vocab_trigrams');
-            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_vocab');
-            DB::connection($conn)->statement('DROP TABLE IF EXISTS illumi_search_config');
+        // Create engine ONCE — TRUNCATE between tests is instant
+        if (self::$sharedEngine === null) {
+            self::$sharedEngine = new MySqlEngine;
+            self::$sharedEngine->createTable('App\Models\Post', ['title', 'body']);
         }
 
-        parent::tearDown();
+        // Re-register connection (Testbench resets the container between tests)
+        new MySqlEngine;
+
+        // TRUNCATE is 100× faster than DROP + CREATE
+        foreach (self::MYSQL_TABLES as $table) {
+            DB::connection(MySqlEngine::CONNECTION_NAME)->statement("TRUNCATE TABLE {$table}");
+        }
+
+        return self::$sharedEngine;
     }
 
     private function mysqlAvailable(): bool

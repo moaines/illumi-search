@@ -8,13 +8,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Moaines\IllumiSearch\Console\Commands\Concerns\ChecksRebuildLock;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Throwable;
 
 class IndexBatchJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use ChecksRebuildLock, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
 
@@ -35,6 +36,10 @@ class IndexBatchJob implements ShouldQueue
 
     public function handle(Engine $engine, TextProcessor $global): void
     {
+        if (! $this->checkRebuildLock()) {
+            return;
+        }
+
         $model = new $this->modelClass;
         $keyName = $model->getKeyName();
 

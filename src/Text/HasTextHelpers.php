@@ -157,6 +157,11 @@ trait HasTextHelpers
      */
     public function normalizeQuery(string $query): string
     {
+        // Strip MySQL BOOLEAN MODE prefixes (+, -, ~, @) — they are not
+        // understood by SQLite FTS5 or FileEngine and would be searched
+        // as literal characters, causing false negatives.
+        $query = preg_replace('/(?<!\S)[+\-~@](?=\S)/u', '', $query);
+
         [$masked, $replacements] = OperatorRegistry::maskOperators($query);
 
         $processor = app(TextProcessor::class);

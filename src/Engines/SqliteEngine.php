@@ -856,6 +856,8 @@ class SqliteEngine implements Engine
 
     protected function normalizeQuery(string $query): string
     {
+        $query = preg_replace('/(?<!\S)[+\-~@](?=\S)/u', '', $query);
+
         if ($this->textProcessor === null) {
             $this->textProcessor = app(TextProcessor::class);
         }

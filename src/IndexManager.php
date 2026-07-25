@@ -64,6 +64,7 @@ class IndexManager
      */
     public function rebuild(?array $modelClasses = null, ?int $batchSize = null, bool $vacuum = false, ?\Closure $progress = null): array
     {
+        $startTime = microtime(true);
         $models = $modelClasses !== null
             ? collect($modelClasses)
             : $this->discoverModels();
@@ -106,10 +107,58 @@ class IndexManager
             }
         }
 
+        // Store schema with per-model size estimates
+        $totalDbSize = method_exists($this->engine, 'getDatabaseSize') ? $this->engine->getDatabaseSize() : 0;
+        $totalRecords = collect($results)->sum(fn ($r) => $r['records'] ?? 0);
+
+        $schemaModels = collect($results)
+            ->where('status', 'indexed')
+            ->pluck('schema')
+            ->filter()
+            ->values()
+            ->all();
+
+        foreach ($schemaModels as &$sm) {
+            $sm['size_bytes'] = $this->estimateModelSize($sm['class'], $sm['records'], $totalDbSize, $totalRecords);
+        }
+
+        $this->engine->setConfig('searchable_schema', [
+            'version' => '1.17.0',
+            'rebuilt_at' => now()->toIso8601String(),
+            'models' => $schemaModels,
+        ]);
+
+        $this->engine->setConfig('rebuild_completed_at', now()->toIso8601String());
+        $this->engine->setConfig('rebuild_duration_ms', (int) ((microtime(true) - $startTime) * 1000));
+        $this->engine->setConfig('rebuild_total_records', $totalRecords);
+
         return $results;
     }
 
-    /** @return array{model: string, status: string, records?: int, queued?: int, total?: int, message?: string, warnings?: array<int, array{model: string, status: string, message: string}>} */
+    private function estimateModelSize(string $modelClass, int $modelRecords, int $totalDbSize, int $totalRecords): ?int
+    {
+        // FileEngine: actual file size per model directory
+        if ($this->engine instanceof \Moaines\IllumiSearch\Engines\FileEngine) {
+            $basePath = $this->engine->getDatabasePath();
+            $dir = $basePath . '/' . IllumiSearchHelper::modelDirName($modelClass);
+            if (! File::isDirectory($dir)) {
+                return null;
+            }
+
+            return (int) collect(File::allFiles($dir))
+                ->filter(fn ($f) => $f->getExtension() === 'php')
+                ->sum(fn ($f) => $f->getSize());
+        }
+
+        // SQLite / MySQL: proportion of total DB size by records
+        if ($totalRecords > 0 && $totalDbSize > 0) {
+            return (int) round($totalDbSize * $modelRecords / $totalRecords);
+        }
+
+        return null;
+    }
+
+    /** @return array{model: string, status: string, records?: int, queued?: int, total?: int, message?: string, warnings?: array<int, array{model: string, status: string, message: string}>, schema?: array{class: string, columns: array, relations: array, records: int}} */
     private function rebuildModel(string $modelClass, int $batchSize, ?\Closure $progress): array
     {
         if (! class_exists($modelClass)) {
@@ -123,6 +172,10 @@ class IndexManager
         try {
             /** @var Model $instance */
             $instance = new $modelClass;
+            $rawColumns = $instance->getSearchableColumns();
+            $columns = collect($rawColumns)->mapWithKeys(fn ($v, $k) => [
+                is_string($k) ? $k : $v => is_array($v) ? $v : [],
+            ])->all();
             $columns = $instance->getSearchableColumns();
 
             if (empty($columns)) {
@@ -168,6 +221,12 @@ class IndexManager
                 'queued' => $queuedCount,
                 'total' => $totalRecords,
                 'warnings' => $warningMessages,
+                'schema' => [
+                    'class' => $modelClass,
+                    'columns' => $columns,
+                    'relations' => $instance->relationsForRebuild(),
+                    'records' => $syncCount,
+                ],
             ];
         } catch (\Exception $e) {
             return ['model' => $modelClass, 'status' => 'error', 'message' => $e->getMessage()];
