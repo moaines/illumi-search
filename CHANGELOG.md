@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.17.1 — Quality test suite, rebuild metadata, searchable schema
+
+### Added
+- **QualityTestSuite trait** — 32 mandatory quality tests (operators, modes, ranking, suggestions,
+  edge cases, SmartDataset integration). Any new engine must pass all of them.
+- **SqliteQualityTest / FileQualityTest** — quality suite per engine.
+- **Rebuild metadata** — `setConfig` stores `rebuild_completed_at`, `rebuild_duration_ms`,
+  `rebuild_total_records`. `StatusCommand` displays "Last rebuild: X ago (Ys)".
+- **Searchable schema** — `setConfig('searchable_schema')` stores columns, weights, relations,
+  record count, and estimated size per model after each rebuild.
+- **Tests** — `test_schema_config_is_stored_and_retrievable` verifies rebuild metadata storage.
+- **estimateModelSize()** — per-model storage size (actual for FileEngine, proportional estimate
+  for SQLite/MySQL).
+
+### Fixed
+- **Schema collection** — moved into `rebuildModel()` to avoid double model instantiation.
+- **Cleanup** — removed unused `$qtEngineCache`, `use OperatorRegistry`, `use IllumiSearch`
+  from QualityTestSuite.
+
+---
+
 ## v1.17.0 — FTS5 ranking fix, multi-language tests, 100% soundness
 
 ### Fixed
