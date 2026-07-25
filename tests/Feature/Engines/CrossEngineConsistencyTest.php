@@ -22,15 +22,37 @@ class CrossEngineConsistencyTest extends TestCase
     private const MODEL_CLASS = 'App\Models\BenchmarkPost';
     private const COLUMNS = ['title', 'body'];
 
+    /** @var array<string, Engine> */
+    private static array $sharedEngines = [];
+
     private function createEngine(string $name): ?Engine
     {
+        // MySQL: fresh engine each time (connection state is per-engine)
+        if ($name === 'mysql') {
+            return $this->createMySqlEngine();
+        }
+
+        // FileEngine / SQLite: reuse shared engine (stateless)
+        if (isset(self::$sharedEngines[$name])) {
+            $engine = self::$sharedEngines[$name];
+            try {
+                $engine->dropTable(self::MODEL_CLASS);
+            } catch (\Exception) {
+            }
+            $engine->createTable(self::MODEL_CLASS, self::COLUMNS);
+
+            return $engine;
+        }
+
         try {
-            return match ($name) {
+            $engine = match ($name) {
                 'sqlite' => $this->createSqliteEngine(),
                 'file' => $this->createFileEngine(),
-                'mysql' => $this->createMySqlEngine(),
                 default => throw new \InvalidArgumentException("Unknown engine: $name"),
             };
+            self::$sharedEngines[$name] = $engine;
+
+            return $engine;
         } catch (\Exception $e) {
             $this->markTestSkipped("$name not available: " . $e->getMessage());
 
@@ -73,6 +95,10 @@ class CrossEngineConsistencyTest extends TestCase
     private function destroyEngine(string $name, ?Engine $engine): void
     {
         if ($engine === null) {
+            return;
+        }
+        // Shared engines (file, sqlite) stay alive
+        if (isset(self::$sharedEngines[$name])) {
             return;
         }
         try {

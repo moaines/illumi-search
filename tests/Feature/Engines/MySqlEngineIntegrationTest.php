@@ -17,10 +17,9 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
             $this->markTestSkipped('MySQL connection not available.');
         }
 
+        $this->engine = new MySqlEngine;
         DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_index');
         DB::connection(MySqlEngine::CONNECTION_NAME)->statement('DROP TABLE IF EXISTS illumi_search_vocab_trigrams');
-
-        $this->engine = new MySqlEngine;
         $this->engine->createTable('App\Models\Post', ['title', 'body']);
 
         return $this->engine;
@@ -41,14 +40,23 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
 
     private function mysqlAvailable(): bool
     {
-        try {
-            new MySqlEngine;
-            DB::connection(MySqlEngine::CONNECTION_NAME)->getPdo();
-
-            return true;
-        } catch (\Exception) {
-            return false;
+        static $available = null;
+        if ($available !== null) {
+            return $available;
         }
+        try {
+            new \PDO(
+                'mysql:host=' . env('ILLUMI_SEARCH_MYSQL_HOST', '127.0.0.1') . ';port=' . env('ILLUMI_SEARCH_MYSQL_PORT', '3306'),
+                env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
+                env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
+                [\PDO::ATTR_TIMEOUT => 2]
+            );
+            $available = true;
+        } catch (\Throwable) {
+            $available = false;
+        }
+
+        return $available;
     }
 
     /** @test */
@@ -184,6 +192,7 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         config(['illumi-search.tenancy' => ['enabled' => true]]);
         app(TenantManager::class)->setResolver(fn () => 'tenant_42');
 
+        new MySqlEngine;
         $rawConn = DB::connection(MySqlEngine::CONNECTION_NAME);
         $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_index');
         $rawConn->statement('DROP TABLE IF EXISTS tenant_42_illumi_search_config');
@@ -349,14 +358,13 @@ class MySqlEngineIntegrationTest extends AbstractEngineTest
         }
 
         config(['illumi-search.processing.table_prefix' => 'custom_']);
+        $engine = new MySqlEngine;
         $conn = MySqlEngine::CONNECTION_NAME;
 
         DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_index');
         DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_config');
         DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab');
         DB::connection($conn)->statement('DROP TABLE IF EXISTS custom_vocab_trigrams');
-
-        $engine = new MySqlEngine;
         $engine->createTable('App\Models\Post', ['title', 'body']);
 
         $this->assertEquals('custom_index', $engine->tableName('App\Models\Post'));

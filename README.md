@@ -666,24 +666,45 @@ Filters results through Laravel's Gate/Policy system.
 
 ## Testing
 
+**636 tests** — 1424 assertions — 0 failures. 3 engines, 7 languages.
+
 ```bash
-phpunit                                # Run all tests (572)
-phpunit --testdox                      # Named tests
-phpunit --filter="FileEngine"          # FileEngine-specific
-phpunit --filter="CrossEngine"         # Cross-engine + multi-language tests
+phpunit                                # Run all 636 tests
+phpunit --filter="SqliteQuality"       # Quality suite — SQLite
+phpunit --filter="FileQuality"         # Quality suite — FileEngine
+phpunit --filter="CrossEngine"         # Cross-engine + multi-language
+phpunit --filter="MultiLanguage"       # 7 languages, real-world data
+composer analyse                       # PHPStan level 6
 ```
+
+### Quality test suite (mandatory for all engines)
+
+A dedicated trait `QualityTestSuite` runs **32 mandatory quality tests** on every engine.
+Any new engine must pass all of them to be considered compatible:
+
+| Group | Tests | What it verifies |
+|---|---|---|
+| Operators | 10 | AND/OR/NOT/NEAR/parentheses/combined, leading/trailing safety |
+| Modes | 5 | advanced, basic, raw — overlapping results |
+| Results | 3 | rank > 0, all fields present, accent-insensitive matching |
+| Suggestions | 3 | typo tolerance, garbage safety |
+| Ranking | 6 | title > body, multi-term > single, exact > prefix, stable ordering |
+| SmartDataset | 2 | seed.json loads, queries return results on real data |
+| Edge cases | 3 | numeric, injection, unicode whitespace, long query, special chars |
+
+### Cross-engine consistency
+
+`CrossEngineConsistencyTest` verifies the same query on the same data returns the same documents
+across all 3 engines — guaranteeing driver transparency.
 
 ### Test structure
 
-**572 tests** (1308 assertions) across all 3 engines:
-
 - **`AbstractEngineTest`** — 34 cross-engine tests (ranking, operators, pagination, snippets, modes)
-- **`FileEngineIntegrationTest`** — cache, crash recovery, sentinel, concurrent processor, large batches
-- **`SqliteEngineIntegrationTest`** — tenant isolation, table naming, engine status
-- **`MySqlEngineIntegrationTest`** — trigram spellcheck, last_synced_at, custom prefix, rebuild
-- **`CrossEngineConsistencyTest`** — same queries → same results across all 3 engines
+- **`QualityTestSuite`** (trait) — 32 mandatory quality tests reused by every engine
+- **`SqliteQualityTest`** / **`FileQualityTest`** — quality suite per engine
 - **`MultiLanguageEngineTest`** — accent, CJK, Cyrillic, Arabic, wildcard, phrase (7 languages, real data)
-- **`SmartDatasetTestProvider`** — intelligent queries from seed.json with ranking assertions
+- **`CrossEngineConsistencyTest`** — same queries → same results across all 3 engines
+- **`FileEngineIntegrationTest`** — cache, crash recovery, sentinel, concurrent processor, large batches
 
 ---
 

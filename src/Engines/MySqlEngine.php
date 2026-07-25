@@ -69,6 +69,8 @@ class MySqlEngine implements Engine
         $key = 'database.connections.' . self::CONNECTION_NAME;
 
         if (config()->has($key)) {
+            $this->connection = self::CONNECTION_NAME;
+
             return;
         }
 
