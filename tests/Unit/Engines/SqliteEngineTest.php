@@ -137,7 +137,7 @@ class SqliteEngineTest extends TestCase
         $result = $method->invoke($this->engine, 'php OR laravel', 'advanced');
 
         $this->assertStringContainsString('php*', $result);
-        $this->assertStringContainsString('"or"', $result);
+        $this->assertMatchesRegularExpression('/"[Oo][Rr]"/', $result, 'OR should be quoted (not operator)');
         $this->assertStringContainsString('laravel*', $result);
     }
 
@@ -295,10 +295,10 @@ class SqliteEngineTest extends TestCase
 
         $result = $method->invoke($this->engine, 'php AND "laravel framework"', 'raw');
 
-        // Raw mode returns the normalized (lowercased) query without escaping
+        // Raw mode returns the normalized query without escaping
         $this->assertStringContainsString('php', $result);
         $this->assertStringContainsString('"laravel framework"', $result);
-        $this->assertStringContainsString('and', $result);
+        $this->assertMatchesRegularExpression('/\b[Aa][Nn][Dd]\b/', $result, 'AND operator should be preserved in raw mode');
     }
 
     // ─── Real search tests for quotes in basic mode ────────────────

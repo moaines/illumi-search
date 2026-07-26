@@ -15,6 +15,11 @@ trait HasOperatorProcessor
 
     private function nearFilterResults(array $results, string $safeQuery): array
     {
+        // Skip parsing when no NEAR operator is present — saves tokenization + loop
+        if (! \str_contains($safeQuery, 'NEAR')) {
+            return $results;
+        }
+
         $queryOps = $this->operatorProcessor->parse($safeQuery);
 
         return $this->operatorProcessor->filterNearResults($results, $queryOps);

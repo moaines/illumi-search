@@ -10,6 +10,7 @@ use Moaines\IllumiSearch\Console\Commands\CheckCommand;
 use Moaines\IllumiSearch\Console\Commands\DiscoverFilamentCommand;
 use Moaines\IllumiSearch\Console\Commands\DoctorCommand;
 use Moaines\IllumiSearch\Console\Commands\OptimizeCommand;
+use Moaines\IllumiSearch\Console\Commands\PruneCommand;
 use Moaines\IllumiSearch\Console\Commands\RebuildCommand;
 use Moaines\IllumiSearch\Console\Commands\SearchCommand;
 use Moaines\IllumiSearch\Console\Commands\StatusCommand;
@@ -18,6 +19,7 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
+use Moaines\IllumiSearch\Engines\PgsqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
 use Moaines\IllumiSearch\Support\EngineProxy;
@@ -65,6 +67,10 @@ class IllumiSearchServiceProvider extends ServiceProvider
 
                 if ($driver === 'mysql') {
                     return new MySqlEngine($app->make(SnippetService::class));
+                }
+
+                if ($driver === 'pgsql') {
+                    return new PgsqlEngine($app->make(SnippetService::class));
                 }
 
                 if ($driver === 'file') {
@@ -124,8 +130,6 @@ class IllumiSearchServiceProvider extends ServiceProvider
             databasePath: $fullPath,
             snippets: $app->make(SnippetService::class),
         );
-        $engine->setTextProcessor($app->make(TextProcessor::class));
-
         return $engine;
     }
 
@@ -146,6 +150,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
             StatusCommand::class,
             DiscoverFilamentCommand::class,
             OptimizeCommand::class,
+            PruneCommand::class,
             DoctorCommand::class,
         ]);
 

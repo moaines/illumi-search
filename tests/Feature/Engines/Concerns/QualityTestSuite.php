@@ -774,7 +774,7 @@ trait QualityTestSuite
     #[Test]
     public function phrase_only_stopwords_returns_empty(): void
     {
-        $this->markTestSkipped('Stopword filtering transforms "the and of" → "AND" (single operator), making phrase test unreliable. This requires integration-level testing with TextProcessor.');
+        $this->markTestSkipped('Stopwords inside phrase queries (e.g. "the of") are not filtered because quotes protect them from token-level stopword removal. This requires integration-level testing with TextProcessor.');
     }
 
     #[Test]
@@ -856,5 +856,64 @@ trait QualityTestSuite
 
         $this->assertContains(1, $ids, 'Doc with both phrases must be found');
         $this->assertNotContains(2, $ids, 'Doc without "design patterns" must be excluded');
+    }
+
+    // ─── Negative / Edge case tests ─────────────────────────────────
+
+    #[Test]
+    public function special_characters_no_error(): void
+    {
+        $results = $this->qtEngine()->search('!@#$%^&*()', [self::QT_MODEL], 10);
+        $this->assertIsArray($results, 'Special characters should not cause errors');
+    }
+
+    #[Test]
+    public function empty_query_returns_empty(): void
+    {
+        $results = $this->qtEngine()->search('', [self::QT_MODEL], 10);
+        $this->assertEmpty($results, 'Empty query should return empty results');
+    }
+
+    #[Test]
+    public function suggest_empty_index_returns_array(): void
+    {
+        if (! method_exists($this->qtEngine(), 'suggest')) {
+            $this->markTestSkipped('Engine does not support suggest');
+        }
+        $suggestions = $this->qtEngine()->suggest('php', 2, 5);
+        $this->assertIsArray($suggestions, 'Suggest on empty index should return array');
+    }
+
+    #[Test]
+    public function near_with_wildcard_returns_results(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'design patterns engineering', 'body' => 'design patterns engineering guide']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'random text', 'body' => 'no match']);
+
+        $results = $e->search('design NEAR patterns', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'Doc with matching NEAR must be found');
+        $this->assertNotContains(2, $ids, 'Doc without match must be excluded');
+    }
+
+    #[Test]
+    public function phrase_operator_mix_returns_results(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'software design patterns php', 'body' => 'design patterns guide php']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'software design patterns', 'body' => 'design patterns guide']);
+
+        $results = $e->search('"design patterns" AND php', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'Doc with phrase AND term must be found');
+        $this->assertNotContains(2, $ids, 'Doc without term must be excluded');
+    }
+
+    #[Test]
+    public function xss_in_search_query_does_not_break(): void
+    {
+        $results = $this->qtEngine()->search('<script>alert(1)</script>', [self::QT_MODEL], 10);
+        $this->assertIsArray($results, 'XSS in query should not crash the engine');
     }
 }

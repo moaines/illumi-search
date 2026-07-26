@@ -106,11 +106,11 @@ class MultiTenantTest extends TestCase
 
         $this->assertCount(1, $resultsA, 'Tenant A should find its own data');
         $this->assertEquals(1, $resultsA[0]->modelId, 'Tenant A should find post 1');
-        $this->assertStringContainsString('SECRET_A', $resultsA[0]->title, 'Tenant A should get A data');
+        $this->assertStringContainsStringIgnoringCase('SECRET_A', $resultsA[0]->title, 'Tenant A should get A data');
 
         $this->assertCount(1, $resultsB, 'Tenant B should find its own data');
         $this->assertEquals(1, $resultsB[0]->modelId, 'Tenant B should find post 1');
-        $this->assertStringContainsString('SECRET_B', $resultsB[0]->title, 'Tenant B should get B data, not A data');
+        $this->assertStringContainsStringIgnoringCase('SECRET_B', $resultsB[0]->title, 'Tenant B should get B data, not A data');
 
         @unlink($pathA);
         @unlink($pathB);

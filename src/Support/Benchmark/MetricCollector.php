@@ -13,8 +13,8 @@ class MetricCollector
     /** @var float[] Individual query latencies in ms */
     private array $latencies = [];
 
-    private float $peakMemoryBefore = 0;
-    private float $peakMemoryAfter = 0;
+    private float $currentBaseline = 0;
+    private float $peakMemory = 0;
 
     private static function scriptsOf(string $text): array
     {
@@ -112,12 +112,24 @@ class MetricCollector
 
     public function recordPeakMemory(): void
     {
-        $this->peakMemoryAfter = memory_get_peak_usage(true);
+        $current = memory_get_usage(true);
+        if ($current > $this->peakMemory) {
+            $this->peakMemory = $current;
+        }
+    }
+
+    public function recordPeakMemorySearch(): void
+    {
+        $current = memory_get_usage(true);
+        if ($current > $this->peakMemory) {
+            $this->peakMemory = $current;
+        }
     }
 
     public function recordPeakBefore(): void
     {
-        $this->peakMemoryBefore = memory_get_peak_usage(true);
+        $this->currentBaseline = memory_get_usage(true);
+        $this->peakMemory = $this->currentBaseline;
     }
 
     // ─── Quality: Precision@K ───────────────────────────
@@ -403,7 +415,10 @@ class MetricCollector
 
     public function getPeakMemoryMB(): float
     {
-        return round(($this->peakMemoryAfter - $this->peakMemoryBefore) / 1048576, 1);
+        // Use the lifetime historical peak from PHP — this is the only reliable
+        // measure for long-running processes that allocate + free large blocks
+        // across multiple test volumes.
+        return round((memory_get_peak_usage(true) - $this->currentBaseline) / 1048576, 1);
     }
 
     // ─── Empty results rate ──────────────────────────────

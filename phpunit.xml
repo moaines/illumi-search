@@ -16,6 +16,7 @@
     </testsuites>
 
     <php>
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
@@ -24,6 +25,12 @@
         <env name="ILLUMI_SEARCH_MYSQL_DATABASE" value="test"/>
         <env name="ILLUMI_SEARCH_MYSQL_USERNAME" value="root"/>
         <env name="ILLUMI_SEARCH_MYSQL_PASSWORD" value="password"/>
+        <env name="ILLUMI_SEARCH_PGSQL_HOST" value="127.0.0.1"/>
+        <env name="ILLUMI_SEARCH_PGSQL_PORT" value="5432"/>
+        <env name="ILLUMI_SEARCH_PGSQL_DATABASE" value="test-illumi-search"/>
+        <env name="ILLUMI_SEARCH_PGSQL_USERNAME" value="postgres"/>
+        <env name="ILLUMI_SEARCH_PGSQL_PASSWORD" value="password"/>
+        <env name="ILLUMI_SEARCH_API_ENABLED" value="true"/>
     </php>
 
     <source>

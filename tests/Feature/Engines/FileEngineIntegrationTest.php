@@ -326,4 +326,38 @@ class FileEngineIntegrationTest extends AbstractEngineTest
         $results = $engine->search('direct', [$this->testModelClass], 10);
         $this->assertCount(1, $results, 'Should find without stats via quick scoring');
     }
+
+    // ─── Memory tests ────────────────────────────────────
+
+    #[Test]
+    public function or_search_with_many_docs_under_memory_limit(): void
+    {
+        $engine = $this->createEngine();
+
+        for ($i = 1; $i <= 100; $i++) {
+            $engine->upsert($this->testModelClass, $i, [
+                'title' => ($i % 2 === 0 ? 'alpha' : 'beta') . " post $i",
+                'body' => 'common content for all documents',
+            ]);
+        }
+
+        $results = $engine->search('alpha OR beta', [$this->testModelClass], 50);
+        $this->assertCount(50, $results, 'OR with 100 docs should return results under memory limit');
+    }
+
+    #[Test]
+    public function near_search_with_large_dataset(): void
+    {
+        $engine = $this->createEngine();
+
+        for ($i = 1; $i <= 100; $i++) {
+            $engine->upsert($this->testModelClass, $i, [
+                'title' => "design patterns title $i",
+                'body' => "software engineering guide $i",
+            ]);
+        }
+
+        $results = $engine->search('design NEAR patterns', [$this->testModelClass], 10);
+        $this->assertNotEmpty($results, 'NEAR with 100 docs should not exceed memory');
+    }
 }

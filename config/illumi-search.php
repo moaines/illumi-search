@@ -54,6 +54,8 @@ return [
 
         'rebuild_batch_size' => env('ILLUMI_SEARCH_REBUILD_BATCH_SIZE', 0),
 
+        'max_documents_per_model' => env('ILLUMI_SEARCH_MAX_DOCUMENTS_PER_MODEL', 50000),
+
         'model_paths' => [
             app_path('Models'),
         ],
@@ -175,6 +177,16 @@ return [
                 'database' => env('ILLUMI_SEARCH_MYSQL_DATABASE', 'illumi_search'),
                 'username' => env('ILLUMI_SEARCH_MYSQL_USERNAME', 'root'),
                 'password' => env('ILLUMI_SEARCH_MYSQL_PASSWORD', ''),
+            ],
+        ],
+
+        'pgsql' => [
+            'connection' => [
+                'host' => env('ILLUMI_SEARCH_PGSQL_HOST', '127.0.0.1'),
+                'port' => env('ILLUMI_SEARCH_PGSQL_PORT', '5432'),
+                'database' => env('ILLUMI_SEARCH_PGSQL_DATABASE', 'illumi_search'),
+                'username' => env('ILLUMI_SEARCH_PGSQL_USERNAME', 'postgres'),
+                'password' => env('ILLUMI_SEARCH_PGSQL_PASSWORD', ''),
             ],
         ],
     ],

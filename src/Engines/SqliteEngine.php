@@ -2,15 +2,15 @@
 
 namespace Moaines\IllumiSearch\Engines;
 
-use DebugBar\StandardDebugBar;
 use Illuminate\Support\Facades\Log;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
-use Moaines\IllumiSearch\Debug\IllumiSearchCollector;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
+use Moaines\IllumiSearch\Concerns\HasTenant;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Support\OperatorProcessor;
+use Moaines\IllumiSearch\Text\HasDebugCollector;
+use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\ConfigHelper;
 use Moaines\IllumiSearch\Support\IllumiSearchConfig;
@@ -26,13 +26,15 @@ class SqliteEngine implements Engine
 {
     use HasScoring;
     use HasOperatorProcessor;
+    use HasDebugCollector;
+    use HasTenant;
+    use HasTextHelpers;
  
     private const META_TABLE = 'meta';
 
     private const CONFIG_TABLE = 'config';
 
     private ?SQLite3 $db = null;
-    private ?TextProcessor $textProcessor = null;
 
     /** @var list<string> */
     protected array $supportedOperators = ['AND', 'OR', 'NOT'];
@@ -47,7 +49,6 @@ class SqliteEngine implements Engine
 
     private int $maxCachedQueries = 1000;
     private bool $fts5Available = false;
-    private ?IllumiSearchCollector $debugCollector = null;
     private bool $isRebuilding = false;
     private SearchCache $searchCache;
     private IllumiSearchConfig $illumiConfig;
@@ -61,11 +62,6 @@ class SqliteEngine implements Engine
         $this->searchCache = new SearchCache(dirname($databasePath));
         $this->illumiConfig = $illumiConfig ?? app(IllumiSearchConfig::class);
         $this->injectOperatorProcessor($operatorProcessor);
-    }
-
-    public function setTextProcessor(TextProcessor $processor): void
-    {
-        $this->textProcessor = $processor;
     }
 
     public function setRebuilding(bool $isRebuilding): void
@@ -126,14 +122,12 @@ class SqliteEngine implements Engine
 
             $this->ensureMetaTable();
 
-            if ($collector = $this->resolveDebugCollector()) {
-                $collector->setEngineInfo([
-                    'version' => 'SQLite ' . $this->db->querySingle('SELECT sqlite_version()') . ' | FTS5',
-                    'tokenizer' => $this->illumiConfig->sqliteTokenizer(),
-                    'indexed_records' => collect($this->getIndexStats())->sum('record_count'),
-                    'fts5_available' => $this->fts5Available,
-                ]);
-            }
+            $this->setCollectorEngineInfo([
+                'version' => 'SQLite ' . $this->db->querySingle('SELECT sqlite_version()') . ' | FTS5',
+                'tokenizer' => $this->illumiConfig->sqliteTokenizer(),
+                'indexed_records' => collect($this->getIndexStats())->sum('record_count'),
+                'fts5_available' => $this->fts5Available,
+            ]);
         }
 
         return $this->db;
@@ -175,7 +169,7 @@ class SqliteEngine implements Engine
     {
         $name = str_replace('\\', '_', $modelClass);
         $name = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
-        $name = $this->table('idx_' . strtolower(ltrim($name, '_')));
+        $name = $this->table('idx_' . Str::lower(ltrim($name, '_')));
 
         return $name;
     }
@@ -186,6 +180,7 @@ class SqliteEngine implements Engine
      */
     public function createTable(string $modelClass, array $columns, array $prefixLengths = []): void
     {
+        $this->cachedTableExists = [];
         $this->db();
         $table = $this->tableName($modelClass);
 
@@ -261,6 +256,7 @@ class SqliteEngine implements Engine
 
     public function dropTable(string $modelClass): void
     {
+        $this->cachedTableExists = [];
         $table = $this->tableName($modelClass);
         $vocabTable = $table . '_vocab';
         $this->db()->exec("DROP TABLE IF EXISTS {$vocabTable}");
@@ -284,9 +280,13 @@ class SqliteEngine implements Engine
         $placeholders = [];
         $values = [];
 
+        $processor = app(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+
         foreach ($columns as $col) {
+            $raw = (string) ($document[$col] ?? '');
             $placeholders[] = ":{$col}";
-            $values[":{$col}"] = $document[$col];
+            // Apply TextProcessor only when text contains non-ASCII characters (CJK, accents, etc.)
+            $values[":{$col}"] = preg_match('/[^\x20-\x7E]/u', $raw) ? $processor->process($raw, 'en') : $raw;
         }
 
         $placeholders[] = ':model_id';
@@ -306,6 +306,43 @@ class SqliteEngine implements Engine
         $stmt->execute();
 
         $this->searchCache->clear();
+    }
+
+    public function pruneExcessDocuments(string $modelClass): void
+    {
+        $max = $this->illumiConfig->maxDocumentsPerModel();
+        if ($max <= 0) {
+            return;
+        }
+
+        $table = $this->tableName($modelClass);
+
+        if (! $this->tableExists($modelClass)) {
+            return;
+        }
+
+        // Find the cutoff model_id (the N-th highest)
+        $stmt = $this->db()->prepare(
+            "SELECT model_id FROM {$table} ORDER BY CAST(model_id AS INTEGER) DESC LIMIT 1 OFFSET :offset"
+        );
+        $stmt->bindValue(':offset', $max - 1, SQLITE3_INTEGER);
+        $result = $stmt->execute();
+
+        if ($result === false) {
+            return;
+        }
+
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        if ($row === false || ! isset($row['model_id'])) {
+            return; // Fewer than max documents
+        }
+
+        $cutoff = (int) $row['model_id'];
+        $delStmt = $this->db()->prepare(
+            "DELETE FROM {$table} WHERE CAST(model_id AS INTEGER) < :cutoff"
+        );
+        $delStmt->bindValue(':cutoff', $cutoff, SQLITE3_INTEGER);
+        $delStmt->execute();
     }
 
     public function delete(string $modelClass, int|string $modelId): void
@@ -339,6 +376,7 @@ class SqliteEngine implements Engine
         }
 
         if (! $this->isRebuilding) {
+            $this->pruneExcessDocuments($modelClass);
             $this->searchCache->clear();
         }
     }
@@ -354,7 +392,7 @@ class SqliteEngine implements Engine
         }
 
         // Two-layer cache: enriched > raw > search
-        $cacheKey = $this->searchCache->key($query . $this->databasePath . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
+        $cacheKey = $this->searchCache->key($query . $this->databasePath . ($this->tenantId() ?? '') . ($withSnippets ? '1' : '0'), $modelClasses, $limit, $offset, $mode);
         $enrichedKey = $this->searchCache->enrichedKey($cacheKey);
         $rawKey = $this->searchCache->rawKey($cacheKey);
 
@@ -373,6 +411,7 @@ class SqliteEngine implements Engine
 
         $safeQuery = $this->escapeQuery($query, $mode);
         $results = [];
+        $searchStart = microtime(true);
 
         if (! $searchDone) {
             $seenIds = [];
@@ -385,7 +424,6 @@ class SqliteEngine implements Engine
             }
 
             $table = $this->tableName($modelClass);
-            $queryStart = microtime(true);
 
             try {
                 $sql = "SELECT *, -RANK AS rank, COUNT(*) OVER () as total_count FROM {$table} WHERE {$table} MATCH :query ORDER BY rank DESC LIMIT :limit OFFSET :offset";
@@ -429,18 +467,6 @@ class SqliteEngine implements Engine
                 }
 
                 array_push($results, ...$modelResults);
-
-                if ($collector = $this->resolveDebugCollector()) {
-                    $collector->addQuery(
-                        matchQuery: $safeQuery,
-                        table: $table,
-                        modelClass: $modelClass,
-                        mode: $mode,
-                        resultCount: count($modelResults),
-                        durationMs: (microtime(true) - $queryStart) * 1000,
-                        topScores: array_slice(array_column($modelResults, 'rank'), 0, 3),
-                    );
-                }
             } catch (\Exception $e) {
                 Log::warning("illumi-search: FTS5 search failed for {$modelClass}: " . $e->getMessage(), [
                     'query' => $safeQuery ?? '',
@@ -466,9 +492,20 @@ class SqliteEngine implements Engine
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);
             $results = $service->enrich($results, $query);
+            $this->searchCache->set($enrichedKey, $results);
         }
 
-        $this->searchCache->set($enrichedKey, $results);
+        $tableNames = implode(', ', array_map(fn ($c) => $this->tableName($c), $modelClasses));
+        $topScores = array_slice(array_column($results, 'rank'), 0, 3);
+        $this->recordSearchQuery(
+            matchQuery: $safeQuery,
+            table: $tableNames,
+            modelClass: implode(', ', $modelClasses),
+            mode: $mode,
+            resultCount: count($results),
+            durationMs: round((microtime(true) - $searchStart) * 1000, 2),
+            topScores: $topScores,
+        );
 
         return array_map(
             fn ($r) => Result::fromRaw($r),
@@ -517,14 +554,28 @@ class SqliteEngine implements Engine
         return $total;
     }
 
+    private array $cachedTableExists = [];
+
+    public function clearTableCache(): void
+    {
+        $this->cachedTableExists = [];
+    }
+
     public function tableExists(string $modelClass): bool
     {
+        if (isset($this->cachedTableExists[$modelClass])) {
+            return $this->cachedTableExists[$modelClass];
+        }
+
         $table = $this->tableName($modelClass);
         $stmt = $this->db()->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = :name");
         $stmt->bindValue(':name', $table, SQLITE3_TEXT);
         $result = $stmt->execute();
 
-        return $result !== false && $result->fetchArray(SQLITE3_NUM) !== false;
+        $exists = $result !== false && $result->fetchArray(SQLITE3_NUM) !== false;
+        $this->cachedTableExists[$modelClass] = $exists;
+
+        return $exists;
     }
 
     public function integrityCheck(string $modelClass): bool
@@ -820,7 +871,7 @@ class SqliteEngine implements Engine
                 continue;
             }
 
-            $termUpper = strtoupper($term);
+            $termUpper = Str::upper($term);
             $baseOp = preg_replace('/\/\d+$/', '', $termUpper);
 
             if (in_array($baseOp, $this->supportedOperators, true)) {
@@ -865,17 +916,6 @@ class SqliteEngine implements Engine
         }
 
         return implode(' ', $escaped);
-    }
-
-    protected function normalizeQuery(string $query): string
-    {
-        $query = preg_replace('/(?<!\S)[+\-~@](?=\S)/u', '', $query);
-
-        if ($this->textProcessor === null) {
-            $this->textProcessor = app(TextProcessor::class);
-        }
-
-        return $this->textProcessor->process($query);
     }
 
     protected function ensureOperatorsProbed(): void
@@ -1009,7 +1049,7 @@ class SqliteEngine implements Engine
     private function table(string $name): string
     {
         $prefix = $this->illumiConfig->tablePrefix();
-        $tenantId = app(TenantManager::class)->tenantId();
+        $tenantId = $this->tenantId();
 
         $prefixed = $prefix . ltrim($name, '_');
 
@@ -1026,32 +1066,6 @@ class SqliteEngine implements Engine
             return true;
         } catch (\Exception) {
             return false;
-        }
-    }
-
-    private function resolveDebugCollector(): ?IllumiSearchCollector
-    {
-        if ($this->debugCollector !== null) {
-            return $this->debugCollector;
-        }
-
-        if (! class_exists(StandardDebugBar::class)) {
-            return $this->debugCollector = null;
-        }
-
-        try {
-            $debugbar = app('debugbar');
-
-            if (! $debugbar?->hasCollector('illumi-search')) {
-                $collector = new IllumiSearchCollector;
-                $debugbar->addCollector($collector);
-            }
-
-            $this->debugCollector = $debugbar?->getCollector('illumi-search');
-
-            return $this->debugCollector;
-        } catch (\Exception) {
-            return $this->debugCollector = null;
         }
     }
 

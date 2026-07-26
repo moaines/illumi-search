@@ -191,6 +191,31 @@ class IllumiSearchConfig
         return (bool) config('illumi-search.engines.mysql.wildcard', true);
     }
 
+    public function pgsqlHost(): string
+    {
+        return config('illumi-search.engines.pgsql.connection.host', '127.0.0.1');
+    }
+
+    public function pgsqlPort(): string
+    {
+        return config('illumi-search.engines.pgsql.connection.port', '5432');
+    }
+
+    public function pgsqlDatabase(): string
+    {
+        return config('illumi-search.engines.pgsql.connection.database', 'illumi_search');
+    }
+
+    public function pgsqlUsername(): string
+    {
+        return config('illumi-search.engines.pgsql.connection.username', 'postgres');
+    }
+
+    public function pgsqlPassword(): string
+    {
+        return config('illumi-search.engines.pgsql.connection.password', '');
+    }
+
     // ─── Search behaviour ────────────────────────────────
 
     public function processingMode(): string
@@ -213,6 +238,11 @@ class IllumiSearchConfig
         return $this->maxSearchTextLength ??= (int) config('illumi-search.processing.max_search_text_length', 65535);
     }
 
+    public function searchTimeoutMs(): int
+    {
+        return (int) config('illumi-search.search_timeout_ms', 5000);
+    }
+
     // ─── Indexing ────────────────────────────────────────
 
     public function indexingMode(): string
@@ -223,6 +253,11 @@ class IllumiSearchConfig
     public function rebuildBatchSize(): int
     {
         return (int) config('illumi-search.indexing.rebuild_batch_size', 0);
+    }
+
+    public function maxDocumentsPerModel(): int
+    {
+        return (int) config('illumi-search.indexing.max_documents_per_model', 50000);
     }
 
     // ─── Multi-tenancy ───────────────────────────────────

@@ -6,28 +6,36 @@ use Illuminate\Console\Command;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
+use Moaines\IllumiSearch\Engines\PgsqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
+use Moaines\IllumiSearch\Support\Benchmark\BenchCapacityRunner;
 use Moaines\IllumiSearch\Support\Benchmark\BenchmarkRunner;
 use Moaines\IllumiSearch\Support\Benchmark\ReportRenderer;
+use Moaines\IllumiSearch\Support\Benchmark\VolumeSnapshot;
 
 class BenchmarkCommand extends Command
 {
     private const ENGINE_FACTORIES = [
-        'FileEngine' => 'createFileEngine',
         'SQLite' => 'createSqliteEngine',
+        'FileEngine' => 'createFileEngine',
         'MySQL' => 'createMySqlEngine',
+        'PostgreSQL' => 'createPgsqlEngine',
     ];
 
     protected $signature = 'illumi-search:benchmark
         {--docs=1000 : Number of documents to index}
-        {--all-engines : Benchmark both SQLite and MySQL engines}
+        {--all-engines : Benchmark SQLite, MySQL, and PostgreSQL engines}
         {--format=table : Output format (table|json)}
         {--memory=512M : Memory limit for the benchmark process}
         {--timeout=300 : Max execution time in seconds}
         {--repetitions=1 : Number of times to repeat the benchmark (avg ± σ will be shown)}
         {--seed=42 : Random seed for reproducible dataset generation}
         {--cache=cold : Cache mode: cold (clear cache before each run) or warm}
-        {--mode=processed : Indexing mode: processed (normalized), raw (no normalization), both}';
+        {--mode=processed : Indexing mode: processed (normalized), raw (no normalization), both}
+        {--capacity : Run progressive capacity test (scales data through volume steps)}
+        {--steps= : Comma-separated volume steps for capacity test (default: auto from --docs)}
+        {--stop-when=latency:100 : Stop condition for capacity test: latency:N(ms), ram:N(MB)}
+        {--latin-only : For capacity test, only use Latin-character queries (skip CJK/RTL)}';
     protected $description = 'Benchmark search engine performance and quality';
 
     public function handle(Engine $engine): int
@@ -41,6 +49,10 @@ class BenchmarkCommand extends Command
             ini_set('memory_limit', '-1');
         }
         set_time_limit($timeout);
+
+        if ($this->option('capacity')) {
+            return $this->handleCapacity($engine);
+        }
 
         $totalDocs = (int) $this->option('docs');
         $format = $this->option('format');
@@ -233,6 +245,20 @@ class BenchmarkCommand extends Command
         }
     }
 
+    private function createPgsqlEngine(): ?Engine
+    {
+        try {
+            $engine = new PgsqlEngine;
+            $engine->createTable('App\Models\BenchmarkPost', ['title', 'body']);
+
+            return $engine;
+        } catch (\Exception $e) {
+            $this->warn('Could not connect to PostgreSQL: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
     private function createFileEngine(): ?Engine
     {
         try {
@@ -246,5 +272,67 @@ class BenchmarkCommand extends Command
 
             return null;
         }
+    }
+
+    private function handleCapacity(Engine $engine): int
+    {
+        $targetDocs = (int) $this->option('docs');
+        $stepsRaw = $this->option('steps');
+        $steps = $stepsRaw ? array_map('intval', explode(',', $stepsRaw)) : null;
+
+        $this->info("📊 Running capacity test up to {$targetDocs} docs\n");
+
+        $runner = new BenchCapacityRunner(
+            engine: $engine,
+            modelClass: 'App\Models\BenchmarkPost',
+            columns: ['title', 'body'],
+        );
+
+        if ($this->option('latin-only')) {
+            $runner->setLatinOnly(true);
+        }
+
+        $snapshots = $runner->run($targetDocs, $steps);
+
+        $this->renderCapacityTable($snapshots);
+
+        if ($runner->isStopped()) {
+            $this->warn("\n⛔ Stopped early: {$runner->bottleneck()}");
+        } else {
+            $this->info("\n🏆 Target reached: {$targetDocs} docs without degradation");
+        }
+
+        return Command::SUCCESS;
+    }
+
+    /** @param array<int, VolumeSnapshot> $snapshots */
+    private function renderCapacityTable(array $snapshots): void
+    {
+        $rows = [];
+        foreach ($snapshots as $snapshot) {
+            $quality = $snapshot->quality;
+            $flags = ($quality['fuzzy_tolerance'] ?? false ? '✅' : '❌')
+                   . ($quality['suggest_coverage'] ?? false ? '✅' : '❌')
+                   . ($quality['exact_search'] ?? false ? '✅' : '❌');
+
+            $rows[] = [
+                number_format($snapshot->docs),
+                number_format($snapshot->searchQps, 1) . ' q/s',
+                number_format($snapshot->latencyP50, 1) . ' ms',
+                number_format($snapshot->latencyP95, 1) . ' ms',
+                number_format($snapshot->suggestQps, 1) . ' q/s',
+                number_format($snapshot->rebuildDocsPerSec, 0) . ' d/s',
+                $snapshot->indexSizeMb . ' MB',
+                $snapshot->peakRamMb . ' MB',
+                $flags,
+            ];
+        }
+
+        $this->table(
+            ['Volume', 'Search', 'p50', 'p95', 'Suggest', 'Rebuild', 'Index', 'RAM', 'Quality'],
+            $rows,
+        );
+
+        $this->line('');
     }
 }

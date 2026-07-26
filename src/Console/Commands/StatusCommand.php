@@ -20,6 +20,9 @@ class StatusCommand extends Command
         if ($driver === 'mysql') {
             $this->info('Engine: ' . $engine->getEngineVersion());
             $this->info('Connection: ' . $engine->getDatabasePath());
+        } elseif ($driver === 'pgsql') {
+            $this->info('Engine: ' . $engine->getEngineVersion());
+            $this->info('Connection: ' . $engine->getDatabasePath());
         } else {
             $path = $engine->getDatabasePath();
 

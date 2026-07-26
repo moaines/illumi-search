@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.20.0 — PostgreSQL engine, capacity benchmarks, max documents
+
+### Added
+- **PostgreSQL engine** (`PgsqlEngine`) — tsvector + GIN index + CTE queries + PHP suggest pipeline
+- **Capacity benchmark** (`illumi-search:benchmark --capacity`) — progressive volume test (1k → 1M docs)
+- **`max_documents_per_model`** — config key + `HasMaxDocuments` trait + `illumi-search:prune` command
+- **Search timeout** — `SET statement_timeout` (PgSQL) / `SET SESSION max_execution_time` (MySQL)
+- **Redis Cache** — Laravel Cache backend for `SearchCache` (Redis, DynamoDB, database)
+- **Persistent connections** — `PDO::ATTR_PERSISTENT` for PostgreSQL
+- **`HasTenant` trait** — `tenantId()` extracted from all 4 engines
+- **`HasWeightedColumns` trait** — `weightColumnNames()` + `modelTypePlaceholders()` shared
+
+### Optimizations
+- PgSQL: ts_stat session cache, suggest warmup after rebuild, on-demand vocab rebuild
+- MySQL: composite FULLTEXT index, per-column MATCH fallback, `innodb_ft_sort_pll_degree` + `innodb_ft_cache_size` tuning
+- MySQL: `vacuum()` via `OPTIMIZE TABLE` with `innodb_optimize_fulltext_only`
+- FileEngine: early termination across model classes, lazy trigram index build in search()
+- SQLite: TextProcessor in upsert (conditionally for non-ASCII text), `tableExists()` cache
+- MySQL 8.0 with `innodb_ft_min_token_size=1` tested → 1.7× faster than MariaDB
+
+### Documentation
+- `BENCHMARK_CAPACITY.md` — 5 engines, 1k → 1M+ docs, cold vs warm PostgreSQL latency curves
+- `docs.blade.php` — updated benchmark table with all 4 engines + capacity limits
+- `README.md` — Limitations section rewritten in English, MySQL 8.0 / MariaDB distinction
+
+### Changed
+- `composer.json`: `ext-sqlite3` and `wamania/php-stemmer` moved from `require` to `suggest`
+- `phpunit.xml`: memory limit set to 512M, API tests enabled by default
+
+### Tests
+- **810 tests** (+126 from v1.19.0), **1749 assertions** (+358)
+- New test suites: `SearchApiTest`, `MultiLangConsistencyTest`, `IndexManagerRebuildTest`, `AuthorizationTenancyTest`, `MaxDocumentsTest`, `PgsqlEngineTest`
+- Multi-language tests: CJK, Arabic, Cyrillic, Spanish, Portuguese, accent-insensitive
+
 ## v1.19.0 — OperatorProcessor, NEAR distance filter, HasOperatorProcessor trait
 
 ### Added

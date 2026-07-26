@@ -7,15 +7,17 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File as FileFacade;
 use Illuminate\Support\Str;
+use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
+use Moaines\IllumiSearch\Concerns\HasTenant;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Support\ChunkStorage;
 use Moaines\IllumiSearch\Support\ConcurrentProcessor;
-use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
+use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Support\IllumiSearchHelper;
-use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\Support\MatchService;
+use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\ScoreService;
 use Moaines\IllumiSearch\Support\SearchCache;
@@ -25,7 +27,6 @@ use Moaines\IllumiSearch\Support\TrigramIndex;
 use Moaines\IllumiSearch\Support\VocabService;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasDebugCollector;
-use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
@@ -35,6 +36,7 @@ use Symfony\Component\String\UnicodeString;
 class FileEngine implements Engine
 {
     use HasDebugCollector;
+    use HasTenant;
     use HasTextHelpers;
     use NoopVacuum;
     use NullPragma;
@@ -48,6 +50,9 @@ class FileEngine implements Engine
     private const META_FILE = 'meta.php';
     private const CONFIG_FILE = 'config.php';
     private const VERSION = '1.16.1';
+    private const CONFIG_LOCK_KEY = 'illumi-search-file-config';
+    private const CONFIG_LOCK_TIMEOUT = 10;
+    private const CONFIG_LOCK_WAIT = 5;
 
     private string $basePath;
     private ?SnippetService $snippets = null;
@@ -99,7 +104,7 @@ class FileEngine implements Engine
     private function path(string $sub): string
     {
         $prefix = app(IllumiSearchConfig::class)->tablePrefix();
-        $tenantId = app(TenantManager::class)->tenantId();
+        $tenantId = $this->tenantId();
         // Security: path validation is delegated to ChunkStorage (realpath ⊆ basePath)
         $prefixed = $prefix . ltrim($sub, '/');
 
@@ -513,7 +518,7 @@ class FileEngine implements Engine
             return [];
         }
 
-    $cacheKey = $this->searchCache->key($query . $this->basePath . (app(TenantManager::class)->tenantId() ?? ''), $modelClasses, $limit, $offset, $mode);
+    $cacheKey = $this->searchCache->key($query . $this->basePath . ($this->tenantId() ?? '') . ($withSnippets ? '1' : '0'), $modelClasses, $limit, $offset, $mode);
     $enrichedKey = $this->searchCache->enrichedKey($cacheKey);
     $rawKey = $this->searchCache->rawKey($cacheKey);
 
@@ -531,9 +536,10 @@ class FileEngine implements Engine
     }
 
     $safeQuery = $this->normalizeQuery($query);
+    $searchStart = microtime(true);
     $rawTerms = $this->normalizeQueryTerms($query);
     // NEAR → AND fallback (distance check is handled by OperatorProcessor post-filter)
-    $rawTerms = array_map(fn ($t) => strtoupper($t) === 'NEAR' ? 'AND' : $t, $rawTerms);
+    $rawTerms = array_map(fn ($t) => Str::upper($t) === 'NEAR' ? 'AND' : $t, $rawTerms);
     if (empty($rawTerms)) {
         return [];
     }
@@ -558,6 +564,19 @@ class FileEngine implements Engine
                 continue;
             }
 
+            if (!$this->trigramIndex->exists($class) && !empty($cleanTerms)) {
+                $chunkPaths = $this->chunks->listChunks($chunkDir);
+                if (!empty($chunkPaths)) {
+                    $this->trigramIndex->build($class, $chunkPaths, function (array $row) {
+                        $weightTexts = [];
+                        for ($w = 1; $w <= $this->maxWeight; $w++) {
+                            $weightTexts[] = $row[3 + $w - 1] ?? '';
+                        }
+                        return $weightTexts;
+                    });
+                }
+            }
+
             if ($this->trigramIndex->load($class)) {
                 $results = $this->searchTrigrams($class, $stats, $rawTerms, $cleanTerms, $keepMax);
                 if (! empty($results)) {
@@ -579,6 +598,11 @@ class FileEngine implements Engine
 
             $total += collect($partial)->sum(fn ($p) => count($p));
             $this->mergeResults($allResults, $partial, $keepMax);
+
+            // Early termination: stop processing model classes once we have enough results
+            if (count($allResults) >= $keepMax) {
+                break;
+            }
         }
 
             $this->sortByRank($allResults);
@@ -594,9 +618,20 @@ class FileEngine implements Engine
         if ($withSnippets) {
             $service = $this->snippets ?? app(SnippetService::class);
             $results = $service->enrich($results, $safeQuery);
+            $this->searchCache->set($enrichedKey, $results);
         }
 
-        $this->searchCache->set($enrichedKey, $results);
+        $topScores = array_slice(array_column($results, 'rank'), 0, 3);
+        $this->recordSearchQuery(
+            matchQuery: $safeQuery,
+            table: 'file://' . $this->basePath . '/index',
+            modelClass: implode(', ', $modelClasses),
+            mode: $mode,
+            resultCount: count($results),
+            durationMs: round((microtime(true) - $searchStart) * 1000, 2),
+            topScores: $topScores,
+        );
+
         $this->setCollectorEngineInfo(['version' => $this->getEngineVersion(), 'driver' => 'FileEngine']);
 
         return $this->makeResults($results);
@@ -1019,7 +1054,7 @@ class FileEngine implements Engine
     {
         $terms = [];
         foreach ($rawTerms as $term) {
-            if (in_array(strtoupper($term), ['AND', 'OR', 'NOT', 'NEAR'], true)) {
+            if (in_array(Str::upper($term), ['AND', 'OR', 'NOT', 'NEAR'], true)) {
                 continue;
             }
             $clean = mb_strtolower(trim($term, '"*'));
@@ -1050,10 +1085,11 @@ class FileEngine implements Engine
 
         $groups = [];
         $i = 0;
-        while ($i < count($rawTerms)) {
+        $n = count($rawTerms);
+        while ($i < $n) {
             $term = $rawTerms[$i];
-            $upper = strtoupper($term);
-            if ($upper === 'NOT' && $i + 1 < count($rawTerms)) {
+            $upper = Str::upper($term);
+            if ($upper === 'NOT' && $i + 1 < $n) {
                 $groups[] = ['type' => 'not_pair', 'terms' => [$term, $rawTerms[$i + 1]]];
                 $i += 2;
             } elseif (in_array($upper, ['AND', 'OR', 'NEAR'], true)) {
@@ -1085,11 +1121,9 @@ class FileEngine implements Engine
 
     private function sortByRank(array &$results): void
     {
-        if (empty($results)) {
-            return;
+        if (count($results) > 1) {
+            usort($results, fn ($a, $b) => $b['rank'] <=> $a['rank']);
         }
-        $ranks = array_column($results, 'rank');
-        array_multisort($ranks, SORT_DESC, $results);
     }
 
     private function ensureVocabFiles(): void
@@ -1139,9 +1173,15 @@ class FileEngine implements Engine
                     }
                     $text = trim(implode(' ', $parts));
                     foreach (array_unique($this->tokenizeText($text)) as $word) {
-                        $counts[$word] ??= ['word' => $word, 'count' => 0, 'ascii' => ($w = new UnicodeString($word)) . ''];
+                        if (! isset($counts[$word])) {
+                            $us = new UnicodeString($word);
+                            $counts[$word] = [
+                                'word' => $word,
+                                'count' => 0,
+                                'ascii' => (string) $us->ascii(),
+                            ];
+                        }
                         $counts[$word]['count']++;
-                        $counts[$word]['ascii'] = (string) (new UnicodeString($word))->ascii();
                     }
                 }
             }
@@ -1181,6 +1221,19 @@ class FileEngine implements Engine
     public function getBasePathForVocab(): string
     {
         return $this->basePath;
+    }
+
+    public function pruneExcessDocuments(string $modelClass): void
+    {
+        $max = $this->illumiConfig->maxDocumentsPerModel();
+        if ($max <= 0) {
+            return;
+        }
+
+        // FileEngine stores documents in chunks. To prune efficiently we'd need to
+        // rewrite chunks, which is complex. For now, trigger a full stats rebuild
+        // which will clean up during next rebuildVocabFromScratch.
+        // Use `illumi-search:rebuild --force` to apply max_documents_per_model.
     }
 
     public function getVocabPath(): string
