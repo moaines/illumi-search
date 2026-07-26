@@ -88,7 +88,7 @@ $page   = IllumiSearch::query('laravel')->paginate(15);
 | Accent-insensitive | ✅ | `genie` → `génie` (PostgreSQL: unaccent; others: PHP) |
 | Multi-tenant isolation | ✅ | Separate indexes per tenant |
 | Authorization (Laravel Gate) | ✅ | `->withAuthorization($user)` |
-| REST API | ✅ | `GET /api/search?q=laravel` |
+| REST API | ✅ | `GET /api/illumi-search?q=laravel` (configurable via `ILLUMI_SEARCH_API_PREFIX`) |
 | Result highlighting | ✅ | `<mark>` snippets |
 | DebugBar integration | ✅ | Per-query timing & engine info |
 | Search cache | ✅ | File-based, cleared on upsert/delete |
@@ -183,7 +183,12 @@ ILLUMI_SEARCH_API_ENABLED=true
 ```
 
 ```
-GET /api/search?q=laravel
+GET /api/illumi-search?q=laravel
+
+# Custom prefix
+ILLUMI_SEARCH_API_PREFIX=api/illumi-search  (default)
+ILLUMI_SEARCH_API_PREFIX=api/search         (legacy)
+ILLUMI_SEARCH_API_PREFIX=api/custom-search
 ```
 
 | Param | Type | Default | Description |

@@ -9,6 +9,7 @@ use Moaines\IllumiSearch\Console\Commands\BenchmarkCommand;
 use Moaines\IllumiSearch\Console\Commands\CheckCommand;
 use Moaines\IllumiSearch\Console\Commands\DiscoverFilamentCommand;
 use Moaines\IllumiSearch\Console\Commands\DoctorCommand;
+use Moaines\IllumiSearch\Console\Commands\InstallCommand;
 use Moaines\IllumiSearch\Console\Commands\OptimizeCommand;
 use Moaines\IllumiSearch\Console\Commands\PruneCommand;
 use Moaines\IllumiSearch\Console\Commands\RebuildCommand;
@@ -149,6 +150,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
             SearchCommand::class,
             StatusCommand::class,
             DiscoverFilamentCommand::class,
+            InstallCommand::class,
             OptimizeCommand::class,
             PruneCommand::class,
             DoctorCommand::class,

@@ -12,7 +12,7 @@ class SearchApiController extends Controller
 {
     public function __invoke(SearchApiRequest $request, Engine $engine): JsonResponse
     {
-        $query = $request->input('q');
+        $query = $request->input('q') ?? '';
         $limit = $request->integer('limit', 10);
         $mode = $request->input('mode', 'advanced');
         $withSuggest = $request->boolean('suggest');
@@ -30,7 +30,7 @@ class SearchApiController extends Controller
 
         $suggestions = [];
 
-        if ($withSuggest && empty($results) && mb_strlen($query) > 2) {
+        if ($withSuggest && mb_strlen($query) > 2) {
             $suggestions = app(Spellcheck::class)
                 ->suggest($query, $modelClasses)
                 ->values()

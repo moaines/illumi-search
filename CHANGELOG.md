@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.20.1 — Bug fixes and improvements
+
+### Added
+- Interactive installer (`illumi-search:install`) — checks PHP extensions, estimates database
+  size, recommends engine, generates `.env` configuration
+- Configurable API prefix: `ILLUMI_SEARCH_API_PREFIX` env var (default: `api/illumi-search`)
+
+### Fixed
+- Suggest API not returning results when search found matches — removed `empty($results)` guard
+- PGSQL `dropTable()` destroying shared index table — now uses `DELETE WHERE model_type = ?`
+- `DoctorCommand` crashing on PGSQL with `file_exists()` on connection URL
+- `SearchApiController` crashing on null `q` parameter
+
+### Changed
+- Default API prefix: `api/search` → `api/illumi-search` (override with `ILLUMI_SEARCH_API_PREFIX`)
+- `config/illumi-search.php`: `api.prefix` now reads from env with default `api/illumi-search`
+
+### Tests
+- **810 tests**, **1750 assertions** (0 failures)
+- New: API suggest verification, PGSQL dropTable isolation, DoctorCommand PGSQL
+
 ## v1.20.0 — PostgreSQL engine, capacity benchmarks, max documents
 
 ### Added

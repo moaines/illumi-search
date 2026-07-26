@@ -505,9 +505,16 @@ class PgsqlEngine implements Engine
 
     public function dropTable(string $modelClass): void
     {
-        DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $this->table(self::INDEX_TABLE));
-        DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $this->table(self::CONFIG_TABLE));
-        DB::connection($this->connection)->statement('DROP TABLE IF EXISTS ' . $this->table(self::VOCAB_TABLE));
+        // PgsqlEngine shares a single index table across all models.
+        // Only DELETE rows for this model, don't DROP the shared table.
+        DB::connection($this->connection)->statement(
+            'DELETE FROM ' . $this->table(self::INDEX_TABLE) . ' WHERE model_type = ?',
+            [$modelClass]
+        );
+        DB::connection($this->connection)->statement(
+            'DELETE FROM ' . $this->table(self::CONFIG_TABLE) . " WHERE \"key\" LIKE ?",
+            [$modelClass . '%']
+        );
         $this->createdTableName = null;
     }
 

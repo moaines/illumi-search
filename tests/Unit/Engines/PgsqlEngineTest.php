@@ -232,6 +232,25 @@ class PgsqlEngineTest extends TestCase
         $this->assertGreaterThan(0, $size, 'Database size should be positive');
     }
 
+    public function test_drop_table_does_not_affect_other_models(): void
+    {
+        // Insert data for two model classes
+        $this->engine->upsert('App\Models\BenchmarkPost', 1, ['title' => 'first post', 'body' => 'content a']);
+        $this->engine->upsert('App\Models\BenchmarkPost', 2, ['title' => 'second post', 'body' => 'content b']);
+        $this->engine->upsert('App\Models\OtherModel', 1, ['title' => 'other doc', 'body' => 'other content']);
+
+        // Drop only the first model class
+        $this->engine->dropTable('App\Models\BenchmarkPost');
+
+        // The other model's data should still exist
+        $otherResults = $this->engine->search('other', ['App\Models\OtherModel'], 10);
+        $this->assertNotEmpty($otherResults, 'Other model data must survive dropTable');
+
+        // The dropped model's data should be gone
+        $postResults = $this->engine->search('post', ['App\Models\BenchmarkPost'], 10);
+        $this->assertEmpty($postResults, 'Dropped model data should be removed');
+    }
+
     public function test_snippet_enrichment_marks_terms(): void
     {
         $this->engine->upsert('App\Models\BenchmarkPost', 1, [

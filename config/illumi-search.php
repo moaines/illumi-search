@@ -122,7 +122,7 @@ return [
     'api' => [
         'enabled' => env('ILLUMI_SEARCH_API_ENABLED', false),
         'middleware' => ['api'],
-        'prefix' => 'api/search',
+        'prefix' => env('ILLUMI_SEARCH_API_PREFIX', 'api/illumi-search'),
         'rate_limit' => 30,
     ],
 

@@ -99,7 +99,7 @@ class DoctorCommand extends Command
         $driver = config('illumi-search.driver', 'sqlite');
         $dbPath = $engine->getDatabasePath();
 
-        if ($driver === 'mysql') {
+        if ($driver === 'mysql' || $driver === 'pgsql') {
             $this->line('3. Search Index');
             $stats = $engine->getIndexStats();
             $total = collect($stats)->sum('record_count');
