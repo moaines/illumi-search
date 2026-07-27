@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.21.2 — aggregate() returns Laravel Collection
+
+### Changed
+- `aggregate()` now returns `Illuminate\Support\Collection` instead of a plain array.
+  Chainable with `->sortDesc()->take(5)->toJson()`.
+
+### Tests
+- **820 tests**, **1764 assertions**, **0 failures**
+
 ## v1.21.1 — Dot-notation N+1 fix for individual saves
 
 ### Fixed

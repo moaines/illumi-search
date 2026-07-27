@@ -170,19 +170,82 @@ class QueryBuilder
         return $this;
     }
 
+    /**
+     * Filter results where column value is in the given array.
+     *
+     * @param  string  $column  Eloquent model attribute
+     * @param  array  $values  Array of allowed values
+     */
+    public function whereIn(string $column, array $values): static
+    {
+        $this->whereClauses[] = ['column' => $column, 'operator' => 'IN', 'value' => $values];
+
+        return $this;
+    }
+
+    /**
+     * Filter results where column value is NOT in the given array.
+     *
+     * @param  string  $column  Eloquent model attribute
+     * @param  array  $values  Array of excluded values
+     */
+    public function whereNotIn(string $column, array $values): static
+    {
+        $this->whereClauses[] = ['column' => $column, 'operator' => 'NOT_IN', 'value' => $values];
+
+        return $this;
+    }
+
+    /**
+     * Filter results where column value is null.
+     *
+     * @param  string  $column  Eloquent model attribute
+     */
+    public function whereNull(string $column): static
+    {
+        $this->whereClauses[] = ['column' => $column, 'operator' => 'NULL', 'value' => null];
+
+        return $this;
+    }
+
+    /**
+     * Filter results where column value is NOT null.
+     *
+     * @param  string  $column  Eloquent model attribute
+     */
+    public function whereNotNull(string $column): static
+    {
+        $this->whereClauses[] = ['column' => $column, 'operator' => 'NOT_NULL', 'value' => null];
+
+        return $this;
+    }
+
+    /**
+     * Filter results where column value is between min and max.
+     *
+     * @param  string  $column  Eloquent model attribute
+     * @param  array{int, int}  $range  [min, max] inclusive
+     */
+    public function whereBetween(string $column, array $range): static
+    {
+        $this->whereClauses[] = ['column' => $column, 'operator' => 'BETWEEN', 'value' => $range];
+
+        return $this;
+    }
+
     // ─── Aggregations (GROUP BY) ────────────────────────
 
     /**
      * Count results grouped by a model attribute.
      *
      * @param  string  $column  Eloquent model attribute to group by
-     * @return array<string, int>  e.g. ['Category A' => 42, 'Category B' => 15]
+     * @return Collection<string, int>  e.g. collect(['Category A' => 42, 'Category B' => 15])
      */
-    public function aggregate(string $column): array
+    public function aggregate(string $column): Collection
     {
         $this->aggregateColumn = $column;
 
-        return $this->computeAggregation();
+        return collect($this->computeAggregation());
     }
 
     // ─── Execute ────────────────────────────────────
@@ -379,6 +442,11 @@ class QueryBuilder
             '<'  => $actual < $expected,
             '<=' => $actual <= $expected,
             'IN' => is_array($expected) && in_array($actual, $expected, true),
+            'NOT_IN' => is_array($expected) && ! in_array($actual, $expected, true),
+            'NULL' => $actual === null,
+            'NOT_NULL' => $actual !== null,
+            'BETWEEN' => is_array($expected) && count($expected) === 2
+                && $actual >= $expected[0] && $actual <= $expected[1],
             default => $actual == $expected,
         };
     }

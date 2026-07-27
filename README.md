@@ -201,7 +201,9 @@ $results = IllumiSearch::query('php')
     ->model(Book::class)
     ->where('category', 'framework')     // equality
     ->where('price', '>', 20)            // numeric operators: >, <, >=, <=, !=
-    ->where('genre', ['php', 'js'])      // IN array
+    ->whereIn('genre', ['php', 'js'])    // IN array
+    ->whereNotNull('rating')             // not null
+    ->whereBetween('price', [10, 50])    // inclusive range
     ->get();
 ```
 
@@ -215,10 +217,10 @@ Count results grouped by a model attribute:
 $counts = IllumiSearch::query('php')
     ->model(Book::class)
     ->aggregate('category');
-// ['Framework' => 42, 'Language' => 15, 'Tool' => 8]
-```
+// collect(['Framework' => 42, 'Language' => 15, 'Tool' => 8])
 
-Returns an associative array sorted by count descending. Works on the top N results (configurable via `limit()`).
+Returns a Laravel `Collection` — you can chain `sortDesc()`, `take(5)`, `toJson()`, etc.
+Works on the top N results (configurable via `limit()`).
 
 ## Recency / popularity boost
 

@@ -98,7 +98,7 @@ class QueryBuilderAdvancedTest extends TestCase
             ->model('App\Models\BenchmarkPost')
             ->aggregate('title');
 
-        $this->assertIsArray($result, 'aggregate should return an array');
+        $this->assertInstanceOf(\Illuminate\Support\Collection::class, $result, 'aggregate should return a Collection');
     }
 
     // ─── boost() ─────────────────────────────────────
