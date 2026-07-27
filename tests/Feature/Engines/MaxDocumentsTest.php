@@ -3,6 +3,7 @@
 namespace Moaines\IllumiSearch\Tests\Feature\Engines;
 
 use Moaines\IllumiSearch\Contracts\Engine;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\PgsqlEngine;
@@ -48,7 +49,7 @@ class MaxDocumentsTest extends TestCase
         parent::tearDown();
     }
 
-    /** @dataProvider engineProvider */
+    #[DataProvider('engineProvider')]
     public function test_prunes_old_docs_beyond_limit(string $type): void
     {
         $e = $this->createEngine($type);
@@ -74,7 +75,7 @@ class MaxDocumentsTest extends TestCase
         $this->assertNotContains(2, $ids, 'Doc 2 (oldest) must be pruned');
     }
 
-    /** @dataProvider engineProvider */
+    #[DataProvider('engineProvider')]
     public function test_does_not_prune_within_limit(string $type): void
     {
         $e = $this->createEngine($type);
@@ -92,7 +93,7 @@ class MaxDocumentsTest extends TestCase
         $this->assertCount(self::MAX, $results, 'All docs within limit should remain');
     }
 
-    /** @dataProvider engineProvider */
+    #[DataProvider('engineProvider')]
     public function test_unlimited_keeps_all(string $type): void
     {
         config(['illumi-search.indexing.max_documents_per_model' => 0]);
@@ -111,7 +112,7 @@ class MaxDocumentsTest extends TestCase
         $this->assertCount(self::MAX + 2, $results, 'Unlimited (0) should keep all docs');
     }
 
-    /** @dataProvider engineProvider */
+    #[DataProvider('engineProvider')]
     public function test_prune_command_works(string $type): void
     {
         $e = $this->createEngine($type);

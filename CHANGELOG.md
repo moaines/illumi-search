@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.20.2 — Arabic stemming, deprecation fixes
+
+### Added
+- `ArabicTextProcessor` — Arabic stemming (normalization + prefix/suffix removal +
+  double reduction) for Latin and Arabic mixed text via `StemmingTextProcessor`
+- 9 Arabic processor tests (tashkeel, hamza, prefix, suffix, mixed Latin/Arabic)
+
+### Fixed
+- PHPUnit 11 deprecations: `@dataProvider` → `#[DataProvider]` in `MaxDocumentsTest`
+- Arabic text now stems to the same root as search queries (`برمجيات` → `برمج`
+  matches `برمج` → `برمج`)
+
+### Changed
+- `StemmingTextProcessor`: applies Arabic stemming before Snowball when text
+  contains Arabic characters (`\p{Arabic}`)
+
+### Tests
+- **819 tests**, **1762 assertions**, **0 failures**, **0 deprecations**
+
 ## v1.20.1 — Bug fixes and improvements
 
 ### Added

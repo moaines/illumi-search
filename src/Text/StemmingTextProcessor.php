@@ -9,12 +9,20 @@ use Wamania\Snowball\StemmerFactory;
 
 class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcessor
 {
+    private ?ArabicTextProcessor $arabicProcessor = null;
+
     /** @var array<string, Stemmer> */
     protected static array $stemmers = [];
 
     public function process(string $text, string $locale = 'en'): string
     {
         $text = parent::process($text, $locale);
+
+        // Apply Arabic stemming first (normalization + prefix/suffix removal)
+        if (preg_match('/\p{Arabic}/u', $text)) {
+            $this->arabicProcessor ??= new ArabicTextProcessor;
+            $text = $this->arabicProcessor->process($text);
+        }
 
         $language = \Locale::getPrimaryLanguage($locale);
         if ($language === null) {
