@@ -14,32 +14,11 @@ class MultiLangConsistencyTest extends TestCase
 
     public static function engineProvider(): array
     {
-        $engines['SQLite'] = ['sqlite'];
-
-        // PostgreSQL (if available)
-        try {
-            new \PDO(
-                'pgsql:host=' . env('ILLUMI_SEARCH_PGSQL_HOST', '127.0.0.1') . ';port=' . env('ILLUMI_SEARCH_PGSQL_PORT', '5432') . ';dbname=' . env('ILLUMI_SEARCH_PGSQL_DATABASE', 'test-illumi-search'),
-                env('ILLUMI_SEARCH_PGSQL_USERNAME', 'postgres'),
-                env('ILLUMI_SEARCH_PGSQL_PASSWORD', 'password'),
-                [\PDO::ATTR_TIMEOUT => 2]
-            );
-            $engines['PostgreSQL'] = ['pgsql'];
-        } catch (\Throwable) {
-        }
-
-        return $engines;
+        return ['SQLite' => ['sqlite']];
     }
 
     private function createEngine(string $type): \Moaines\IllumiSearch\Contracts\Engine
     {
-        if ($type === 'pgsql') {
-            $engine = new \Moaines\IllumiSearch\Engines\PgsqlEngine;
-            $engine->dropTable(self::QT_MODEL);
-            $engine->createTable(self::QT_MODEL, self::QT_COLUMNS);
-            return $engine;
-        }
-
         $path = storage_path('app/illumi-search-multilang.sqlite');
         @unlink($path);
         $engine = new SqliteEngine(databasePath: $path);

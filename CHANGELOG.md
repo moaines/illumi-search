@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.21.0 — Faceted search, aggregations, recency/popularity boost
+
+### Added
+- **Faceted search** (`->where(...)`) — filter results by Eloquent model attributes.
+  Supports `=`, `!=`, `>`, `<`, `>=`, `<=`, `IN`. PHP post-filter.
+- **Aggregations** (`->aggregate(...)`) — count results grouped by a model attribute.
+  Returns `['Category A' => 42, 'Category B' => 15]`.
+- **Recency/popularity boost** (`->boost(...)`) — boost newer or more popular documents
+  in the ranking. Any timestamp or numeric column works. Cumulative with multiple calls.
+- **`last_synced_at`** column added to SQLite FTS5 tables and FileEngine chunk rows —
+  homogenised across all 4 engines.
+
+### Fixed
+- `where()` parameter order — `where('price', '>', 30)` now correctly interprets
+  `>` as operator and `30` as value (was swapped).
+- Model ID key matching in `loadModels()` — string vs integer key comparison now
+  works correctly across all engines.
+
+### Changed
+- `QueryBuilder` refactored — duplicated `loadModels()` logic extracted to shared
+  private method. PHPDoc restored on all public methods.
+
+### Tests
+- **820 tests**, **1764 assertions**, **0 failures**
+- New: `QueryBuilderAdvancedTest` — boost, where, aggregate code path tests
+
 ## v1.20.3 — Arabic normalization by default, PGSQL dropTable fix
 
 ### Fixed

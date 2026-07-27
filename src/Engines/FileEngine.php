@@ -989,6 +989,8 @@ class FileEngine implements Engine
             $modelId = (int) $modelId;
         }
 
+        $syncedAt = $r[$this->chunks->colLastSyncedAt()] ?? null;
+
         return [
             'modelClass' => $class,
             'modelId' => $modelId,
@@ -998,6 +1000,7 @@ class FileEngine implements Engine
                 'model_type' => $r[$this->chunks->colModelType()] ?? '',
                 'model_id' => $r[$this->chunks->colModelId()] ?? '',
                 'search_text' => $this->chunks->docTextFromRow($r),
+                'last_synced_at' => $syncedAt,
             ],
             'totalCount' => 0,
         ];

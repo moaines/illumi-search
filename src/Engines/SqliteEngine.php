@@ -203,6 +203,7 @@ class SqliteEngine implements Engine
         }
 
         $columnDefinitions[] = 'model_id';
+        $columnDefinitions[] = 'last_synced_at UNINDEXED';
 
         $columnList = implode(', ', $columnDefinitions);
 
@@ -289,10 +290,13 @@ class SqliteEngine implements Engine
             $values[":{$col}"] = preg_match('/[^\x20-\x7E]/u', $raw) ? $processor->process($raw, 'en') : $raw;
         }
 
+        $placeholders[] = ':last_synced_at';
+
         $placeholders[] = ':model_id';
         $values[':model_id'] = (string) $modelId;
+        $values[':last_synced_at'] = date('Y-m-d H:i:s');
 
-        $columnList = implode(', ', array_merge($columns, ['model_id']));
+        $columnList = implode(', ', array_merge($columns, ['last_synced_at', 'model_id']));
         $placeholderList = implode(', ', $placeholders);
 
         $stmt = $this->db()->prepare(

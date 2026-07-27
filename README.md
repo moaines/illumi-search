@@ -4,7 +4,7 @@
 [![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Fillumi--search-28a745?logo=composer)](https://packagist.org/packages/moaines/illumi-search)
 
-**One interface, four engines.** Plug-and-play full-text search for Laravel projects small to medium (1k–500k documents).
+**One interface, four engines.** Plug-and-play full-text search for Laravel — SQLite FTS5, MySQL FULLTEXT, PostgreSQL tsvector, FileEngine. Same API, zero configuration. Fits most web applications: e-commerce, intranets, admin panels, and content sites. Your data stays on your servers — no monthly fees.
 
 ```bash
 composer require moaines/illumi-search
@@ -21,12 +21,38 @@ No external services. Add the `Searchable` trait to your model, configure an eng
 
 | Engine | `ILLUMI_SEARCH_DRIVER` | Requirements | Search speed | Best for |
 |--------|------------------------|--------------|:------------:|----------|
-| **SQLite FTS5** | `sqlite` (default) | `ext-sqlite3`, `ext-mbstring` | **741 q/sec** | Small datasets, single-server, zero-config |
-| **PostgreSQL** | `pgsql` | `ext-pdo-pgsql`, PostgreSQL 12+ | **340 q/sec** | Moderate datasets, GIN-indexed tsvector |
-| **MySQL FULLTEXT** | `mysql` | `ext-pdo-mysql`, MySQL 8.0+ | **194 q/sec** | Replicated databases, managed DB |
-| **FileEngine** | `file` | PHP 8.2+ only | **29 q/sec** | Embedded, serverless, no-DB required |
+| **SQLite FTS5** | `sqlite` (default) | `ext-sqlite3`, `ext-mbstring` | **741 q/sec** | Most Laravel projects — shops < 50k items, admin panels, intranets, content sites. Zero config. |
+| **PostgreSQL** | `pgsql` | `ext-pdo-pgsql`, PostgreSQL 12+ | **340 q/sec** | Multi-language apps, moderate-high traffic, large volumes (> 500k docs). Best perf/scale. |
+| **MySQL FULLTEXT** | `mysql` | `ext-pdo-mysql`, MySQL 8.0+ | **194 q/sec** | Existing MySQL projects, Latin content. With `innodb_ft_min_token_size=1`, handles CJK and ~500k docs. |
+| **FileEngine** | `file` | PHP 8.2+ only | **29 q/sec** | Serverless, embedded, no-DB environments. Stable up to 1M+ docs for moderate usage (admin, intranet). |
 
 All engines support the same API, operators, features — switch by changing one `.env` value. 810 tests validate cross-engine consistency.
+
+---
+
+## When to use illumi-search
+
+illumi-search fits most Laravel projects that need full-text search **without an external service**. Your data stays on your servers — no monthly fees, no third-party APIs, no network latency. Switch between engines by changing one `.env` value.
+
+### ✅ Great for
+
+| Use case | Recommended engine | Why |
+|----------|-------------------|-----|
+| **Monolithic Laravel app** (solo, startup, MVP) | SQLite FTS5 | Zero config, fast enough, no external service |
+| **Self-hosted Algolia/MeiliSearch replacement** | PostgreSQL | Keep data on your servers, same API, < 1ms warm latency |
+| **Multi-engine setup** (SQLite dev → PgSQL prod) | All | Switch by changing one `.env` value, same code, same API |
+| **CRM, ERP, intranet** (30k–500k docs) | PostgreSQL | Handles moderate traffic, scales to team usage |
+| **E-commerce catalog** | PgSQL / MySQL | Weighted search (title > description), boolean operators, suggestions |
+| **Documentation / library content** (serverless) | FileEngine | No database needed, stable p50 under 50ms up to 1M+ docs |
+| **Multi-language content** (CJK, Arabic, Cyrillic) | SQLite / PostgreSQL | CJK separation, Arabic normalization, accent-insensitive out of the box |
+
+### ⚠️ Less suited for
+
+| Situation | Why |
+|-----------|-----|
+| **High-traffic public sites** (> 100 concurrent users, > 15 q/sec sustained) | Consider ElasticSearch or MeiliSearch for dedicated search infrastructure |
+| **Distributed / multi-server search** | illumi-search is a single-server library — no native clustering or replication. |
+| **Real-time indexing at scale** (millions of writes/minute) | Indexing is synchronous by default. Queue mode helps but ElasticSearch scales better. |
 
 ---
 
@@ -71,6 +97,11 @@ $results = IllumiSearch::query('prog*')->get();
 $results = IllumiSearch::query('laravel')->models([Post::class, Comment::class])->get();
 $total  = IllumiSearch::query('laravel')->count();
 $page   = IllumiSearch::query('laravel')->paginate(15);
+
+// Filters, aggregations, recency boost
+$results = IllumiSearch::query('php')->where('price', '>', 20)->get();
+$counts  = IllumiSearch::query('php')->aggregate('category');
+$results = IllumiSearch::query('php')->boost('created_at', 0.1)->get();
 ```
 
 ---
@@ -95,6 +126,9 @@ $page   = IllumiSearch::query('laravel')->paginate(15);
 | WAL mode (SQLite) | ✅ | Concurrent reads |
 | Atomic swap rebuild (MySQL) | ✅ | Zero-downtime index rebuild |
 | FileEngine concurrent processing | ✅ | `pcntl_fork` for parallel chunk rebuild |
+| **Faceted search** | ✅ | `->where('genre', 'php')->where('price', '>', 20)` — PHP post-filter |
+| **Aggregations** | ✅ | `->aggregate('category')` → `['PHP' => 42, 'JS' => 15]` |
+| **Recency boost** | ✅ | `->boost('created_at', 0.1)` — rank newer documents higher |
 
 ---
 
@@ -157,6 +191,64 @@ ILLUMI_SEARCH_PROCESSOR=stemming
 This uses the Snowball stemmer via `wamania/php-stemmer` (17 languages). Applied at index time + query time.
 
 ---
+
+## Faceted search (filters)
+
+Post-filter search results based on Eloquent model attributes. Requires real models (not test stubs).
+
+```php
+$results = IllumiSearch::query('php')
+    ->model(Book::class)
+    ->where('category', 'framework')     // equality
+    ->where('price', '>', 20)            // numeric operators: >, <, >=, <=, !=
+    ->where('genre', ['php', 'js'])      // IN array
+    ->get();
+```
+
+Filters are applied in PHP after the index search — they work on the top N results (default 20). For large datasets, use a broader search query to capture enough candidates.
+
+## Aggregations
+
+Count results grouped by a model attribute:
+
+```php
+$counts = IllumiSearch::query('php')
+    ->model(Book::class)
+    ->aggregate('category');
+// ['Framework' => 42, 'Language' => 15, 'Tool' => 8]
+```
+
+Returns an associative array sorted by count descending. Works on the top N results (configurable via `limit()`).
+
+## Recency / popularity boost
+
+Boost newer or more popular documents higher in the ranking. Any model column (timestamp or numeric) works.
+
+```php
+$results = IllumiSearch::query('php')
+    ->model(Book::class)
+    ->boost('published_at', 0.3)          // timestamp: newer first
+    ->get();
+
+$results = IllumiSearch::query('php')
+    ->model(Post::class)
+    ->boost('created_at', 0.1)            // timestamp: +10% per day of recency
+    ->get();
+
+$results = IllumiSearch::query('php')
+    ->model(Book::class)
+    ->boost('popularity', 0.3)            // numeric: popular content first
+    ->get();
+
+// Combined boosts are cumulative
+$results = IllumiSearch::query('php')
+    ->model(Book::class)
+    ->boost('created_at', 0.1)
+    ->boost('popularity', 0.3)
+    ->get();
+```
+
+Date boost decays linearly over 30 days. A document created today gets the full boost; one 30+ days old gets none. Numeric boost (popularity, views, etc.) scales proportionally — higher values get higher boost.
 
 ## Spellcheck
 
@@ -264,13 +356,16 @@ Quality (all 4 engines):
 
 ## Limitations
 
-| Engine | What doesn't work / limitations |
-|--------|----------------------------------|
-| **SQLite FTS5** | No cloud storage (local file). Index lost on redeploy (Vapor, Kubernetes). No concurrent writes. | 
-| **PostgreSQL** | No native stemming — `simple` dictionary used. `ts_stat()` on empty table returns 0 rows. Cold start ~158ms at 100k — warmup needed after deploy (~100 queries to drop to 0.2ms). |
-| **MariaDB / MySQL** | `innodb_ft_min_token_size=3` limits CJK tokens < 3 chars. **MariaDB:** read-only, LIKE fallback activated. **MySQL 8.0+:** add `innodb_ft_min_token_size=1` to my.cnf then rebuild for native CJK FULLTEXT. |
-| **FileEngine** | 2–29 q/sec (vs 741 for SQLite). Works up to 1M+ docs but not recommended for latency-critical apps. RAM 40–225 MB. |
-| **All** | No distributed clustering. Single-server library. `()` grouping is not supported. `max_documents_per_model` limits by model_id ordering — uses `pruneExcessDocuments()` after `insertBatch()`. FileEngine prune is no-op (use `rebuild --force` to apply). |
+All limits below are given for **sustained load (> 15 concurrent queries/sec)**. In real-world usage (admin panels, intranets, team apps, moderate traffic sites), engines comfortably handle several times these volumes.
+
+| Engine | Sustained load | Real-world (team/admin) | What doesn't work / limitations |
+|--------|:--------------:|:-----------------------:|----------------------------------|
+| **SQLite FTS5** | ~50k docs | **300k+ docs** | No cloud storage (local file). Index lost on redeploy (Vapor, Kubernetes). No concurrent writes. |
+| **PostgreSQL** | ~500k docs (warm) | **> 1M docs** | No native stemming — `simple` dictionary used. Cold start ~158ms — needs warmup (~100 queries after deploy). |
+| **MariaDB** | ~50k docs | **~300k docs** | `innodb_ft_min_token_size=3` is read-only — CJK tokens < 3 chars ignored by FULLTEXT. LIKE fallback activated automatically. |
+| **MySQL 8.0+** | ~50k docs | **~500k docs** | Add `innodb_ft_min_token_size=1` to my.cnf then rebuild for native CJK FULLTEXT. Without it, same limitation as MariaDB. |
+| **FileEngine** | ~250k docs | **> 1M docs** | 2–29 q/sec. RAM 40–225 MB. p50 stable at ~47ms. Not recommended for high-traffic public sites. |
+| **All** | — | — | No distributed clustering. Single-server library. `()` grouping is not supported. |
 
 ---
 
