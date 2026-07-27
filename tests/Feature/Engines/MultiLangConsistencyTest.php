@@ -117,4 +117,15 @@ class MultiLangConsistencyTest extends TestCase
         $results = $e->search('engenharia', [self::QT_MODEL], 10);
         $this->assertNotEmpty($results, 'Portuguese search should find results');
     }
+
+    #[DataProvider('engineProvider')]
+    public function test_arabic_normalization_via_default_processor(string $type): void
+    {
+        $e = $this->createEngine($type);
+        // Insert full Arabic word; search with a shorter form that matches after normalization.
+        // With UnicodeTextProcessor (default), برمجيات → برمج via Arabic normalization.
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'برمجيات php', 'body' => 'تطوير برمجيات']);
+        $results = $e->search('برمج', [self::QT_MODEL], 10);
+        $this->assertNotEmpty($results, 'Arabic search should find documents via normalization');
+    }
 }

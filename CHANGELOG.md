@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.20.3 — Arabic normalization by default, PGSQL dropTable fix
+
+### Fixed
+- **PGSQL `dropTable()` regression** — removed `$this->createdTableName = null` that
+  caused `createTable()` to DROP the shared table, losing other models' data
+- **PGSQL IndexManager flow** — `dropTable(A)` → `createTable(A)` → `dropTable(B)` →
+  `createTable(B)` no longer destroys model A's data
+
+### Changed
+- **Arabic normalization now runs by default** in `UnicodeTextProcessor` (the default
+  processor). Previously it only ran with `ILLUMI_SEARCH_PROCESSOR=stemming`.
+  Now tashkeel removal, hamza normalization, prefix/suffix stripping, and double
+  reduction work out of the box without configuration.
+- Code moved from `StemmingTextProcessor` → `UnicodeTextProcessor`. Arabic processing
+  removed from `StemmingTextProcessor` (no duplicate calls).
+
+### Tests
+- **822 tests**, **1766 assertions**, **0 failures**
+- New: `test_drop_then_create_preserves_other_models` (PGSQL IndexManager regression)
+- New: `test_arabic_normalization_via_default_processor` (Arabic search via default processor)
+
 ## v1.20.2 — Arabic stemming, deprecation fixes
 
 ### Added

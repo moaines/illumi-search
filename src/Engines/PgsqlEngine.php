@@ -515,7 +515,6 @@ class PgsqlEngine implements Engine
             'DELETE FROM ' . $this->table(self::CONFIG_TABLE) . " WHERE \"key\" LIKE ?",
             [$modelClass . '%']
         );
-        $this->createdTableName = null;
     }
 
     public function dropIndexTable(string $input): void

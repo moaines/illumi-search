@@ -232,6 +232,25 @@ class PgsqlEngineTest extends TestCase
         $this->assertGreaterThan(0, $size, 'Database size should be positive');
     }
 
+    public function test_drop_then_create_preserves_other_models(): void
+    {
+        // Simulate IndexManager flow: dropTable(A) → createTable(A) → upsert(A)
+        // → dropTable(B) → createTable(B). Model A data must survive.
+        $this->engine->dropTable('App\Models\BenchmarkPost');
+        $this->engine->createTable('App\Models\BenchmarkPost', ['title', 'body']);
+        $this->engine->upsert('App\Models\BenchmarkPost', 1, ['title' => 'alpha data', 'body' => 'alpha content']);
+
+        // Second model in the IndexManager loop
+        $this->engine->dropTable('App\Models\OtherModel');
+        $this->engine->createTable('App\Models\OtherModel', ['title', 'body']);
+        $this->engine->upsert('App\Models\OtherModel', 1, ['title' => 'beta data', 'body' => 'beta content']);
+
+        // Model A data must still exist
+        $alphaResults = $this->engine->search('alpha', ['App\Models\BenchmarkPost'], 10);
+        $this->assertNotEmpty($alphaResults, 'Model A data must survive after processing Model B');
+        $this->assertSame(1, $alphaResults[0]->modelId, 'Model A data must be intact');
+    }
+
     public function test_drop_table_does_not_affect_other_models(): void
     {
         // Insert data for two model classes

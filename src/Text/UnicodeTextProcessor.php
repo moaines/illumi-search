@@ -9,12 +9,21 @@ class UnicodeTextProcessor implements TextProcessor
 {
     use HasTextHelpers;
 
+    private ?ArabicTextProcessor $arabicProcessor = null;
+
     public function process(string $text, string $locale = 'en'): string
     {
         $text = $this->stripHtml($text);
         $text = $this->normalize($text);
         $text = $this->removeDiacritics($text);
         $text = $this->separateCjk($text);
+
+        // Arabic normalization runs on all processors by default (tashkeel, hamza, prefixes)
+        if (preg_match('/\p{Arabic}/u', $text)) {
+            $this->arabicProcessor ??= new ArabicTextProcessor;
+            $text = $this->arabicProcessor->process($text);
+        }
+
         $text = $this->lowercase($text);
         $text = $this->filterStopwords($text, $locale);
         $text = $this->truncateLongTokens($text);
