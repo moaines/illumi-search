@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.21.1 — Dot-notation N+1 fix for individual saves
+
+### Fixed
+- **Dot-notation relations N+1** in `syncToSearch()` — relations like `comments.body`
+  are now eager-loaded via `$model->load($relations)` before document processing,
+  preventing lazy-load N+1 on individual model saves.
+- **Virtual attributes** (`getFullnameAttribute`) and **JSON columns** (`meta->locale`)
+  are silently skipped via try-catch — no crash.
+
+### Tests
+- **820 tests**, **1764 assertions**, **0 failures**
+
 ## v1.21.0 — Faceted search, aggregations, recency/popularity boost
 
 ### Added

@@ -270,6 +270,18 @@ trait Searchable
             return;
         }
 
+        // Eager-load dot-notation relations before access (e.g. comments.body)
+        // Virtual attributes (getFullnameAttribute) and JSON columns (meta->locale)
+        // are silently skipped via try-catch.
+        try {
+            $relations = (new $class)->relationsForRebuild();
+            if (! empty($relations)) {
+                $model->load($relations);
+            }
+        } catch (\Throwable) {
+            // Not a real Eloquent relation — skip
+        }
+
         $processed = static::processDocument($model, $global);
         $engine->upsert($class, $model->getKey(), $processed);
     }
