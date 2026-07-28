@@ -37,6 +37,10 @@ class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcesso
             return static::$stemmers[$language];
         }
 
+        if (! class_exists(StemmerFactory::class)) {
+            return null;
+        }
+
         try {
             $stemmer = StemmerFactory::create($language);
             static::$stemmers[$language] = $stemmer;

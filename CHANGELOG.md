@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.21.3 — CI fix, graceful stemmer fallback
+
+### Fixed
+- **CI workflow**: `composer install` + `composer require` replaced with `composer update --with`
+  to fix dependency conflicts across PHP/Laravel matrix.
+- **StemmingTextProcessor**: graceful fallback when `wamania/php-stemmer` is not installed
+  (suggest dependency). Returns text unchanged instead of crashing with "Class not found".
+- **3 stemming tests** now skip gracefully with `markTestSkipped` when stemmer is absent.
+
+### Tests
+- **820 tests**, **1764 assertions**, **0 failures**
+
 ## v1.21.2 — aggregate() returns Laravel Collection
 
 ### Changed

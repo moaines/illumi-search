@@ -107,6 +107,10 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_french_removes_verb_endings(): void
     {
+        if (! class_exists(\Wamania\Snowball\StemmerFactory::class)) {
+            $this->markTestSkipped('wamania/php-stemmer not installed (suggest dependency)');
+        }
+
         config(['illumi-search.processing.processor' => 'stemming']);
 
         $this->app->forgetInstance(TextProcessor::class);
@@ -123,6 +127,10 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_english_porter(): void
     {
+        if (! class_exists(\Wamania\Snowball\StemmerFactory::class)) {
+            $this->markTestSkipped('wamania/php-stemmer not installed (suggest dependency)');
+        }
+
         config(['illumi-search.processing.processor' => 'stemming']);
 
         $this->app->forgetInstance(TextProcessor::class);
@@ -139,6 +147,10 @@ class TextProcessorTest extends TestCase
 
     public function test_stemming_falls_back_to_unicode_for_unknown_locale(): void
     {
+        if (! class_exists(\Wamania\Snowball\StemmerFactory::class)) {
+            $this->markTestSkipped('wamania/php-stemmer not installed (suggest dependency)');
+        }
+
         config(['illumi-search.processing.processor' => 'stemming']);
 
         $this->app->forgetInstance(TextProcessor::class);
