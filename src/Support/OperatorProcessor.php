@@ -77,8 +77,8 @@ class OperatorProcessor
     /**
      * Filter results by NEAR distance.
      *
-     * @param  Result[]  $results
-     * @return Result[]
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<int, array<string, mixed>>
      */
     public function filterNearResults(array $results, ParsedOperators $ops): array
     {

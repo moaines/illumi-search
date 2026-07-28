@@ -13,6 +13,10 @@ trait HasOperatorProcessor
         $this->operatorProcessor = $processor ?? app(OperatorProcessor::class);
     }
 
+    /**
+     * @param array<int, array<string, mixed>> $results
+     * @return array<int, array<string, mixed>>
+     */
     private function nearFilterResults(array $results, string $safeQuery): array
     {
         // Skip parsing when no NEAR operator is present — saves tokenization + loop
