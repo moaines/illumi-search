@@ -1,7 +1,7 @@
 {
     "name": "moaines/illumi-search",
     "description": "Plug-and-play full-text search for Laravel — SQLite FTS5, MySQL FULLTEXT, PostgreSQL tsvector, FileEngine. Same API, zero config. BM25 ranking, CJK/RTL, boolean operators, spellcheck, multi-tenant, REST API. 810 tests, 4 engines.",
-    "version": "1.21.3",
+    "version": "1.21.4",
     "type": "library",
     "keywords": ["laravel", "fulltext-search", "search", "sqlite", "fts5", "mysql", "postgresql", "file-engine", "self-hosted"],
     "license": "MIT",
@@ -26,7 +26,7 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",
-        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
+        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0|^12.0|^13.0",
         "phpstan/phpstan": "^2.0",
         "laravel/pint": "^1.0",
         "filament/filament": "^3.0",
