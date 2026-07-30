@@ -537,9 +537,13 @@ class FileEngine implements Engine
 
     $safeQuery = $this->normalizeQuery($query);
     $searchStart = microtime(true);
-    $rawTerms = $this->normalizeQueryTerms($query);
-    // NEAR → AND fallback (distance check is handled by OperatorProcessor post-filter)
-    $rawTerms = array_map(fn ($t) => Str::upper($t) === 'NEAR' ? 'AND' : $t, $rawTerms);
+        if ($mode === 'raw') {
+            $rawTerms = preg_split('/\s+/u', $safeQuery);
+        } else {
+            $rawTerms = $this->normalizeQueryTerms($query);
+            // NEAR → AND fallback (distance check is handled by OperatorProcessor post-filter)
+            $rawTerms = array_map(fn ($t) => Str::upper($t) === 'NEAR' ? 'AND' : $t, $rawTerms);
+        }
     if (empty($rawTerms)) {
         return [];
     }
@@ -900,7 +904,7 @@ class FileEngine implements Engine
 
     public function getSupportedOperators(): array
     {
-        return ['AND', 'OR', 'NOT'];
+        return ['AND', 'OR', 'NOT', 'NEAR'];
     }
 
     public function supportsPhraseSearch(): bool

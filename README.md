@@ -4,16 +4,46 @@
 [![PHP](https://img.shields.io/badge/PHP-8.2%20to%208.5-777bb4?logo=php&logoColor=white)](https://php.net)
 [![Packagist](https://img.shields.io/badge/Packagist-moaines%2Fillumi--search-28a745?logo=composer)](https://packagist.org/packages/moaines/illumi-search)
 
-**One interface, four engines.** Plug-and-play full-text search for Laravel — SQLite FTS5, MySQL FULLTEXT, PostgreSQL tsvector, FileEngine. Same API, zero configuration. Fits most web applications: e-commerce, intranets, admin panels, and content sites. Your data stays on your servers — no monthly fees.
+**Write search code once. Switch engines by changing one `.env` value.**
+
+Laravel full-text search with your choice of backends — SQLite, MySQL, PostgreSQL, FileEngine, Meilisearch. Same API, same operators, same 820+ tests validating cross-engine consistency. Use your app's own database (SQLite, MySQL, PostgreSQL — zero extra infrastructure) or add a dedicated search server (Meilisearch — instant typo tolerance). Switch backends by changing one `.env` value — your application code never changes.
 
 ```bash
 composer require moaines/illumi-search
 
-# Then in PHP:
+# Search with the default engine (SQLite):
 $results = IllumiSearch::query('laravel')->get();        // < 1ms
+
+# Switch to PostgreSQL or Meilisearch — same code:
+# ILLUMI_SEARCH_DRIVER=pgsql
+# ILLUMI_SEARCH_DRIVER=meilisearch
 ```
 
-No external services. Add the `Searchable` trait to your model, configure an engine, search.
+---
+
+## Quick Start (30 seconds)
+
+```php
+// 1. Add the trait to your model
+class Post extends Model
+{
+    use Moaines\IllumiSearch\Searchable;
+    protected array $searchable = ['title', 'body'];
+}
+
+// 2. Build the index
+// php artisan illumi-search:rebuild
+
+// 3. Search
+use Moaines\IllumiSearch\Facades\IllumiSearch;
+
+$results = IllumiSearch::query('laravel')->get();               // simple
+$results = IllumiSearch::query('php AND laravel')->get();       // boolean
+$results = IllumiSearch::query('"design patterns"')->get();     // phrase
+$results = IllumiSearch::query('prog*')->get();                 // prefix wildcard
+$total  = IllumiSearch::query('laravel')->count();              // count only
+$page   = IllumiSearch::query('laravel')->paginate(15);         // paginated
+```
 
 ---
 
@@ -25,248 +55,260 @@ No external services. Add the `Searchable` trait to your model, configure an eng
 | **PostgreSQL** | `pgsql` | `ext-pdo-pgsql`, PostgreSQL 12+ | **340 q/sec** | Multi-language apps, moderate-high traffic, large volumes (> 500k docs). Best perf/scale. |
 | **MySQL FULLTEXT** | `mysql` | `ext-pdo-mysql`, MySQL 8.0+ | **194 q/sec** | Existing MySQL projects, Latin content. With `innodb_ft_min_token_size=1`, handles CJK and ~500k docs. |
 | **FileEngine** | `file` | PHP 8.2+ only | **29 q/sec** | Serverless, embedded, no-DB environments. Stable up to 1M+ docs for moderate usage (admin, intranet). |
+| **Meilisearch** | `meilisearch` | `meilisearch/meilisearch-php`, Meilisearch server (Docker/binary) | **247 q/sec** | Dedicated search infrastructure. Typo-tolerant, instant ranking, scales to millions of docs. Best for medium-to-large datasets. |
 
-All engines support the same API, operators, features — switch by changing one `.env` value. 810 tests validate cross-engine consistency.
+**All engines share the same API.** Switch by changing `ILLUMI_SEARCH_DRIVER` in `.env`. 820+ tests guarantee the same results regardless of engine.
 
 ---
 
 ## When to use illumi-search
 
-illumi-search fits most Laravel projects that need full-text search **without an external service**. Your data stays on your servers — no monthly fees, no third-party APIs, no network latency. Switch between engines by changing one `.env` value.
+Embedded engines (SQLite, FileEngine) need nothing — your Laravel app is your search server. Meilisearch adds dedicated search infrastructure when your dataset or traffic grows. All share the same API, so you start simple and upgrade by changing `.env`.
 
 ### ✅ Great for
 
 | Use case | Recommended engine | Why |
 |----------|-------------------|-----|
 | **Monolithic Laravel app** (solo, startup, MVP) | SQLite FTS5 | Zero config, fast enough, no external service |
-| **Self-hosted Algolia/MeiliSearch replacement** | PostgreSQL | Keep data on your servers, same API, < 1ms warm latency |
-| **Multi-engine setup** (SQLite dev → PgSQL prod) | All | Switch by changing one `.env` value, same code, same API |
+| **Self-hosted Algolia/MeiliSearch replacement** | Meilisearch / PostgreSQL | Meilisearch: native typo tolerance, instant ranking. PostgreSQL: < 1ms warm latency, no extra infrastructure. |
+| **Multi-engine setup** (SQLite dev → PgSQL/Meili prod) | All | Switch by changing one `.env` value, same code, same API |
 | **CRM, ERP, intranet** (30k–500k docs) | PostgreSQL | Handles moderate traffic, scales to team usage |
 | **E-commerce catalog** | PgSQL / MySQL | Weighted search (title > description), boolean operators, suggestions |
 | **Documentation / library content** (serverless) | FileEngine | No database needed, stable p50 under 50ms up to 1M+ docs |
 | **Multi-language content** (CJK, Arabic, Cyrillic) | SQLite / PostgreSQL | CJK separation, Arabic normalization, accent-insensitive out of the box |
+| **Typo-tolerant search** (public site, e-commerce) | Meilisearch | Native typo tolerance, instant ranking, < 5ms latency regardless of volume |
 
 ### ⚠️ Less suited for
 
 | Situation | Why |
 |-----------|-----|
-| **High-traffic public sites** (> 100 concurrent users, > 15 q/sec sustained) | Consider ElasticSearch or MeiliSearch for dedicated search infrastructure |
+| **Extremely high-traffic public sites** (> 500 concurrent users, > 200 q/sec sustained) | Consider ElasticSearch for dedicated clustered search infrastructure |
 | **Distributed / multi-server search** | illumi-search is a single-server library — no native clustering or replication. |
 | **Real-time indexing at scale** (millions of writes/minute) | Indexing is synchronous by default. Queue mode helps but ElasticSearch scales better. |
-
----
-
-## Quick Start (30 seconds)
-
-### 1. Add the trait to your model
-
-```php
-use Moaines\IllumiSearch\Searchable;
-
-class Post extends Model
-{
-    use Searchable;
-    protected array $searchable = ['title', 'body'];
-}
-```
-
-### 2. Build the index
-
-```bash
-php artisan illumi-search:rebuild
-```
-
-### 3. Search
-
-```php
-use Moaines\IllumiSearch\Facades\IllumiSearch;
-
-// Simple
-$results = IllumiSearch::query('laravel')->get();
-
-// Boolean operators
-$results = IllumiSearch::query('php AND laravel')->get();
-$results = IllumiSearch::query('php OR python')->get();
-$results = IllumiSearch::query('php NOT java')->get();
-
-// Phrase, prefix wildcard
-$results = IllumiSearch::query('"design patterns"')->get();
-$results = IllumiSearch::query('prog*')->get();
-
-// Multi-model, pagination, count
-$results = IllumiSearch::query('laravel')->models([Post::class, Comment::class])->get();
-$total  = IllumiSearch::query('laravel')->count();
-$page   = IllumiSearch::query('laravel')->paginate(15);
-
-// Filters, aggregations, recency boost
-$results = IllumiSearch::query('php')->where('price', '>', 20)->get();
-$counts  = IllumiSearch::query('php')->aggregate('category');
-$results = IllumiSearch::query('php')->boost('created_at', 0.1)->get();
-```
+| **Meilisearch-specific ranking (NEAR, column-weight BM25)** | Not natively supported by Meilisearch DSL. The benchmark validates comparable quality (NDCG@5 = 0.99) using Meilisearch's own ranking rules (`attribute`, `proximity`, `exactness`). |
 
 ---
 
 ## Features
 
-| Feature | Supported | Detail |
-|---------|:---------:|--------|
-| Boolean operators | ✅ | AND, OR, NOT, NEAR |
-| Phrase search | ✅ | `"exact phrase"` |
+All 19 features work identically across all built-in engines.
+
+| Feature | Support | Detail |
+|---------|:-------:|--------|
+| Boolean operators | ✅ | AND, OR, NOT, NEAR across all engines |
+| Phrase search | ✅ | `"exact phrase"` — native on Meilisearch, FTS syntax on others |
 | Prefix wildcard | ✅ | `prog*` matches "programming" |
-| Spellcheck | ✅ | Trigram + Levenshtein + script penalty |
+| Spellcheck | ✅ | Trigram or Levenshtein (per-engine, see advanced features) |
 | CJK / RTL | ✅ | Chinese, Arabic, Cyrillic, accents |
 | 33 stopword languages | ✅ | Arabic, English, French, Russian, Chinese... |
 | Accent-insensitive | ✅ | `genie` → `génie` (PostgreSQL: unaccent; others: PHP) |
 | Multi-tenant isolation | ✅ | Separate indexes per tenant |
 | Authorization (Laravel Gate) | ✅ | `->withAuthorization($user)` |
-| REST API | ✅ | `GET /api/illumi-search?q=laravel` (configurable via `ILLUMI_SEARCH_API_PREFIX`) |
+| REST API | ✅ | `GET /api/illumi-search?q=laravel` |
 | Result highlighting | ✅ | `<mark>` snippets |
 | DebugBar integration | ✅ | Per-query timing & engine info |
 | Search cache | ✅ | File-based, cleared on upsert/delete |
-| WAL mode (SQLite) | ✅ | Concurrent reads |
-| Atomic swap rebuild (MySQL) | ✅ | Zero-downtime index rebuild |
-| FileEngine concurrent processing | ✅ | `pcntl_fork` for parallel chunk rebuild |
-| **Faceted search** | ✅ | `->where('genre', 'php')->where('price', '>', 20)` — PHP post-filter |
-| **Aggregations** | ✅ | `->aggregate('category')` → `['PHP' => 42, 'JS' => 15]` |
-| **Recency boost** | ✅ | `->boost('created_at', 0.1)` — rank newer documents higher |
+| Faceted search | ✅ | PHP post-filter on top N results |
+| Aggregations | ✅ | `->aggregate('category')` |
+| Recency / popularity boost | ✅ | `->boost('created_at', 0.1)` |
+| Filament integration | ✅ | Spotlight search, Search Status page |
 
 ---
 
-## Search Modes
+## Performance
+
+| Metric | SQLite | FileEngine | MySQL | PostgreSQL | Meilisearch |
+|--------|:------:|:----------:|:-----:|:----------:|:-----------:|
+| **Search (exact)** | 741 q/s | 29 q/s | 194 q/s | 340 q/s | 218 q/s |
+| **Latency p50** | 0.98 ms | 34 ms | 5 ms | 2.5 ms | 4.4 ms |
+| **Latency p95** | 2.55 ms | 37 ms | 9.9 ms | 9.9 ms | 5.8 ms |
+| **NDCG@5** (ranking) | 0.85 | 0.89 | 0.85 | 0.85 | **0.99** |
+| **Upsert speed** | 1939 d/s | 17009 d/s | 5200 d/s | 7000 d/s | ~65 d/s |
+
+**Detailed capacity report:** [BENCHMARK_CAPACITY.md](BENCHMARK_CAPACITY.md) — 1k to 1M+ docs per engine, cold vs warm PostgreSQL, CJK impact on MySQL.
+
+**Key trade-off:** Meilisearch offers the best ranking (NDCG@5 = 0.99) and volume-independent latency, but upsert/rebuild is slower due to HTTP round-trips. SQLite and PostgreSQL are fastest for write-heavy workloads.
+
+---
+
+## Configuration
+
+Full reference: `config/illumi-search.php`
+
+### Driver selection
+
+```env
+ILLUMI_SEARCH_DRIVER=sqlite        # default — zero config, works immediately
+ILLUMI_SEARCH_DRIVER=pgsql         # PostgreSQL 12+ with tsvector
+ILLUMI_SEARCH_DRIVER=mysql         # MySQL 8.0+ with FULLTEXT
+ILLUMI_SEARCH_DRIVER=file          # no database needed
+ILLUMI_SEARCH_DRIVER=meilisearch   # dedicated search server
+```
+
+### Shared settings
+
+| Env | Config key | Default | Description |
+|-----|-----------|---------|-------------|
+| `ILLUMI_SEARCH_MODE` | `processing.mode` | `advanced` | `basic`, `advanced`, `raw` |
+| `ILLUMI_SEARCH_PROCESSOR` | `processing.processor` | `unicode` | `unicode`, `stemming` |
+| `ILLUMI_SEARCH_INDEXING` | `indexing.mode` | `queue` | `queue`, `sync`, `manual` |
+| `ILLUMI_SEARCH_TENANCY` | `tenancy.enabled` | `false` | Multi-tenant isolation |
+| `ILLUMI_SEARCH_API_ENABLED` | `api.enabled` | `false` | REST API |
+| `ILLUMI_SEARCH_AUTHORIZATION` | `authorization.enabled` | `false` | Laravel Gate |
+
+### Per-engine settings
+
+| Engine | Env | Config key | Default |
+|--------|-----|-----------|---------|
+| SQLite | `ILLUMI_SEARCH_DATABASE_PATH` | `engines.sqlite.database_path` | `app/search/search-index.sqlite` |
+| MySQL | `ILLUMI_SEARCH_MYSQL_HOST` | `engines.mysql.connection.host` | `127.0.0.1` |
+| MySQL | `ILLUMI_SEARCH_MYSQL_DATABASE` | `engines.mysql.connection.database` | `illumi_search` |
+| PgSQL | `ILLUMI_SEARCH_PGSQL_HOST` | `engines.pgsql.connection.host` | `127.0.0.1` |
+| PgSQL | `ILLUMI_SEARCH_PGSQL_DATABASE` | `engines.pgsql.connection.database` | `illumi_search` |
+| FileEngine | `ILLUMI_SEARCH_FILE_BASE_PATH` | `engines.file.base_path` | `storage/app/illumi-search-file-engine` |
+| Meilisearch | `ILLUMI_SEARCH_MEILISEARCH_HOST` | `engines.meilisearch.host` | `http://localhost:7700` |
+| Meilisearch | `ILLUMI_SEARCH_MEILISEARCH_KEY` | `engines.meilisearch.api_key` | `''` |
+
+---
+
+## Query language
+
+The same query syntax works across all engines.
+
+### Modes
 
 | Mode | Description | Example |
 |------|-------------|---------|
 | `advanced` | Boolean operators + phrases + wildcards | `php AND "laravel framework"` |
-| `basic` | Simple keywords, quoted = exact, all terms required | `php laravel` |
-| `raw` | No preprocessing, engine-native syntax | `php* AND "laravel*"` |
+| `basic` | Keywords, quoted = exact, all terms required | `php laravel` |
+| `raw` | Passthrough — engine-native syntax | `php* AND "laravel*"` |
 
----
+### Operators
 
-## Operators
-
-| Syntax | Example | Description |
-|--------|---------|-------------|
-| Single term | `laravel` | Documents containing "laravel" |
-| AND | `php AND laravel` | Both terms required |
-| OR | `php OR python` | At least one term |
-| NOT | `php NOT java` | Exclude |
-| Phrase | `"software engineering"` | Exact consecutive words |
-| Prefix | `prog*` | Prefix matching |
-| NEAR | `php NEAR framework` | AND + distance filter (default 5 tokens) |
-
-> `()` grouping is not supported. Use simple operator combinations.
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `term` | Documents containing the term | `laravel` |
+| `AND` | Both terms required | `php AND laravel` |
+| `OR` | At least one term | `php OR python` |
+| `NOT` | Exclude | `php NOT java` |
+| `"phrase"` | Exact consecutive words | `"software engineering"` |
+| `prefix*` | Prefix matching | `prog*` |
+| `NEAR` | AND + distance filter (default 5 tokens) | `php NEAR framework` |
 
 ---
 
 ## Multi-language
 
-Out of the box, all engines handle:
+All engines handle multilingual content through the same `UnicodeTextProcessor` pipeline at index time:
 
-| Language Family | Example | How |
-|----------------|---------|-----|
-| **Latin (accented)** | `développement`, `desarrollo` | Unicode normalization + remove diacritics |
-| **CJK** | `软件` (Chinese) | CJK character separation with spaces |
-| **RTL** | `برمجيات` (Arabic) | PHP TextProcessor normalizes before indexing |
-| **Cyrillic** | `проект` (Russian) | Unicode-aware tokenization |
+| Language | Example | Processing |
+|----------|---------|------------|
+| Latin (accented) | `développement`, `desarrollo` | Unicode normalization + diacritics removal |
+| CJK | `软件` (Chinese) | Character separation with spaces |
+| RTL | `برمجيات` (Arabic) | Arabic normalization |
+| Cyrillic | `проект` (Russian) | Unicode-aware tokenization |
 
-The `UnicodeTextProcessor` pipeline normalizes all text **at index time** — the same pipeline runs regardless of engine. This guarantees cross-engine consistency.
+**Processing pipeline** (applied at index time, identical across engines):
 
-| Step | Effect | Example |
-|------|--------|---------|
-| `strip_tags()` | Remove HTML | `<p>Hello</p>` → `Hello` |
-| Unicode normalization | NFC | `ñ` → `n` + combining |
-| Remove diacritics | Strip accents | `café` → `cafe` |
-| CJK separation | Space between chars | `开发` → `开 发` |
-| `mb_strtolower()` | Lowercase | `Hello` → `hello` |
-| Stopword filter | Remove common words | `the php` → `php` (33 languages) |
-| Token truncation | Limit length | URLs truncated to 32 chars |
-| Clean whitespace | Collapse spaces | `a    b` → `a b` |
+`strip_tags()` → NFC normalization → diacritics removal → CJK separation → lowercase → stopword filter (33 languages) → token truncation → whitespace cleanup
 
-For stemming, use the `StemmingTextProcessor`:
-
-```env
-ILLUMI_SEARCH_PROCESSOR=stemming
-```
-
-This uses the Snowball stemmer via `wamania/php-stemmer` (17 languages). Applied at index time + query time.
+For stemming, set `ILLUMI_SEARCH_PROCESSOR=stemming` (requires `wamania/php-stemmer`, supports 17 languages via Snowball).
 
 ---
 
-## Faceted search (filters)
+## Advanced features
 
-Post-filter search results based on Eloquent model attributes. Requires real models (not test stubs).
+### Faceted search
 
 ```php
-$results = IllumiSearch::query('php')
+IllumiSearch::query('php')
     ->model(Book::class)
-    ->where('category', 'framework')     // equality
-    ->where('price', '>', 20)            // numeric operators: >, <, >=, <=, !=
-    ->whereIn('genre', ['php', 'js'])    // IN array
-    ->whereNotNull('rating')             // not null
-    ->whereBetween('price', [10, 50])    // inclusive range
+    ->where('category', 'framework')
+    ->where('price', '>', 20)
+    ->whereIn('genre', ['php', 'js'])
+    ->whereNotNull('rating')
+    ->whereBetween('price', [10, 50])
     ->get();
 ```
 
-Filters are applied in PHP after the index search — they work on the top N results (default 20). For large datasets, use a broader search query to capture enough candidates.
-
-## Aggregations
-
-Count results grouped by a model attribute:
+### Aggregations
 
 ```php
 $counts = IllumiSearch::query('php')
     ->model(Book::class)
     ->aggregate('category');
 // collect(['Framework' => 42, 'Language' => 15, 'Tool' => 8])
+```
 
-Returns a Laravel `Collection` — you can chain `sortDesc()`, `take(5)`, `toJson()`, etc.
-Works on the top N results (configurable via `limit()`).
-
-## Recency / popularity boost
-
-Boost newer or more popular documents higher in the ranking. Any model column (timestamp or numeric) works.
+### Recency / popularity boost
 
 ```php
-$results = IllumiSearch::query('php')
+IllumiSearch::query('php')
     ->model(Book::class)
-    ->boost('published_at', 0.3)          // timestamp: newer first
-    ->get();
-
-$results = IllumiSearch::query('php')
-    ->model(Post::class)
-    ->boost('created_at', 0.1)            // timestamp: +10% per day of recency
-    ->get();
-
-$results = IllumiSearch::query('php')
-    ->model(Book::class)
-    ->boost('popularity', 0.3)            // numeric: popular content first
-    ->get();
-
-// Combined boosts are cumulative
-$results = IllumiSearch::query('php')
-    ->model(Book::class)
-    ->boost('created_at', 0.1)
-    ->boost('popularity', 0.3)
+    ->boost('created_at', 0.1)    // newer first (decays over 30 days)
+    ->boost('popularity', 0.3)    // higher values = higher boost
     ->get();
 ```
 
-Date boost decays linearly over 30 days. A document created today gets the full boost; one 30+ days old gets none. Numeric boost (popularity, views, etc.) scales proportionally — higher values get higher boost.
-
-## Spellcheck
+### Spellcheck
 
 ```php
-$suggestions = IllumiSearch::didYouMean('programing');
-// ['programming']
-
-$suggestions = IllumiSearch::didYouMean('lavarel');
-// ['laravel']
+IllumiSearch::didYouMean('programing');   // ['programming']
+IllumiSearch::didYouMean('lavarel');       // ['laravel']
 ```
 
-Two-phase approach:
-1. **Trigram matching** — shared trigrams between query and vocabulary words
-2. **Prefix Levenshtein** — 2-char prefix filter + edit distance
+Each engine uses a different approach:
 
-Script-aware: Latin queries give Latin suggestions, Arabic → Arabic, etc. Script mismatch adds +3 to distance.
+| Engine | Trigrams | Levenshtein | Script penalty |
+|--------|:--------:|:-----------:|:--------------:|
+| SQLite | — | ✅ | — |
+| MySQL | — | ✅ | ✅ |
+| PostgreSQL | ✅ | ✅ | — |
+| FileEngine | ✅ | ✅ | — |
+| Meilisearch | — | ✅ | — |
+
+All engines: Latin → Latin suggestions, Arabic → Arabic, etc. Script mismatch adds +3 to Levenshtein distance.
+
+---
+
+## Multi-tenant isolation
+
+```php
+app(TenantManager::class)->setResolver(fn () => tenant()->id);
+```
+
+| Engine | Isolation strategy |
+|--------|--------------------|
+| SQLite | Separate database file per tenant |
+| MySQL / PgSQL | Tables prefixed with `{tenant_id}_` |
+| FileEngine | Separate directory per tenant |
+| Meilisearch | Separate index per tenant |
+
+---
+
+## Model setup
+
+```php
+class Post extends Model
+{
+    use Moaines\IllumiSearch\Searchable;
+
+    // Simple (all columns weight = 1)
+    protected array $searchable = ['title', 'body'];
+
+    // Weighted (BM25 column boosting)
+    protected array $searchable = [
+        'title' => ['weight' => 3],
+        'body'  => ['weight' => 1],
+    ];
+
+    // Dot-notation for relations
+    protected array $searchable = [
+        'author.name' => ['weight' => 3],
+        'comments.body' => ['weight' => 1],
+    ];
+}
+```
 
 ---
 
@@ -276,26 +318,10 @@ Script-aware: Latin queries give Latin suggestions, Arabic → Arabic, etc. Scri
 ILLUMI_SEARCH_API_ENABLED=true
 ```
 
-```
+```http
 GET /api/illumi-search?q=laravel
+Content-Type: application/json
 
-# Custom prefix
-ILLUMI_SEARCH_API_PREFIX=api/illumi-search  (default)
-ILLUMI_SEARCH_API_PREFIX=api/search         (legacy)
-ILLUMI_SEARCH_API_PREFIX=api/custom-search
-```
-
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `q` | string | — | Search query (max 200 chars) |
-| `models` | string/array | All indexed | Comma-separated or array |
-| `limit` | int | 10 | Max results (max 50) |
-| `mode` | string | `advanced` | `basic`, `advanced`, `raw` |
-| `suggest` | bool | `false` | Include spellcheck suggestions |
-
-Response:
-
-```json
 {
   "results": [
     {
@@ -308,13 +334,23 @@ Response:
     }
   ],
   "total": 1,
-  "suggestions": []
+  "suggestions": ["laravell", "lavarel"]
 }
 ```
 
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `q` | string | — | Search query (max 200 chars) |
+| `models` | string,array | all indexed | Comma-separated or array |
+| `limit` | int | 10 | Max results (max 50) |
+| `mode` | string | `advanced` | `basic`, `advanced`, `raw` |
+| `suggest` | bool | `false` | Include spellcheck suggestions |
+
+Prefix configurable via `ILLUMI_SEARCH_API_PREFIX` (default: `api/illumi-search`).
+
 ---
 
-## Artisan Commands
+## Artisan commands
 
 | Command | Description |
 |---------|-------------|
@@ -324,138 +360,39 @@ Response:
 | `illumi-search:status` | Index stats per model, size, engine version |
 | `illumi-search:doctor` | Environment diagnostics |
 | `illumi-search:check` | Schema drift detection |
+| `illumi-search:benchmark` | Performance + quality benchmark |
 | `illumi-search:optimize` | VACUUM / OPTIMIZE TABLE |
-| `illumi-search:benchmark` | Performance + quality benchmark (`--all-engines`) |
-| `illumi-search:discover-filament` | Analyze Filament Resources |
+| `illumi-search:make-engine` | Generate custom engine stub |
+| `illumi-search:discover-filament` | Analyze Filament Resources for searchable models |
 
 ---
 
-## Performance (1000 docs benchmark)
+## Custom engines
 
-**Full capacity report (1k to 1M+ docs per engine):** See [BENCHMARK_CAPACITY.md](BENCHMARK_CAPACITY.md) — cold vs warm PostgreSQL, CJK impact on MySQL/MariaDB, FileEngine stable latency, and per-engine latency curves.
+Add support for any search service (Algolia, Typesense, Elasticsearch, etc.):
 
-| Metric | SQLite | FileEngine | MySQL | PostgreSQL |
-|--------|:------:|:----------:|:-----:|:----------:|
-| **Search (exact)** [q/sec] | **741** | 29 | 194 | 340 |
-| **Search (nonexistent)** [q/sec] | 1784 | 7 | 309 | **430** |
-| **Suggest** [q/sec] | **192** | 20 | 17 | 31 |
-| **Latency p50** [ms] | **0.98** | 34 | 5 | 2.5 |
-| **Latency p95** [ms] | **2.55** | 37 | 9.9 | 9.9 |
-| **Latency p99** [ms] | **6.27** | 53 | 12.4 | 10.1 |
-
-Quality (all 4 engines):
-
-| Metric | SQLite | FileEngine | MySQL | PostgreSQL |
-|--------|:------:|:----------:|:-----:|:----------:|
-| Fuzzy tolerance | ✓ | ✓ | ✓ | ✓ |
-| Suggest Prec@5 | 1.0 | 1.0 | 1.0 | 1.0 |
-| Suggest coverage | 1.0 | 1.0 | 1.0 | 1.0 |
-| Accent insensitivity | ✓ | ✓ | ✓ | ✓ |
-| Phrase exacte | ✓ | ✓ | ✓ | ✓ |
-| Prefix wildcard | ✓ | ✓ | ✓ | ✓ |
-
----
-
-## Limitations
-
-All limits below are given for **sustained load (> 15 concurrent queries/sec)**. In real-world usage (admin panels, intranets, team apps, moderate traffic sites), engines comfortably handle several times these volumes.
-
-| Engine | Sustained load | Real-world (team/admin) | What doesn't work / limitations |
-|--------|:--------------:|:-----------------------:|----------------------------------|
-| **SQLite FTS5** | ~50k docs | **300k+ docs** | No cloud storage (local file). Index lost on redeploy (Vapor, Kubernetes). No concurrent writes. |
-| **PostgreSQL** | ~500k docs (warm) | **> 1M docs** | No native stemming — `simple` dictionary used. Cold start ~158ms — needs warmup (~100 queries after deploy). |
-| **MariaDB** | ~50k docs | **~300k docs** | `innodb_ft_min_token_size=3` is read-only — CJK tokens < 3 chars ignored by FULLTEXT. LIKE fallback activated automatically. |
-| **MySQL 8.0+** | ~50k docs | **~500k docs** | Add `innodb_ft_min_token_size=1` to my.cnf then rebuild for native CJK FULLTEXT. Without it, same limitation as MariaDB. |
-| **FileEngine** | ~250k docs | **> 1M docs** | 2–29 q/sec. RAM 40–225 MB. p50 stable at ~47ms. Not recommended for high-traffic public sites. |
-| **All** | — | — | No distributed clustering. Single-server library. `()` grouping is not supported. |
-
----
-
-## Configuration
-
-Full reference: `config/illumi-search.php`
-
-### Engine selection
-
-```env
-ILLUMI_SEARCH_DRIVER=sqlite        # default
-ILLUMI_SEARCH_DRIVER=mysql
-ILLUMI_SEARCH_DRIVER=file
-ILLUMI_SEARCH_DRIVER=pgsql
+```bash
+php artisan illumi-search:make-engine Algolia                     # 5 basic tests
+php artisan illumi-search:make-engine Algolia --quality           # 60+ quality tests
+php artisan illumi-search:make-engine Algolia --integration       # 5 CRUD + table tests
+php artisan illumi-search:make-engine Algolia --all               # both (65+ tests)
+php artisan illumi-search:make-engine Algolia --minimal           # no test file
 ```
 
-### Shared
+Creates `app/Engines/Algolia.php` with all 31 methods of the `Engine` contract. 12 methods are pre-filled with defaults (config persistence, index mapping, operator support); 19 contain `// TODO` with example code from the built-in `MeilisearchEngine`.
 
-| Env | Config key | Default | Description |
-|-----|-----------|---------|-------------|
-| `ILLUMI_SEARCH_MODE` | `processing.mode` | `advanced` | `basic`, `advanced`, `raw` |
-| `ILLUMI_SEARCH_PROCESSOR` | `processing.processor` | `unicode` | `unicode`, `stemming` |
-| `ILLUMI_SEARCH_INDEXING` | `indexing.mode` | `queue` | `queue`, `sync`, `manual` |
-| `ILLUMI_SEARCH_TENANCY` | `tenancy.enabled` | `false` | Multi-tenant isolation |
-| `ILLUMI_SEARCH_API_ENABLED` | `api.enabled` | `false` | REST API |
-| `ILLUMI_SEARCH_AUTHORIZATION` | `authorization.enabled` | `false` | Laravel Gate |
-
-### Per-engine
-
-| Engine | Env | Config key | Default |
-|--------|-----|-----------|---------|
-| SQLite | `ILLUMI_SEARCH_DATABASE_PATH` | `engines.sqlite.database_path` | `app/search/search-index.sqlite` |
-| MySQL | `ILLUMI_SEARCH_MYSQL_HOST` | `engines.mysql.connection.host` | `127.0.0.1` |
-| MySQL | `ILLUMI_SEARCH_MYSQL_DATABASE` | `engines.mysql.connection.database` | `illumi_search` |
-| PgSQL | `ILLUMI_SEARCH_PGSQL_HOST` | `engines.pgsql.connection.host` | `127.0.0.1` |
-| PgSQL | `ILLUMI_SEARCH_PGSQL_DATABASE` | `engines.pgsql.connection.database` | `illumi_search` |
-| FileEngine | `ILLUMI_SEARCH_FILE_BASE_PATH` | `engines.file.base_path` | `storage/app/illumi-search-file-engine` |
-
----
-
-## Multi-tenant Isolation
+Register in `AppServiceProvider`:
 
 ```php
-app(TenantManager::class)->setResolver(fn () => tenant()->id);
+IllumiSearchServiceProvider::extend('algolia', function ($app) {
+    return new \App\Engines\Algolia(
+        host: config('illumi-search.engines.algolia.host'),
+        apiKey: config('illumi-search.engines.algolia.api_key'),
+    );
+});
 ```
 
-| Engine | Isolation |
-|--------|-----------|
-| SQLite | Separate database file per tenant |
-| MySQL / PgSQL | Separate tables with `{tenant_id}_` prefix |
-| FileEngine | Separate directory per tenant |
-
-Cache keys include tenant ID — no cross-tenant cache leaks.
-
----
-
-## Model Setup
-
-```php
-class Post extends Model
-{
-    use Searchable;
-
-    // Simple — all weight = 1
-    protected array $searchable = ['title', 'body'];
-
-    // Weighted — BM25 column boosting
-    protected array $searchable = [
-        'title' => ['weight' => 3],
-        'body'  => ['weight' => 1],
-    ];
-
-    // Dot notation for relations
-    protected array $searchable = [
-        'author.name' => ['weight' => 3],
-        'comments.body' => ['weight' => 1],
-    ];
-
-    // Custom document (return what the engine indexes)
-    public function toSearchDocument(): array
-    {
-        return [
-            'title' => $this->title,
-            'body'  => strip_tags($this->body),
-        ];
-    }
-}
-```
+**Reference implementation:** `src/Engines/MeilisearchEngine.php` — complete, production-ready API-based engine with full test coverage.
 
 ---
 
@@ -463,53 +400,56 @@ class Post extends Model
 
 ```bash
 phpunit                                      # 810 tests, 1749 assertions
-phpunit --filter="SqliteQualityTest"         # Quality suite — SQLite
-phpunit --filter="PgsqlQualityTest"          # Quality suite — PostgreSQL
-phpunit --filter="CrossEngineConsistency"    # Same queries, same results across 4 engines
+phpunit --filter="CrossEngineConsistency"    # same queries, same results — all engines
+phpunit --filter="SqliteQualityTest"         # Quality suite per engine
 phpunit --filter="MultiLangConsistency"      # 7 languages, CJK, RTL, Cyrillic
-phpunit --filter="SearchApiTest"             # REST API
 php artisan illumi-search:benchmark          # Performance + quality
 
-PHPStan level 6:
-composer analyse
+composer analyse                             # PHPStan level 6
 ```
 
-### Test suite overview
+### Test suite
 
-| Suite | Tests | What it covers |
-|-------|:-----:|----------------|
-| `QualityTestSuite` | 38 | Operators, modes, suggest, ranking, edge cases (reused by all engines) |
+| Suite | Tests | Coverage |
+|-------|:-----:|----------|
+| `QualityTestSuite` | 38 | Operators, modes, suggest, ranking, edge cases (reused by all built-in engines) |
 | `AbstractEngineTest` | 34 | Cross-engine ranking, snippets, pagination, modes |
 | `MultiLangConsistencyTest` | 14 | CJK, Arabic, Cyrillic, accents, Spanish, Portuguese |
-| `CrossEngineConsistencyTest` | 6 | Same query → same documents across 4 engines |
-| `SearchApiTest` | 7 | REST API endpoint, validation, suggest |
-| `AuthorizationTenancyTest` | 3 | Tenant config, resolver, disabled |
-| `IndexManagerRebuildTest` | 5 | Rebuild, idempotence, drop+recreate |
-| Engine-specific integration | ~60 | Upsert, cache, concurrent, memory, `vacuum()` |
-| Unit tests | ~600 | Methods, traits, processors, stopwords, exceptions |
+| `CrossEngineConsistencyTest` | 6 | Same query → same results across all engines |
+| Engine-specific integration | ~60 | Upsert, cache, concurrent, memory |
+| Unit tests | ~600 | Methods, traits, processors, stopwords |
 
 ---
 
-## Package Structure
+## Limitations
+
+All limits below are for **sustained load (> 15 concurrent queries/sec)**. In real-world usage (admin panels, intranets, team apps), engines handle several times these volumes.
+
+| Engine | Sustained load | Real-world (team/admin) | Key limitations |
+|--------|:--------------:|:-----------------------:|-----------------|
+| **SQLite FTS5** | ~50k docs | 300k+ docs | Local file only — index lost on cloud redeploy (Vapor, Kubernetes). No concurrent writes. |
+| **PostgreSQL** | ~500k (warm) | > 1M docs | Cold start ~158ms — needs warmup (~100 queries). No native stemming. |
+| **MySQL 8.0+** | ~50k docs | ~500k docs | `innodb_ft_min_token_size=1` required for CJK. MariaDB doesn't support this. |
+| **FileEngine** | ~250k docs | > 1M docs | 2–29 q/sec. RAM 40–225 MB. Not for high-traffic public sites. |
+| **Meilisearch** | Unlimited | Unlimited | Requires server (Docker/binary). Rebuild ~65 d/s (HTTP bound). Write-heavy workloads limited by HTTP round-trips. |
+| **All** | — | — | No distributed clustering. `()` grouping not supported. |
+
+---
+
+## Package structure
 
 ```
 illumi-search/
 ├── src/
-│   ├── Engines/
-│   │   ├── SqliteEngine.php       # FTS5 — 741 q/sec
-│   │   ├── PgsqlEngine.php        # tsvector + GIN + CTE
-│   │   ├── MySqlEngine.php        # FULLTEXT + LIKE fallback
-│   │   └── FileEngine.php         # Flat-file + trigram index
-│   ├── Concerns/
-│   │   ├── HasTenant.php          # Tenant ID resolution
-│   │   └── HasWeightedColumns.php # Shared column helpers
-│   ├── Text/                      # 4 traits, 3 processors
-│   ├── Support/                   # 15+ services
-│   ├── Console/Commands/          # 9 artisan commands
-│   └── Http/                      # REST API controller
-├── tests/                         # 803 tests
-├── config/illumi-search.php       # Per-engine configuration
-└── resources/stopwords/           # 33 stopword lists
+│   ├── Engines/            # built-in + custom
+│   ├── Concerns/           # Shared traits (tenancy, weights, rebuild)
+│   ├── Text/               # Text processing pipeline (4 traits, 3 processors)
+│   ├── Support/            # 15+ services (SnippetService, IndexManager, benchmarks)
+│   ├── Console/Commands/   # 10 artisan commands
+│   └── Http/               # REST API controller
+├── tests/                  # 810+ tests
+├── config/                 # Per-engine configuration
+└── resources/stopwords/    # 33 languages
 ```
 
 ---
@@ -517,7 +457,3 @@ illumi-search/
 ## License
 
 MIT
-
----
-
-*illumi-search is a independent Laravel package. Not affiliated with Laravel, MySQL, PostgreSQL, or SQLite.*

@@ -1,0 +1,103 @@
+<?php
+
+namespace DummyTestNamespace;
+
+use DummyNamespace\DummyClass;
+use Tests\TestCase;
+
+class DummyClassTest extends TestCase
+{
+    private DummyClass $engine;
+
+    private const TEST_MODEL = 'App\Models\BenchmarkPost';
+    private const TEST_COLUMNS = ['title', 'body'];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // TODO: configure your engine connection
+        // $this->engine = new DummyClass(
+        //     host: 'http://localhost:7700',
+        //     apiKey: 'masterKey',
+        // );
+        //
+        // if ($this->engine) {
+        //     $this->engine->createTable(self::TEST_MODEL, self::TEST_COLUMNS);
+        // }
+    }
+
+    /** @test */
+    public function engine_implements_the_contract(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not configured — implement setUp()');
+            return;
+        }
+        $this->assertInstanceOf(
+            \Moaines\IllumiSearch\Contracts\Engine::class,
+            $this->engine,
+        );
+    }
+
+    /** @test */
+    public function can_upsert_and_search(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not configured — implement setUp()');
+            return;
+        }
+        // TODO: test a basic upsert + search cycle
+        // $this->engine->createTable(self::TEST_MODEL, self::TEST_COLUMNS);
+        // $this->engine->upsert(self::TEST_MODEL, 1, ['title' => 'hello world', 'body' => 'test content']);
+        // $results = $this->engine->search('hello', [self::TEST_MODEL], 10);
+        // $this->assertCount(1, $results);
+        // $this->assertEquals('hello world', $results[0]->title);
+
+        $this->markTestIncomplete('Implement when your engine is connected');
+    }
+
+    /** @test */
+    public function can_delete_documents(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not configured — implement setUp()');
+            return;
+        }
+        $this->markTestIncomplete('Implement when your engine is connected');
+    }
+
+    /** @test */
+    public function returns_engine_status(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not configured — implement setUp()');
+            return;
+        }
+        $status = $this->engine->getEngineStatus();
+        $this->assertArrayHasKey('driver', $status);
+        $this->assertArrayHasKey('version', $status);
+    }
+
+    /** @test */
+    public function config_persistence_works(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not configured — implement setUp()');
+            return;
+        }
+        $this->engine->setConfig('test_key', 'test_value');
+        $this->assertEquals('test_value', $this->engine->getConfig('test_key'));
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->engine !== null) {
+            try {
+                $this->engine->dropTable(self::TEST_MODEL);
+            } catch (\Exception) {
+            }
+        }
+        parent::tearDown();
+    }
+}

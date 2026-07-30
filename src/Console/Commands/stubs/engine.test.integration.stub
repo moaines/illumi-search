@@ -1,0 +1,93 @@
+<?php
+
+namespace DummyTestNamespace;
+
+use PHPUnit\Framework\Attributes\Test;
+use DummyNamespace\DummyClass;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Tests\TestCase;
+
+class DummyClassIntegrationTest extends TestCase
+{
+    private ?DummyClass $engine = null;
+
+    protected string $testModelClass = 'App\Models\Post';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // TODO: configure your engine connection
+        // $this->engine = new DummyClass(
+        //     host: 'http://localhost:7700',
+        //     apiKey: 'masterKey',
+        // );
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->engine !== null) {
+            try {
+                $this->engine->dropTable($this->testModelClass);
+            } catch (\Exception) {
+            }
+        }
+        parent::tearDown();
+    }
+
+    /** @test */
+    public function engine_implements_the_contract(): void
+    {
+        $this->assertInstanceOf(
+            \Moaines\IllumiSearch\Contracts\Engine::class,
+            $this->engine,
+        );
+    }
+
+    /** @test */
+    public function can_upsert_and_search(): void
+    {
+        // TODO: implement
+        // $this->engine->createTable($this->testModelClass, ['title', 'body']);
+        // $this->engine->upsert($this->testModelClass, 1, ['title' => 'hello world', 'body' => 'test']);
+        // $results = $this->engine->search('hello', [$this->testModelClass], 10);
+        // $this->assertCount(1, $results);
+
+        $this->markTestIncomplete('Implement when your engine is connected');
+    }
+
+    /** @test */
+    public function returns_engine_status(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not connected — implement setUp()');
+            return;
+        }
+        $status = $this->engine->getEngineStatus();
+        $this->assertArrayHasKey('driver', $status);
+        $this->assertArrayHasKey('version', $status);
+    }
+
+    /** @test */
+    public function config_persistence_works(): void
+    {
+        if ($this->engine === null) {
+            $this->markTestSkipped('Engine not connected — implement setUp()');
+            return;
+        }
+        $this->engine->setConfig('test_key', 'test_value');
+        $this->assertEquals('test_value', $this->engine->getConfig('test_key'));
+    }
+
+    /** @test */
+    public function table_operations_create_drop_exists(): void
+    {
+        // TODO: implement
+        // $this->engine->createTable($this->testModelClass, ['title', 'body']);
+        // $this->assertTrue($this->engine->tableExists($this->testModelClass));
+        // $this->engine->dropTable($this->testModelClass);
+        // $this->assertFalse($this->engine->tableExists($this->testModelClass));
+
+        $this->markTestIncomplete('Implement when your engine is connected');
+    }
+}

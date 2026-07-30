@@ -31,6 +31,8 @@
         <env name="ILLUMI_SEARCH_PGSQL_DATABASE" value="test-illumi-search"/>
         <env name="ILLUMI_SEARCH_PGSQL_USERNAME" value="postgres"/>
         <env name="ILLUMI_SEARCH_PGSQL_PASSWORD" value="password"/>
+        <env name="ILLUMI_SEARCH_MEILISEARCH_HOST" value="http://localhost:7700"/>
+        <env name="ILLUMI_SEARCH_MEILISEARCH_KEY" value="masterKey"/>
         <env name="ILLUMI_SEARCH_API_ENABLED" value="true"/>
     </php>
 

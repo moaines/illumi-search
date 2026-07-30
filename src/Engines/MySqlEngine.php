@@ -855,7 +855,7 @@ class MySqlEngine implements Engine
 
     public function getSupportedOperators(): array
     {
-        return ['AND', 'OR', 'NOT'];
+        return ['AND', 'OR', 'NOT', 'NEAR'];
     }
 
     public function supportsPhraseSearch(): bool

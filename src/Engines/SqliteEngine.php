@@ -210,7 +210,8 @@ class SqliteEngine implements Engine
         $options = [];
 
         $tokenizerDef = $this->illumiConfig->sqliteTokenizer();
-        $options[] = "tokenize='{$tokenizerDef}'";
+        $quote = str_contains($tokenizerDef, "'") ? '"' : "'";
+        $options[] = "tokenize={$quote}{$tokenizerDef}{$quote}";
 
         if (! empty($prefixLengths)) {
             $options[] = "prefix='" . implode(' ', $prefixLengths) . "'";
@@ -912,7 +913,7 @@ class SqliteEngine implements Engine
                 continue;
             }
 
-            if (preg_match('/[:\-\(\)\^]/', $term)) {
+            if (preg_match('/[:\-\(\)\^\+#\/\.]/', $term)) {
                 $escaped[] = '"' . $term . '"';
             } else {
                 $escaped[] = rtrim($term, '*') . '*';

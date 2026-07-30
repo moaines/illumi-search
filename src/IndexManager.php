@@ -108,7 +108,7 @@ class IndexManager
         }
 
         // Store schema with per-model size estimates
-        $totalDbSize = method_exists($this->engine, 'getDatabaseSize') ? $this->engine->getDatabaseSize() : 0;
+        $totalDbSize = method_exists($this->engine, 'getDatabaseSize') ? ($this->engine->getDatabaseSize() ?? 0) : 0;
         $totalRecords = collect($results)->sum(fn ($r) => $r['records'] ?? 0);
 
         $schemaModels = collect($results)

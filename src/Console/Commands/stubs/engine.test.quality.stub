@@ -1,0 +1,27 @@
+<?php
+
+namespace DummyTestNamespace;
+
+use DummyNamespace\DummyClass;
+use Moaines\IllumiSearch\Contracts\Engine;
+use Moaines\IllumiSearch\Tests\Feature\Engines\Concerns\QualityTestSuite;
+use Tests\TestCase;
+
+class DummyClassQualityTest extends TestCase
+{
+    use QualityTestSuite;
+
+    protected function createEngine(): Engine
+    {
+        // TODO: configure your engine connection
+        // Example:
+        // $engine = new DummyClass(
+        //     host: 'http://localhost:7700',
+        //     apiKey: 'masterKey',
+        // );
+        // $engine->createTable(self::QT_MODEL, self::QT_COLUMNS);
+        // return $engine;
+
+        $this->markTestSkipped('Implement createEngine to enable quality tests');
+    }
+}

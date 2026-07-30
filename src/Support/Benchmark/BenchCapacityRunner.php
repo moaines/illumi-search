@@ -16,6 +16,8 @@ class BenchCapacityRunner
     private const STOP_LATENCY = 100.0;
     private const STOP_REBUILD = 500.0;
 
+    private ?float $stopRebuildThreshold = self::STOP_REBUILD;
+
     private MetricCollector $metrics;
     private bool $stopped = false;
     private string $bottleneck = '';
@@ -32,6 +34,11 @@ class BenchCapacityRunner
     public function setLatinOnly(bool $value): void
     {
         $this->latinOnly = $value;
+    }
+
+    public function setStopRebuildThreshold(?float $threshold): void
+    {
+        $this->stopRebuildThreshold = $threshold;
     }
 
     /** @return array<int, VolumeSnapshot> */
@@ -221,9 +228,9 @@ class BenchCapacityRunner
         if ($snapshot->latencyP50 > self::STOP_LATENCY) {
             $this->stopped = true;
             $this->bottleneck = "Latency p50 ({$snapshot->latencyP50}ms) exceeded " . self::STOP_LATENCY . "ms threshold at {$volume} docs";
-        } elseif ($snapshot->rebuildDocsPerSec > 0 && $snapshot->rebuildDocsPerSec < self::STOP_REBUILD) {
+        } elseif ($this->stopRebuildThreshold !== null && $snapshot->rebuildDocsPerSec > 0 && $snapshot->rebuildDocsPerSec < $this->stopRebuildThreshold) {
             $this->stopped = true;
-            $this->bottleneck = "Rebuild speed ({$snapshot->rebuildDocsPerSec} d/s) dropped below " . self::STOP_REBUILD . " d/s threshold at {$volume} docs";
+            $this->bottleneck = "Rebuild speed ({$snapshot->rebuildDocsPerSec} d/s) dropped below {$this->stopRebuildThreshold} d/s threshold at {$volume} docs";
         } elseif ($snapshot->peakRamMb > 500) {
             $this->stopped = true;
             $this->bottleneck = "Peak RAM ({$snapshot->peakRamMb}MB) exceeded 500MB threshold at {$volume} docs";

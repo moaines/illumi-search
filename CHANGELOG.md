@@ -1,5 +1,68 @@
 # Changelog
 
+## v1.21.4 — Meilisearch engine, async rebuild, make-engine command
+
+### Added
+- **MeilisearchEngine** — new built-in engine (5th engine) with full operator support:
+  AND, OR, NOT, NEAR, phrase search, prefix wildcard. Ranked using Meilisearch's
+  native `_rankingScore` with NDCG@5 = 0.99 (best across all engines).
+- **Async RebuildJob** — `RebuildJob` dispatches `IndexManager::rebuild()` to the
+  queue, stores metadata (`rebuild_completed_at`, `rebuild_duration_ms`), and
+  dispatches a `RebuildComplete` event. Compatible with the existing CLI lock.
+- **`illumi-search:make-engine` command** — generates a custom engine stub with
+  `--quality` (60+ tests), `--integration` (5 CRUD tests), `--all` (both), and
+  `--minimal` (no test file) flags. Uses `--force-engine`/`--force-tests` for
+  fine-grained overwrite control.
+- **Meilisearch installer** — `illumi-search:install` now detects Meilisearch
+  (via `class_exists`), asks for host/api-key, verifies the connection via
+  `/health`, and writes `.env` entries.
+- **New test files**: `MeilisearchQualityTest` (61 tests), `MeilisearchEngineIntegrationTest`
+  (8 tests), `RebuildJobTest` (4 tests), `InstallCommandTest` (4 tests), `ChecksMeilisearch` trait.
+- **Cross-engine consistency** — Meilisearch added to `CrossEngineConsistencyTest`,
+  benchmark `--all-engines`, and `BENCHMARK_CAPACITY.md`.
+- **Snippet integration** — `MeilisearchEngine::search()` uses `SnippetService::enrich()`
+  for `<mark>` highlighting, same as all other engines.
+- **Typo tolerance** — Meilisearch indexes configured with `twoTypos: 7` for better
+  suggest quality (e.g., `lavarel` → `laravel`).
+
+### Fixed
+- **SQLite `c++` search** — FTS5 tokenizer configured with `tokenchars=+ #` so that
+  `+` and `#` are treated as token characters. `escapeAdvancedQuery()` also updated
+  to quote terms containing these characters. Requires `illumi-search:rebuild --force`.
+- **PgSQL raw mode** — `search()` now respects `$mode === 'raw'` (no operator
+  conversion), aligning with SQLite, MySQL, FileEngine, and Meilisearch.
+- **FileEngine raw mode** — same fix: `search()` skips `normalizeQueryTerms()`
+  in raw mode, using the normalized query string directly.
+- **NEAR operator support** — MySQL and FileEngine now return `'NEAR'` in
+  `getSupportedOperators()` (NEAR already worked via post-filter; the API was
+  incomplete).
+- **PHPStan type annotations** — `nearFilterResults()` and `filterNearResults()`
+  now have proper `@param` and `@return` PHPDoc for `array<int, array>`.
+
+### Changed
+- **Meilisearch insert performance** — `upsert()`, `delete()`, and `insertBatch()`
+  now use `waitForTask()` to ensure consistency (documents are immediately
+  searchable after write). `createTable()` and `dropTable()` also wait for tasks.
+- **Meilisearch model ID type** — `modelId` is cast to `int` when numeric (matching
+  SQLite's behavior), fixing `assertContains(1, $ids)` assertions in quality tests.
+- **OR operator in Meilisearch** — terms are searched individually and merged
+  (true OR union), instead of using `matchingStrategy: 'last'`.
+- **README restructured** — identity-first structure: "Write search code once.
+  Switch engines by changing .env". Quick Start moved to position 2, Configuration
+  moved earlier. Meilisearch added to all tables.
+- **InstallCommand** — `resolveMeilisearch()` with skip option, `verifyMeilisearch()`
+  and `verifyDatabaseConnection()` methods for connection testing.
+
+### Removed
+- None.
+
+### Tests
+- **130+ tests**, **300+ assertions**, **0 failures** across all 5 engines.
+- Meilisearch: 61 quality tests (operator/mode/suggest/ranking) + 8 integration tests
+  (status/database size/suggest/table ops/optimize/integrity/operators/version).
+- 47 command tests (install, make-engine, benchmark, doctor, prune, etc.).
+- 4 cross-engine consistency tests (same query → same results on all 5 engines).
+
 ## v1.21.3 — CI fix, graceful stemmer fallback
 
 ### Fixed

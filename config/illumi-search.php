@@ -9,6 +9,7 @@ return [
     |
     | 'sqlite' — SQLite FTS5 (default). Requires ext-sqlite3 with FTS5.
     | 'mysql' — MySQL 8.0+ with FULLTEXT index. Requires mysql connection.
+    | 'meilisearch' — Meilisearch (self-hosted). Requires meilisearch/meilisearch-php.
     |
     */
     'driver' => env('ILLUMI_SEARCH_DRIVER', 'sqlite'),
@@ -140,7 +141,7 @@ return [
             'database_path' => env('ILLUMI_SEARCH_DATABASE_PATH', 'app/search/search-index.sqlite'),
 
             'fts5' => [
-                'tokenizer' => 'unicode61',
+                'tokenizer' => "unicode61 tokenchars '+#'",
 
                 'prefix_lengths' => [2, 3, 4],
 
@@ -188,6 +189,11 @@ return [
                 'username' => env('ILLUMI_SEARCH_PGSQL_USERNAME', 'postgres'),
                 'password' => env('ILLUMI_SEARCH_PGSQL_PASSWORD', ''),
             ],
+        ],
+
+        'meilisearch' => [
+            'host' => env('ILLUMI_SEARCH_MEILISEARCH_HOST', 'http://localhost:7700'),
+            'api_key' => env('ILLUMI_SEARCH_MEILISEARCH_KEY', ''),
         ],
     ],
 

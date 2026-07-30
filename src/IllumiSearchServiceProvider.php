@@ -10,6 +10,7 @@ use Moaines\IllumiSearch\Console\Commands\CheckCommand;
 use Moaines\IllumiSearch\Console\Commands\DiscoverFilamentCommand;
 use Moaines\IllumiSearch\Console\Commands\DoctorCommand;
 use Moaines\IllumiSearch\Console\Commands\InstallCommand;
+use Moaines\IllumiSearch\Console\Commands\MakeEngineCommand;
 use Moaines\IllumiSearch\Console\Commands\OptimizeCommand;
 use Moaines\IllumiSearch\Console\Commands\PruneCommand;
 use Moaines\IllumiSearch\Console\Commands\RebuildCommand;
@@ -21,6 +22,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Engines\FileEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\PgsqlEngine;
+use Moaines\IllumiSearch\Engines\MeilisearchEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Http\Controllers\SearchApiController;
 use Moaines\IllumiSearch\Support\EngineProxy;
@@ -78,6 +80,17 @@ class IllumiSearchServiceProvider extends ServiceProvider
                     $basePath = $app->storagePath('app/illumi-search-file-engine');
 
                     return new FileEngine($basePath, $app->make(SnippetService::class));
+                }
+
+                if ($driver === 'meilisearch') {
+                    $basePath = $app->storagePath('app/illumi-search-meilisearch');
+
+                    return new MeilisearchEngine(
+                        host: config('illumi-search.engines.meilisearch.host', 'http://localhost:7700'),
+                        apiKey: config('illumi-search.engines.meilisearch.api_key', ''),
+                        basePath: $basePath,
+                        snippets: $app->make(SnippetService::class),
+                    );
                 }
 
                 // Default: SQLite
@@ -151,6 +164,7 @@ class IllumiSearchServiceProvider extends ServiceProvider
             StatusCommand::class,
             DiscoverFilamentCommand::class,
             InstallCommand::class,
+            MakeEngineCommand::class,
             OptimizeCommand::class,
             PruneCommand::class,
             DoctorCommand::class,

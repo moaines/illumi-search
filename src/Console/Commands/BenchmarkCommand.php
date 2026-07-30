@@ -5,6 +5,7 @@ namespace Moaines\IllumiSearch\Console\Commands;
 use Illuminate\Console\Command;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Engines\FileEngine;
+use Moaines\IllumiSearch\Engines\MeilisearchEngine;
 use Moaines\IllumiSearch\Engines\MySqlEngine;
 use Moaines\IllumiSearch\Engines\PgsqlEngine;
 use Moaines\IllumiSearch\Engines\SqliteEngine;
@@ -20,11 +21,12 @@ class BenchmarkCommand extends Command
         'FileEngine' => 'createFileEngine',
         'MySQL' => 'createMySqlEngine',
         'PostgreSQL' => 'createPgsqlEngine',
+        'Meilisearch' => 'createMeilisearchEngine',
     ];
 
     protected $signature = 'illumi-search:benchmark
         {--docs=1000 : Number of documents to index}
-        {--all-engines : Benchmark SQLite, MySQL, and PostgreSQL engines}
+        {--all-engines : Benchmark SQLite, MySQL, PostgreSQL, FileEngine, and Meilisearch}
         {--format=table : Output format (table|json)}
         {--memory=512M : Memory limit for the benchmark process}
         {--timeout=300 : Max execution time in seconds}
@@ -35,7 +37,8 @@ class BenchmarkCommand extends Command
         {--capacity : Run progressive capacity test (scales data through volume steps)}
         {--steps= : Comma-separated volume steps for capacity test (default: auto from --docs)}
         {--stop-when=latency:100 : Stop condition for capacity test: latency:N(ms), ram:N(MB)}
-        {--latin-only : For capacity test, only use Latin-character queries (skip CJK/RTL)}';
+        {--latin-only : For capacity test, only use Latin-character queries (skip CJK/RTL)}
+        {--skip-rebuild-check : For capacity test, skip the rebuild speed stop condition (useful for HTTP engines like Meilisearch)}';
     protected $description = 'Benchmark search engine performance and quality';
 
     public function handle(Engine $engine): int
@@ -274,6 +277,23 @@ class BenchmarkCommand extends Command
         }
     }
 
+    private function createMeilisearchEngine(): ?Engine
+    {
+        try {
+            $engine = new MeilisearchEngine(
+                host: config('illumi-search.engines.meilisearch.host', 'http://localhost:7700'),
+                apiKey: config('illumi-search.engines.meilisearch.api_key', ''),
+            );
+            $engine->createTable('App\Models\BenchmarkPost', ['title', 'body']);
+
+            return $engine;
+        } catch (\Exception $e) {
+            $this->warn('Could not connect to Meilisearch: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
     private function handleCapacity(Engine $engine): int
     {
         $targetDocs = (int) $this->option('docs');
@@ -290,6 +310,10 @@ class BenchmarkCommand extends Command
 
         if ($this->option('latin-only')) {
             $runner->setLatinOnly(true);
+        }
+
+        if ($this->option('skip-rebuild-check')) {
+            $runner->setStopRebuildThreshold(null);
         }
 
         $snapshots = $runner->run($targetDocs, $steps);

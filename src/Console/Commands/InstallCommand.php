@@ -17,6 +17,7 @@ class InstallCommand extends Command
         'mysql'  => ['ext' => 'pdo_mysql', 'speed' => '⚡⚡',   'multilang' => false, 'max_docs' => '~50k'],
         'pgsql'  => ['ext' => 'pdo_pgsql', 'speed' => '⚡⚡⚡', 'multilang' => true,  'max_docs' => '> 500k'],
         'file'   => ['ext' => 'mbstring',  'speed' => '⚡',    'multilang' => true,  'max_docs' => '> 1M'],
+        'meilisearch' => ['ext' => 'meilisearch-php', 'speed' => '⚡⚡⚡', 'multilang' => true, 'max_docs' => 'Unlimited'],
     ];
 
     private const RECOMMENDATIONS = [
@@ -25,18 +26,21 @@ class InstallCommand extends Command
             'pgsql'  => ['', ''],
             'mysql'  => ['', ''],
             'file'   => ['', ''],
+            'meilisearch' => ['overkill', 'yellow'],
         ],
         'medium' => [
             'sqlite' => ['plafond ~50k', 'yellow'],
             'pgsql'  => ['recommended', 'green'],
             'mysql'  => ['CJK limité', 'yellow'],
             'file'   => ['', ''],
+            'meilisearch' => ['typo-tolerant', 'green'],
         ],
         'large' => [
             'sqlite' => ['plafond ~50k', 'yellow'],
             'pgsql'  => ['recommended', 'green'],
             'mysql'  => ['avec config innodb', 'yellow'],
             'file'   => ['avec précaution', 'yellow'],
+            'meilisearch' => ['recommended', 'green'],
         ],
     ];
 
@@ -48,12 +52,14 @@ class InstallCommand extends Command
             'pdo_mysql' => 'apt install php-mysql',
             'pdo_pgsql' => 'apt install php-pgsql',
             'mbstring'  => 'apt install php-mbstring',
+            'meilisearch-php' => 'composer require meilisearch/meilisearch-php',
         ],
         'Darwin' => [
             'sqlite3'   => 'brew install php-sqlite3',
             'pdo_mysql' => 'brew install php-mysql',
             'pdo_pgsql' => 'brew install php-pgsql',
             'mbstring'  => 'brew install php-mbstring',
+            'meilisearch-php' => 'composer require meilisearch/meilisearch-php',
         ],
     ];
 
@@ -73,7 +79,8 @@ class InstallCommand extends Command
         $this->estimateProjectSize();
         $choice = $this->selectEngine();
         $dbChoice = $this->resolveDatabase($choice);
-        $this->generateEnvConfig($choice, $dbChoice);
+        $meiliChoice = $this->resolveMeilisearch($choice);
+        $this->generateEnvConfig($choice, $dbChoice, $meiliChoice);
         $this->printNextSteps($choice);
 
         return Command::SUCCESS;
@@ -117,12 +124,17 @@ class InstallCommand extends Command
     private function checkExtensions(): void
     {
         foreach (self::ENGINES as $name => $cfg) {
-            $ok = extension_loaded($cfg['ext']);
+            if ($cfg['ext'] === 'meilisearch-php') {
+                $ok = class_exists(\Meilisearch\Client::class);
+            } else {
+                $ok = extension_loaded($cfg['ext']);
+            }
+
             if ($ok) {
                 $this->available[$name] = $cfg;
             }
             $this->line('   ' . ($ok ? '<fg=green>✓</>' : '<fg=red>✗</>')
-                . " ext-{$cfg['ext']}  "
+                . " {$cfg['ext']}  "
                 . ($ok ? '' : "<fg=yellow>({$name} disabled)</>"));
         }
         $this->newLine();
@@ -136,10 +148,11 @@ class InstallCommand extends Command
         }
 
         $os = PHP_OS_FAMILY;
-        $this->line('   Missing extensions can be installed with:');
+        $this->line('   Missing requirements can be installed with:');
         foreach ($missing as $name => $cfg) {
             $cmd = self::INSTALL_CMDS[$os][$cfg['ext']] ?? '';
             if ($cmd) {
+                $prefix = $cfg['ext'] === 'meilisearch-php' ? 'composer:' : 'apt:';
                 $this->line("     <fg=yellow>{$name}:</> {$cmd}");
             }
         }
@@ -261,7 +274,8 @@ class InstallCommand extends Command
 
         foreach (self::ENGINES as $name => $cfg) {
             if (! isset($this->available[$name])) {
-                $this->line("   <fg=gray>✗ {$name}</> — install ext-{$cfg['ext']} to enable");
+                $hint = $cfg['ext'] === 'meilisearch-php' ? "install {$cfg['ext']}" : "install ext-{$cfg['ext']}";
+                $this->line("   <fg=gray>✗ {$name}</> — {$hint} to enable");
             }
         }
         $this->newLine();
@@ -304,9 +318,24 @@ class InstallCommand extends Command
         $this->newLine();
         $this->line("4. Database configuration for {$engine}:");
 
-        return $this->confirm('   Use the app database connection?', true)
-            ? $this->appDatabaseConfig($engine)
-            : $this->manualDatabaseConfig($engine);
+        if ($this->confirm('   Use the app database connection?', true)) {
+            $cfg = $this->appDatabaseConfig($engine);
+            $this->verifyDatabaseConnection($engine, $cfg);
+            return $cfg;
+        }
+
+        $this->line('   Enter dedicated search database details, or skip:');
+
+        if (! $this->confirm('   Configure database now?', true)) {
+            $this->line('   <fg=yellow>⚠ Skipped — default connection values will be used</>');
+            $this->newLine();
+            return null;
+        }
+
+        $cfg = $this->manualDatabaseConfig($engine);
+        $this->verifyDatabaseConnection($engine, $cfg);
+
+        return $cfg;
     }
 
     private function appDatabaseConfig(string $engine): array
@@ -330,14 +359,40 @@ class InstallCommand extends Command
         ];
     }
 
+    private function resolveMeilisearch(string $engine): ?array
+    {
+        if ($engine !== 'meilisearch') {
+            return null;
+        }
+
+        $this->newLine();
+        $this->line('5. Meilisearch connection:');
+
+        if (! $this->confirm('   Configure Meilisearch connection now?', true)) {
+            $this->line('   <fg=yellow>⚠ Skipped — defaults (localhost:7700) will be used</>');
+            $this->line('   Set ILLUMI_SEARCH_MEILISEARCH_HOST/KEY in .env later');
+            $this->newLine();
+            return null;
+        }
+
+        $cfg = [
+            'host' => $this->ask('   Server URL', 'http://localhost:7700'),
+            'api_key' => $this->ask('   API key (optional)', ''),
+        ];
+
+        $this->verifyMeilisearch($cfg['host']);
+
+        return $cfg;
+    }
+
     // ─── 6. Génération .env ───────────────────────────
 
-    private function generateEnvConfig(string $engine, ?array $db): void
+    private function generateEnvConfig(string $engine, ?array $db, ?array $meili = null): void
     {
         $envPath = base_path('.env');
 
         if (! file_exists($envPath) || ! is_writable($envPath)) {
-            $this->printManualEnv($engine, $db);
+            $this->printManualEnv($engine, $db, $meili);
             return;
         }
 
@@ -355,6 +410,11 @@ class InstallCommand extends Command
             $this->setEnvValue($content, "ILLUMI_SEARCH_{$p}_DATABASE", $db['database']);
         }
 
+        if ($meili) {
+            $this->setEnvValue($content, 'ILLUMI_SEARCH_MEILISEARCH_HOST', $meili['host']);
+            $this->setEnvValue($content, 'ILLUMI_SEARCH_MEILISEARCH_KEY', $meili['api_key']);
+        }
+
         file_put_contents($envPath, $content);
         $this->line('   <fg=green>✓</> .env updated.');
         $this->newLine();
@@ -362,18 +422,22 @@ class InstallCommand extends Command
         $this->tryMysqlTuning($engine);
     }
 
-    private function printManualEnv(string $engine, ?array $db): void
+    private function printManualEnv(string $engine, ?array $db, ?array $meili = null): void
     {
         $this->warn('   Cannot write to .env — add the following lines manually:');
         $this->line("   ILLUMI_SEARCH_DRIVER={$engine}");
-        if (! $db) {
-            return;
+
+        if ($db) {
+            $p = strtoupper($engine);
+            $this->line("   ILLUMI_SEARCH_{$p}_HOST={$db['host']}");
+            $this->line("   ILLUMI_SEARCH_{$p}_PORT={$db['port']}");
+            $this->line("   ILLUMI_SEARCH_{$p}_DATABASE={$db['database']}");
         }
 
-        $p = strtoupper($engine);
-        $this->line("   ILLUMI_SEARCH_{$p}_HOST={$db['host']}");
-        $this->line("   ILLUMI_SEARCH_{$p}_PORT={$db['port']}");
-        $this->line("   ILLUMI_SEARCH_{$p}_DATABASE={$db['database']}");
+        if ($meili) {
+            $this->line('   ILLUMI_SEARCH_MEILISEARCH_HOST=' . $meili['host']);
+            $this->line('   ILLUMI_SEARCH_MEILISEARCH_KEY=' . $meili['api_key']);
+        }
     }
 
     private function tryMysqlTuning(string $engine): void
@@ -389,6 +453,55 @@ class InstallCommand extends Command
         } catch (\Throwable) {
             $this->line('   <fg=yellow>⚠</> Could not set innodb_ft_min_token_size=1.');
             $this->line('   Add to my.cnf manually: [mysqld] -> innodb_ft_min_token_size=1');
+        }
+        $this->newLine();
+    }
+
+    private function verifyDatabaseConnection(string $engine, array $config): void
+    {
+        $this->newLine();
+        $this->line("   Testing connection to {$config['host']}:{$config['port']}...");
+
+        try {
+            config(["database.connections.illumi-search-{$engine}" => [
+                'driver' => $engine,
+                'host' => $config['host'],
+                'port' => $config['port'],
+                'database' => $config['database'],
+                'username' => env('DB_USERNAME', 'root'),
+                'password' => env('DB_PASSWORD', ''),
+            ]]);
+            DB::connection("illumi-search-{$engine}")->select('SELECT 1');
+            $this->line('   <fg=green>✓ Connection successful</>');
+        } catch (\Throwable $e) {
+            $this->line("   <fg=yellow>⚠ Could not connect: {$e->getMessage()}</>");
+            $this->line('   Values written to .env — fix any issues later');
+        }
+        $this->newLine();
+    }
+
+    private function verifyMeilisearch(string $host): void
+    {
+        $this->newLine();
+        $this->line("   Testing connection to {$host}...");
+
+        try {
+            $ch = curl_init(rtrim($host, '/') . '/health');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            $result = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($code === 200) {
+                $this->line('   <fg=green>✓ Connection successful</>');
+            } else {
+                $this->line("   <fg=yellow>⚠ Server responded with status {$code}</>");
+                $this->line('   Values written to .env — fix any issues later');
+            }
+        } catch (\Throwable $e) {
+            $this->line("   <fg=yellow>⚠ Could not connect: {$e->getMessage()}</>");
+            $this->line('   Start the server with: docker run -d -p 7700:7700 getmeili/meilisearch');
         }
         $this->newLine();
     }
@@ -434,6 +547,13 @@ class InstallCommand extends Command
             $this->line('   Add to my.cnf then rebuild:');
             $this->line('   [mysqld]');
             $this->line('   innodb_ft_min_token_size = 1');
+            $this->newLine();
+        }
+
+        if ($engine === 'meilisearch') {
+            $this->line('   📦 Meilisearch server required:');
+            $this->line('   docker run -d -p 7700:7700 -e MEILI_MASTER_KEY=masterKey getmeili/meilisearch');
+            $this->line('   Or install natively: https://www.meilisearch.com/docs');
             $this->newLine();
         }
 

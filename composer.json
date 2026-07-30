@@ -16,7 +16,8 @@
         "ext-mbstring": "*",
         "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
         "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
-        "symfony/string": "^7.0 || ^8.0"
+        "symfony/string": "^7.0 || ^8.0",
+        "meilisearch/meilisearch-php": "^1.16"
     },
     "suggest": {
         "ext-sqlite3": "Required for the SQLite FTS5 engine (default). Without it, use mysql, pgsql, or file driver.",

@@ -56,7 +56,7 @@ class IllumiSearchConfigTest extends TestCase
     #[Test]
     public function sqlite_tokenizer_default(): void
     {
-        $this->assertEquals('unicode61', $this->config->sqliteTokenizer());
+        $this->assertEquals("unicode61 tokenchars '+#'", $this->config->sqliteTokenizer());
     }
 
     #[Test]

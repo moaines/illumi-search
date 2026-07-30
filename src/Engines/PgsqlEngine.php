@@ -311,12 +311,16 @@ class PgsqlEngine implements Engine
         $pgsqlQuery = $safeQuery; // initialized for use in recordSearchQuery even on cache hit
 
         if (! $searchDone) {
-            // websearch_to_tsquery: AND → implicit, NOT → -, OR → OR, phrase → "", NEAR → AND+PHP
-            // Convert operators before passing to PostgreSQL
-            $pgsqlQuery = preg_replace('/\bAND\b/ui', '', $pgsqlQuery);    // AND → space (implicit)
-            $pgsqlQuery = preg_replace('/\bNOT\b/ui', '-', $pgsqlQuery);    // NOT → -
-            $pgsqlQuery = preg_replace('/\bNEAR\b/ui', '', $pgsqlQuery);   // NEAR → space (AND + PHP filter)
-            $pgsqlQuery = preg_replace('/\s+/u', ' ', $pgsqlQuery);          // normalize spaces
+            if ($mode === 'raw') {
+                $pgsqlQuery = $safeQuery;
+            } else {
+                // websearch_to_tsquery: AND → implicit, NOT → -, OR → OR, phrase → "", NEAR → AND+PHP
+                // Convert operators before passing to PostgreSQL
+                $pgsqlQuery = preg_replace('/\bAND\b/ui', '', $pgsqlQuery);    // AND → space (implicit)
+                $pgsqlQuery = preg_replace('/\bNOT\b/ui', '-', $pgsqlQuery);    // NOT → -
+                $pgsqlQuery = preg_replace('/\bNEAR\b/ui', '', $pgsqlQuery);   // NEAR → space (AND + PHP filter)
+                $pgsqlQuery = preg_replace('/\s+/u', ' ', $pgsqlQuery);          // normalize spaces
+            }
 
             // In basic mode, each unquoted word gets :* prefix suffix for PostgreSQL
             if ($mode === 'basic') {
