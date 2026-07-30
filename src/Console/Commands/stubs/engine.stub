@@ -2,6 +2,7 @@
 
 namespace DummyNamespace;
 
+use Illuminate\Support\Facades\File;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Text\NoopVacuum;
@@ -299,21 +300,20 @@ class DummyClass implements Engine
     private function readConfigFile(): array
     {
         $path = $this->configPath();
-        if (! file_exists($path)) {
+
+        if (! File::exists($path)) {
             return [];
         }
-        $data = json_decode(file_get_contents($path), true);
+
+        $data = json_decode(File::get($path), true);
         return is_array($data) ? $data : [];
     }
 
     private function writeConfigFile(array $config): void
     {
         $path = $this->configPath();
-        $dir = dirname($path);
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-        file_put_contents($path, json_encode($config, JSON_PRETTY_PRINT));
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode($config, JSON_PRETTY_PRINT));
     }
 
     private function configPath(): string
