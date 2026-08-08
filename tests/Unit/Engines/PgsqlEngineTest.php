@@ -314,19 +314,17 @@ class PgsqlEngineTest extends TestCase
         $this->assertContains(2, $ids, 'Doc 2 has python + framework');
     }
 
-    public function test_cache_is_not_cleared_on_construct(): void
+    public function test_identical_search_twice_served_from_cache(): void
     {
-        // First search populates cache
         $this->engine->upsert('App\Models\BenchmarkPost', 1, [
             'title' => 'cache test document',
             'body' => 'this is a cache test',
         ]);
-        $first = $this->engine->search('cache test', ['App\Models\BenchmarkPost'], 10);
-        $this->assertNotEmpty($first, 'First search should work');
 
-        // Create a new engine instance — no clear() means cache persists
-        $engine2 = new PgsqlEngine;
-        $second = $engine2->search('cache test', ['App\Models\BenchmarkPost'], 10);
-        $this->assertNotEmpty($second, 'Second engine instance should still find data (cache persists)');
+        $first = $this->engine->search('cache test', ['App\Models\BenchmarkPost'], 10, 0, 'advanced', false);
+        $this->assertNotEmpty($first, 'First search should populate the cache');
+
+        $second = $this->engine->search('cache test', ['App\Models\BenchmarkPost'], 10, 0, 'advanced', false);
+        $this->assertNotEmpty($second, 'A cached search must not wipe its own results');
     }
 }

@@ -101,6 +101,19 @@ abstract class AbstractEngineTest extends TestCase
     }
 
     #[Test]
+    public function repeated_identical_search_returns_same_results(): void
+    {
+        $engine = $this->createEngine();
+        $engine->upsert($this->testModelClass, 1, ['title' => 'cache doc', 'body' => 'cache test body']);
+
+        $first = $engine->search('cache test', [$this->testModelClass], 10, 0, 'advanced', false);
+        $this->assertCount(1, $first, 'First search should populate the cache');
+
+        $second = $engine->search('cache test', [$this->testModelClass], 10, 0, 'advanced', false);
+        $this->assertCount(1, $second, 'A cached search must not wipe its own results');
+    }
+
+    #[Test]
     public function get_index_stats_returns_expected_structure(): void
     {
         $engine = $this->createEngine();

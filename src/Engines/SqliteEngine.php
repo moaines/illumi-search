@@ -415,10 +415,10 @@ class SqliteEngine implements Engine
         }
 
         $safeQuery = $this->escapeQuery($query, $mode);
-        $results = [];
         $searchStart = microtime(true);
 
         if (! $searchDone) {
+            $results = [];
             $seenIds = [];
 
         $perModel = ! empty($modelClasses) ? max(1, (int) ceil($limit / count($modelClasses))) : $limit;
