@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.21.5 — SQLite cache-hit fix + cross-engine cache regression tests
+
+### Fixed
+- **SQLite cache-hit wiping results** — `SqliteEngine::search()` re-initialized
+  `$results` to an empty array *after* reading the cached raw results, so a second
+  identical search (cache hit) always returned 0 results when snippets were
+  disabled (`withSnippets` = false). The reset now happens only on the cache-miss path.
+
+### Tests
+- **Cross-engine regression test** — `AbstractEngineTest::repeated_identical_search_returns_same_results()`
+  (runs for SQLite, MySQL and FileEngine) ensures a repeat identical search returns
+  the same results served from cache.
+- **PgsqlEngineTest** — replaced the ineffectual `test_cache_is_not_cleared_on_construct`
+  (invalidated by the cache clear in the PgsqlEngine constructor) with a real cache-hit test.
+
 ## v1.21.4 — Meilisearch engine, async rebuild, make-engine command
 
 ### Added
