@@ -62,6 +62,9 @@ class StopwordFilter
 
     private function resolveLanguage(string $locale): string
     {
+        // Supported locales map to a word-list file in resources/stopwords/.
+        // Only these ship a list: en, fr, es, pt, ar, ru, zh (see SOURCES.md).
+        // Locales mapped here but without a file load zero words (no filtering).
         $map = [
             'af' => 'afrikaans',    'sq' => 'albanian',
             'ar' => 'arabic',       'hy' => 'armenian',

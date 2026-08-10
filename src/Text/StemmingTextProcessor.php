@@ -12,9 +12,9 @@ class StemmingTextProcessor extends UnicodeTextProcessor implements TextProcesso
     /** @var array<string, Stemmer> */
     protected static array $stemmers = [];
 
-    public function process(string $text, string $locale = 'en'): string
+    public function process(string $text, string $locale = 'en', bool $filterStopwords = true): string
     {
-        $text = parent::process($text, $locale);
+        $text = parent::process($text, $locale, $filterStopwords);
 
         $language = \Locale::getPrimaryLanguage($locale);
         if ($language === null) {

@@ -11,7 +11,7 @@ class UnicodeTextProcessor implements TextProcessor
 
     private ?ArabicTextProcessor $arabicProcessor = null;
 
-    public function process(string $text, string $locale = 'en'): string
+    public function process(string $text, string $locale = 'en', bool $filterStopwords = true): string
     {
         $text = $this->stripHtml($text);
         $text = $this->normalize($text);
@@ -25,7 +25,11 @@ class UnicodeTextProcessor implements TextProcessor
         }
 
         $text = $this->lowercase($text);
-        $text = $this->filterStopwords($text, $locale);
+
+        if ($filterStopwords) {
+            $text = $this->filterStopwords($text, $locale);
+        }
+
         $text = $this->truncateLongTokens($text);
         $text = $this->cleanWhitespace($text);
 

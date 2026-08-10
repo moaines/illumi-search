@@ -9,13 +9,17 @@ class FallbackTextProcessor implements TextProcessor
 {
     use HasTextHelpers;
 
-    public function process(string $text, string $locale = 'en'): string
+    public function process(string $text, string $locale = 'en', bool $filterStopwords = true): string
     {
         $text = $this->stripHtml($text);
         $text = $this->removeDiacritics($text);
         $text = $this->separateCjk($text);
         $text = $this->lowercase($text);
-        $text = $this->filterStopwords($text, $locale);
+
+        if ($filterStopwords) {
+            $text = $this->filterStopwords($text, $locale);
+        }
+
         $text = $this->truncateLongTokens($text);
         $text = $this->cleanWhitespace($text);
 

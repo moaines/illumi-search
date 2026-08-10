@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.22.0 — Search stopwords, SQLite engine homogeneity
+
+### Changed
+- **Stopwords are index-only** — `normalizeQuery()` no longer filters stopwords
+  from search queries. Prefix matching resolves stopword terms, so queries never
+  return empty because of a stopword.
+- **Search stopwords — 7 languages** — stopword lists are now minimal grammatical
+  lists (articles, pronouns, prepositions, conjunctions, auxiliaries) instead of
+  exhaustive document-indexing lists. Lexical content words (`help`, `research`,
+  `system`, `computer`, `website`, …) are never excluded from search.
+  - English, French, Spanish, Portuguese, Arabic, Russian: sourced from the NLTK
+    stopwords corpus (Apache-2.0).
+  - Chinese: curated in-repo list of Mandarin function words (no lexical words).
+  - 26 previously-shipped languages removed (no stopword file → no filtering);
+    configuration referencing them is ignored gracefully.
+- **SQLite indexing now matches other engines** — `SqliteEngine::upsert()`
+  applies the full TextProcessor pipeline to all content (not only non-ASCII),
+  so SQLite indexes are consistent with MySQL, PgSQL and FileEngine.
+
+### Tests
+- **Cross-engine regression** — `stopword_prefix_still_matches()` (basic mode)
+  and `stopword_prefix_matches_in_advanced_mode()` (advanced mode, skipped for
+  PgSQL which only prefix-matches in basic mode) ensure a query term always
+  matches longer indexed words.
+- **Processor unit tests** — English index-time filtering keeps lexical words
+  (`the help helped` → `help helped`); Chinese filtering removes function words
+  (`我的书和你的笔` → `书 笔`).
+
 ## v1.21.5 — SQLite cache-hit fix + cross-engine cache regression tests
 
 ### Fixed

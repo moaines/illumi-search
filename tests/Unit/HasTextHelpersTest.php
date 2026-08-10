@@ -190,4 +190,30 @@ class HasTextHelpersTest extends TestCase
         $this->assertCount(3, $trigrams);
         $this->assertEquals(['#aa', 'aaa', 'aa#'], $trigrams);
     }
+
+    public function test_normalize_query_keeps_stopword_terms(): void
+    {
+        config(['illumi-search.processing.stopwords' => ['en']]);
+        $this->assertEquals('help', $this->normalizeQuery('help'));
+        $this->assertEquals('help guide', $this->normalizeQuery('help guide'));
+    }
+
+    public function test_processor_filters_stopwords_on_index(): void
+    {
+        config(['illumi-search.processing.stopwords' => ['en']]);
+        $processor = new UnicodeTextProcessor;
+
+        // At index time, grammatical stopwords are removed but lexical words survive.
+        $this->assertEquals('help helped', $processor->process('the help helped', 'en'));
+        $this->assertEquals('helped', $processor->process('helped', 'en'));
+    }
+
+    public function test_chinese_processor_removes_function_words(): void
+    {
+        config(['illumi-search.processing.stopwords' => ['zh']]);
+        $processor = new UnicodeTextProcessor;
+
+        // CJK is space-separated before stopword filtering; function words are dropped.
+        $this->assertEquals('书 笔', $processor->process('我的书和你的笔', 'zh'));
+    }
 }

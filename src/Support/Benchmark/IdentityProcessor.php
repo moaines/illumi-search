@@ -6,7 +6,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 
 class IdentityProcessor implements TextProcessor
 {
-    public function process(string $text, string $locale = 'en'): string
+    public function process(string $text, string $locale = 'en', bool $filterStopwords = true): string
     {
         return $text;
     }

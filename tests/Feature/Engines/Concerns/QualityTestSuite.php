@@ -125,6 +125,34 @@ trait QualityTestSuite
     }
 
     #[Test]
+    public function stopword_prefix_still_matches(): void
+    {
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'helped guide', 'body' => 'how she helped']);
+
+        // A lexical word must match longer indexed words by prefix.
+        $results = $e->search('help', [self::QT_MODEL], 10, 0, 'basic');
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'prefix "help" should match "helped"');
+    }
+
+    #[Test]
+    public function stopword_prefix_matches_in_advanced_mode(): void
+    {
+        if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'PgsqlEngine') {
+            $this->markTestSkipped('PgSQL only prefix-matches in basic mode (:*)');
+        }
+
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'helped guide', 'body' => 'how she helped']);
+
+        // Advanced mode must also match longer indexed words by prefix.
+        $results = $e->search('help', [self::QT_MODEL], 10, 0, 'advanced');
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'prefix "help" should match "helped" in advanced mode');
+    }
+
+    #[Test]
     public function basic_mode_phrase_exact(): void
     {
         $e = $this->qtEngine();

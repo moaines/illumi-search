@@ -8,6 +8,14 @@
 
 Laravel full-text search with your choice of backends — SQLite, MySQL, PostgreSQL, FileEngine, Meilisearch. Same API, same operators, same 820+ tests validating cross-engine consistency. Use your app's own database (SQLite, MySQL, PostgreSQL — zero extra infrastructure) or add a dedicated search server (Meilisearch — instant typo tolerance). Switch backends by changing one `.env` value — your application code never changes.
 
+> **Why not just Laravel's native `whereFullText`?**
+> Laravel 13's built-in full-text search covers basic `MATCH/AGAINST` (MySQL) and
+> `to_tsvector` (PostgreSQL) — but it has no SQLite FTS5 support, no boolean query
+> language, and no spellcheck. illumi-search adds a full operator set
+> (`AND`/`OR`/`NOT`/`NEAR`/phrase/wildcard), spellcheck, CJK/RTL handling,
+> faceted search, and cross-engine consistency — validated by 820+ tests that
+> guarantee the same results regardless of backend.
+
 ```bash
 composer require moaines/illumi-search
 
@@ -100,7 +108,7 @@ All 19 features work identically across all built-in engines.
 | Prefix wildcard | ✅ | `prog*` matches "programming" |
 | Spellcheck | ✅ | Trigram or Levenshtein (per-engine, see advanced features) |
 | CJK / RTL | ✅ | Chinese, Arabic, Cyrillic, accents |
-| 33 stopword languages | ✅ | Arabic, English, French, Russian, Chinese... |
+| Stopword filtering | ✅ | Search stopwords (grammatical only) for EN, FR, ES, PT, AR, RU, ZH |
 | Accent-insensitive | ✅ | `genie` → `génie` (PostgreSQL: unaccent; others: PHP) |
 | Multi-tenant isolation | ✅ | Separate indexes per tenant |
 | Authorization (Laravel Gate) | ✅ | `->withAuthorization($user)` |
@@ -210,7 +218,9 @@ All engines handle multilingual content through the same `UnicodeTextProcessor` 
 
 **Processing pipeline** (applied at index time, identical across engines):
 
-`strip_tags()` → NFC normalization → diacritics removal → CJK separation → lowercase → stopword filter (33 languages) → token truncation → whitespace cleanup
+`strip_tags()` → NFC normalization → diacritics removal → CJK separation → lowercase → stopword filter (EN, FR, ES, PT, AR, RU, ZH) → token truncation → whitespace cleanup
+
+**Query normalization keeps all terms** — stopwords are never removed from queries. IllumiSearch matches prefixes (`help*`), so a partial term always matches longer indexed words (`helped`). Stopwords are minimal grammatical words (articles, pronouns, prepositions) used to reduce index noise; they never censor query terms, and lexical words (`help`, `research`, `system`) are never excluded.
 
 For stemming, set `ILLUMI_SEARCH_PROCESSOR=stemming` (requires `wamania/php-stemmer`, supports 17 languages via Snowball).
 
@@ -449,7 +459,7 @@ illumi-search/
 │   └── Http/               # REST API controller
 ├── tests/                  # 810+ tests
 ├── config/                 # Per-engine configuration
-└── resources/stopwords/    # 33 languages
+└── resources/stopwords/    # Search stopwords — 7 languages
 ```
 
 ---

@@ -140,13 +140,18 @@ trait HasTextHelpers
     /**
      * Normalize a search query using the configured TextProcessor.
      *
-     * Operators (AND, OR, NOT, NEAR) are masked before processing because
-     * the stopword filter in TextProcessor removes them as common English
-     * words (e.g. "and", "or", "not"), preventing the engines from
-     * recognizing them as boolean operators.
+     * Stopword filtering is deliberately disabled for queries. IllumiSearch
+     * matches prefixes (every term becomes `help*`), so a partial term that
+     * happens to be a stopword (e.g. "help") must still match "helped".
+     * Stopwords are an indexing concern (reducing index noise), never a
+     * query censorship.
+     *
+     * Operators (AND, OR, NOT, NEAR) are masked before processing so the
+     * engine can still recognize them as boolean operators after the
+     * lowercase normalization step.
      *
      * OperatorRegistry::maskOperators() replaces them with __OP{N}__
-     * placeholders that survive stopword filtering. After processing,
+     * placeholders that survive processing. After processing,
      * OperatorRegistry::unmaskOperators() restores the original operators.
      *
      * The replacement keys are lowercased to match the TextProcessor's
@@ -165,7 +170,7 @@ trait HasTextHelpers
         [$masked, $replacements] = OperatorRegistry::maskOperators($query);
 
         $processor = app(TextProcessor::class);
-        $processed = $processor->process($masked);
+        $processed = $processor->process($masked, 'en', filterStopwords: false);
 
         // TextProcessor lowercases the query, so replacement keys must match
         $lowerReplacements = collect($replacements)->mapWithKeys(

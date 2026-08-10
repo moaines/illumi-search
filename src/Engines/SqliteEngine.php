@@ -287,8 +287,9 @@ class SqliteEngine implements Engine
         foreach ($columns as $col) {
             $raw = (string) ($document[$col] ?? '');
             $placeholders[] = ":{$col}";
-            // Apply TextProcessor only when text contains non-ASCII characters (CJK, accents, etc.)
-            $values[":{$col}"] = preg_match('/[^\x20-\x7E]/u', $raw) ? $processor->process($raw, 'en') : $raw;
+            // Apply TextProcessor to all content (lowercase, diacritics, stopwords,
+            // CJK separation) so the index matches what every other engine produces.
+            $values[":{$col}"] = $processor->process($raw, 'en');
         }
 
         $placeholders[] = ':last_synced_at';

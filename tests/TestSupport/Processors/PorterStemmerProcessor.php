@@ -6,7 +6,7 @@ use Moaines\IllumiSearch\Contracts\TextProcessor;
 
 class PorterStemmerProcessor implements TextProcessor
 {
-    public function process(string $text, string $locale = 'en'): string
+    public function process(string $text, string $locale = 'en', bool $filterStopwords = true): string
     {
         $text = mb_strtolower($text);
         $words = preg_split('/\s+/', $text);
