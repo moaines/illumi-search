@@ -50,7 +50,11 @@ jobs:
         run: vendor/bin/phpunit
 
       - name: Local engines must not skip
+        # PgsqlEngineTest requires a real PostgreSQL server (absent on CI) and
+        # would skip; it is exercised by PgsqlQualityTest / the DB-backed jobs
+        # instead. The local engines (SQLite, FileEngine) must never skip.
         run: vendor/bin/phpunit --fail-on-skipped --fail-on-warning \
+              --exclude-filter PgsqlEngineTest \
               tests/Feature/Engines/QualityTest.php \
               tests/Feature/Engines/FileQualityTest.php \
               tests/Unit

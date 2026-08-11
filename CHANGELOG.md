@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.23.1 — CI fix: local engines must not skip
+
+### Fixed
+- **CI "Local engines must not skip" step** — the step ran `--fail-on-skipped`
+  over `tests/Unit`, which contains `PgsqlEngineTest` (21 tests that require a
+  real PostgreSQL server, absent on CI runners). The step now excludes
+  `PgsqlEngineTest` — SQLite and FileEngine still must never skip, but the
+  PostgreSQL engine is exercised by `PgsqlQualityTest` / DB-backed jobs where
+  a server is available.
+
 ## v1.23.0 — FileEngine performance, unified spellcheck, capacity benchmark
 
 > **⚠️ Breaking change:** `Engine::queryVocab()` is removed from the engine
