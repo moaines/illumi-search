@@ -110,16 +110,6 @@ interface Engine
     public function fullIntegrityCheck(): array;
 
     /**
-     * Query the FTS5 vocabulary table for suggestions.
-     *
-     * @deprecated Use suggest() instead. This method is only implemented
-     *             by SqliteEngine internally. MySQL returns an empty array.
-     *
-     * @return string[]
-     */
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array;
-
-    /**
      * Suggest spelling corrections for a query term.
      *
      * @return string[]

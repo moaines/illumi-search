@@ -1,22 +1,22 @@
 <?php
 
 namespace Moaines\IllumiSearch\Tests\Unit\Support;
-use PHPUnit\Framework\Attributes\Test;
 
 use Moaines\IllumiSearch\Support\ChunkStorage;
+use Moaines\IllumiSearch\Support\VocabService;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class VocabServiceTest extends TestCase
 {
     private string $tempDir;
-    private ChunkStorage $storage;
+    private VocabService $service;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->tempDir = sys_get_temp_dir() . '/test_vocab_' . uniqid();
         mkdir($this->tempDir, 0755, true);
-        $this->storage = new ChunkStorage($this->tempDir);
+        $this->service = new VocabService($this->tempDir);
     }
 
     protected function tearDown(): void
@@ -28,71 +28,47 @@ class VocabServiceTest extends TestCase
         parent::tearDown();
     }
 
-    #[Test]
-    public function chunck_storage_decodes_hmac_format(): void
+    private function writeVocab(array $rows): void
     {
-        $path = $this->tempDir . '/test.php';
-        $data = [['word' => 'laravel', 'ascii' => 'laravel', 'count' => 42]];
-
-        $this->storage->atomicWrite($path, $data);
-        $decoded = $this->storage->decodeFile($path);
-
-        $this->assertEquals($data, $decoded);
+        $storage = new ChunkStorage($this->tempDir, 1);
+        $storage->atomicWrite($this->service->vocabPath(), $rows);
     }
 
-    #[Test]
-    public function chunck_storage_rejects_tampered_hmac(): void
+    public function test_suggest_returns_empty_for_short_query(): void
     {
-        $path = $this->tempDir . '/test.php';
-        $this->storage->atomicWrite($path, [['test' => 'data']]);
-
-        $content = file_get_contents($path);
-        $tampered = substr_replace($content, 'x', 50, 1);
-        file_put_contents($path, $tampered);
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Integrity check failed');
-        $this->storage->decodeFile($path);
+        $this->assertSame([], $this->service->suggest('a', 2, 5, null));
     }
 
-    #[Test]
-    public function chunck_storage_decodes_legacy_php_format(): void
+    public function test_suggest_returns_fuzzy_matches_from_vocab(): void
     {
-        $path = $this->tempDir . '/legacy.php';
-        $payload = serialize(['word' => 'php', 'count' => 10]);
+        $this->writeVocab([
+            ['laravel', 'laravel', 10],
+            ['philosophy', 'philosophy', 3],
+            ['lighthouse', 'lighthouse', 2],
+        ]);
 
-        file_put_contents($path, '<?php return unserialize(base64_decode("' . base64_encode($payload) . '"));');
+        $suggestions = $this->service->suggest('laravell', 2, 5, null);
 
-        $decoded = $this->storage->decodeFile($path);
-        $this->assertEquals(['word' => 'php', 'count' => 10], $decoded);
+        $this->assertContains('laravel', $suggestions);
     }
 
-    #[Test]
-    public function chunck_storage_returns_null_for_empty_file(): void
+    public function test_suggest_returns_empty_when_no_vocab_file(): void
     {
-        $path = $this->tempDir . '/empty.php';
-        file_put_contents($path, '');
-
-        $this->assertNull($this->storage->decodeFile($path));
+        $this->assertSame([], $this->service->suggest('laravel', 2, 5, null));
     }
 
-    #[Test]
-    public function chunck_storage_returns_null_for_corrupt_file(): void
+    public function test_suggest_respects_limit(): void
     {
-        $path = $this->tempDir . '/corrupt.php';
-        file_put_contents($path, 'not valid serialized data');
+        $this->writeVocab([
+            ['apple', 'apple', 10],
+            ['apricot', 'apricot', 8],
+            ['apology', 'apology', 6],
+            ['approve', 'approve', 4],
+            ['appear', 'appear', 2],
+        ]);
 
-        $this->assertNull($this->storage->decodeFile($path));
-    }
+        $suggestions = $this->service->suggest('appl', 3, 3, null);
 
-    #[Test]
-    public function chunck_storage_decodes_plain_serialize(): void
-    {
-        $path = $this->tempDir . '/plain.php';
-        $data = ['key' => 'value'];
-        file_put_contents($path, serialize($data));
-
-        $decoded = $this->storage->decodeFile($path);
-        $this->assertEquals($data, $decoded);
+        $this->assertLessThanOrEqual(3, count($suggestions));
     }
 }

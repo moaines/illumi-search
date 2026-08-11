@@ -6,12 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Searchable;
 use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Tests\TestCase;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
-use Moaines\IllumiSearch\Text\UnicodeTextProcessor;
 
 class SearchableConfigTest extends TestCase
 {
@@ -100,12 +98,9 @@ class SearchableConfigTest extends TestCase
             ];
         };
 
-        $processor = new UnicodeTextProcessor;
-        $global = app(TextProcessor::class);
+        $processed = $model->processDocument($model);
 
-        $processed = $model->processDocument($model, $global);
-
-        // processDocument calls normalizeSearchable internally
+        // processDocument maps the configured columns (weight/locale kept as metadata).
         $this->assertIsString($processed['title']);
         $this->assertIsString($processed['body']);
     }
@@ -357,7 +352,6 @@ class SearchableConfigTest extends TestCase
         $this->assertTrue(method_exists($engine, 'getDatabaseSize'));
         $this->assertTrue(method_exists($engine, 'getPragma'));
         $this->assertTrue(method_exists($engine, 'fullIntegrityCheck'));
-        $this->assertTrue(method_exists($engine, 'queryVocab'));
         $this->assertTrue(method_exists($engine, 'vacuum'));
     }
 

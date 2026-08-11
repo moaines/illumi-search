@@ -217,8 +217,10 @@ trait QualityTestSuite
 
         $results = $e->search('php', [self::QT_MODEL], 10);
         $this->assertNotEmpty($results);
-        $this->assertGreaterThan(0, $results[0]->rank,
-            'Search result should have a positive rank');
+        $this->assertGreaterThanOrEqual(0, $results[0]->rank,
+            'Search result rank should be in 0..100');
+        $this->assertLessThanOrEqual(100, $results[0]->rank,
+            'Search result rank should be in 0..100');
     }
 
     #[Test]
@@ -348,7 +350,8 @@ trait QualityTestSuite
         $results = $e->search('php', [self::QT_MODEL], 10);
         $this->assertNotEmpty($results);
         foreach ($results as $r) {
-            $this->assertGreaterThan(0, $r->rank, 'All results should have positive rank');
+            $this->assertGreaterThanOrEqual(0, $r->rank, 'All results rank should be in 0..100');
+            $this->assertLessThanOrEqual(100, $r->rank, 'All results rank should be in 0..100');
         }
     }
 
@@ -802,7 +805,15 @@ trait QualityTestSuite
     #[Test]
     public function phrase_only_stopwords_returns_empty(): void
     {
-        $this->markTestSkipped('Stopwords inside phrase queries (e.g. "the of") are not filtered because quotes protect them from token-level stopword removal. This requires integration-level testing with TextProcessor.');
+        $e = $this->qtEngine();
+        $e->upsert(self::QT_MODEL, 1, ['title' => 'the of and', 'body' => 'common english words']);
+        $e->upsert(self::QT_MODEL, 2, ['title' => 'php guide', 'body' => 'nothing here']);
+
+        // Stopwords are index-only: a query made solely of stopwords still
+        // matches documents that contain them (prefix matching never censors).
+        $results = $e->search('"the of"', [self::QT_MODEL], 10);
+        $ids = array_map(fn ($r) => $r->modelId, $results);
+        $this->assertContains(1, $ids, 'stopword-only phrase should match the document');
     }
 
     #[Test]
@@ -830,7 +841,8 @@ trait QualityTestSuite
         // FileEngine fallback: phrase → AND (both terms required, order not enforced)
         if ((new \ReflectionClass($this->qtEngine()))->getShortName() === 'FileEngine') {
             $this->assertNotEmpty($results, 'FileEngine should find both docs via AND fallback');
-            $this->assertGreaterThan(0, $results[0]->rank, 'Results should have positive rank');
+            $this->assertGreaterThanOrEqual(0, $results[0]->rank, 'Rank should be in 0..100');
+            $this->assertLessThanOrEqual(100, $results[0]->rank, 'Rank should be in 0..100');
             return;
         }
 

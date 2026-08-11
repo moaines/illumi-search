@@ -7,6 +7,7 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
 use Moaines\IllumiSearch\Concerns\HasTenant;
+use Moaines\IllumiSearch\Concerns\HasVocabSuggest;
 use Moaines\IllumiSearch\Exceptions\IllumiSearchException;
 use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\Text\HasDebugCollector;
@@ -29,6 +30,7 @@ class SqliteEngine implements Engine
     use HasDebugCollector;
     use HasTenant;
     use HasTextHelpers;
+    use HasVocabSuggest;
  
     private const META_TABLE = 'meta';
 
@@ -52,6 +54,7 @@ class SqliteEngine implements Engine
     private bool $isRebuilding = false;
     private SearchCache $searchCache;
     private IllumiSearchConfig $illumiConfig;
+    private ?\Moaines\IllumiSearch\Contracts\TextProcessor $textProcessor = null;
 
     public function __construct(
         private readonly string $databasePath,
@@ -122,10 +125,17 @@ class SqliteEngine implements Engine
 
             $this->ensureMetaTable();
 
+            // Only compute expensive index stats when a debug collector is actually
+            // available — otherwise this COUNTs every table on every request.
+            $collector = $this->resolveCollector();
+            $indexedRecords = $collector !== null
+                ? collect($this->getIndexStats())->sum('record_count')
+                : null;
+
             $this->setCollectorEngineInfo([
                 'version' => 'SQLite ' . $this->db->querySingle('SELECT sqlite_version()') . ' | FTS5',
                 'tokenizer' => $this->illumiConfig->sqliteTokenizer(),
-                'indexed_records' => collect($this->getIndexStats())->sum('record_count'),
+                'indexed_records' => $indexedRecords,
                 'fts5_available' => $this->fts5Available,
             ]);
         }
@@ -282,36 +292,61 @@ class SqliteEngine implements Engine
         $placeholders = [];
         $values = [];
 
-        $processor = app(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
+        $this->textProcessor ??= app(\Moaines\IllumiSearch\Contracts\TextProcessor::class);
 
         foreach ($columns as $col) {
             $raw = (string) ($document[$col] ?? '');
             $placeholders[] = ":{$col}";
             // Apply TextProcessor to all content (lowercase, diacritics, stopwords,
             // CJK separation) so the index matches what every other engine produces.
-            $values[":{$col}"] = $processor->process($raw, 'en');
+            $values[":{$col}"] = $this->textProcessor->process($raw, 'en');
         }
 
         $placeholders[] = ':last_synced_at';
+        $values[':last_synced_at'] = date('Y-m-d H:i:s');
 
         $placeholders[] = ':model_id';
         $values[':model_id'] = (string) $modelId;
-        $values[':last_synced_at'] = date('Y-m-d H:i:s');
+
+        // FTS5 tables have no UNIQUE constraint, so a plain INSERT OR REPLACE
+        // would duplicate rows for the same model_id on every re-save. Use the
+        // numeric model_id as the rowid so REPLACE overwrites; for string ids
+        // (UUIDs) delete the previous row and use a deterministic rowid derived
+        // from the id (no MAX(rowid)+1 race under concurrent writers).
+        $numericId = ctype_digit((string) $modelId) ? (int) $modelId : null;
+
+        if ($numericId === null) {
+            $delete = $this->db()->prepare("DELETE FROM {$table} WHERE model_id = :id");
+            $delete->bindValue(':id', (string) $modelId, SQLITE3_TEXT);
+            $delete->execute();
+        }
 
         $columnList = implode(', ', array_merge($columns, ['last_synced_at', 'model_id']));
         $placeholderList = implode(', ', $placeholders);
 
         $stmt = $this->db()->prepare(
-            "INSERT OR REPLACE INTO {$table} ({$columnList}) VALUES ({$placeholderList})",
+            "INSERT OR REPLACE INTO {$table} (rowid, {$columnList}) VALUES (:rowid, {$placeholderList})",
         );
 
+        $stmt->bindValue(':rowid', $numericId ?? $this->stringRowid($modelId), SQLITE3_INTEGER);
         foreach ($values as $param => $value) {
             $stmt->bindValue($param, $value, SQLITE3_TEXT);
         }
 
         $stmt->execute();
 
-        $this->searchCache->clear();
+        if (! $this->isRebuilding) {
+            $this->searchCache->clear();
+        }
+    }
+
+    /**
+     * Deterministic rowid for a string model id (UUID).
+     * 60-bit sha256 — collision with numeric ids is practically impossible.
+     */
+    private function stringRowid(int|string $modelId): int
+    {
+        return (int) hexdec(substr(hash('sha256', (string) $modelId), 0, 15));
     }
 
     public function pruneExcessDocuments(string $modelClass): void
@@ -327,9 +362,11 @@ class SqliteEngine implements Engine
             return;
         }
 
-        // Find the cutoff model_id (the N-th highest)
+        // Find the cutoff rowid (the N-th highest). rowid is the numeric model_id
+        // when the id is numeric (see upsert), and insertion order otherwise —
+        // both avoid the CAST(model_id AS INTEGER) that defeats the FTS5 index.
         $stmt = $this->db()->prepare(
-            "SELECT model_id FROM {$table} ORDER BY CAST(model_id AS INTEGER) DESC LIMIT 1 OFFSET :offset"
+            "SELECT rowid FROM {$table} ORDER BY rowid DESC LIMIT 1 OFFSET :offset"
         );
         $stmt->bindValue(':offset', $max - 1, SQLITE3_INTEGER);
         $result = $stmt->execute();
@@ -339,13 +376,13 @@ class SqliteEngine implements Engine
         }
 
         $row = $result->fetchArray(SQLITE3_ASSOC);
-        if ($row === false || ! isset($row['model_id'])) {
+        if ($row === false || ! isset($row['rowid'])) {
             return; // Fewer than max documents
         }
 
-        $cutoff = (int) $row['model_id'];
+        $cutoff = (int) $row['rowid'];
         $delStmt = $this->db()->prepare(
-            "DELETE FROM {$table} WHERE CAST(model_id AS INTEGER) < :cutoff"
+            "DELETE FROM {$table} WHERE rowid < :cutoff"
         );
         $delStmt->bindValue(':cutoff', $cutoff, SQLITE3_INTEGER);
         $delStmt->execute();
@@ -422,6 +459,9 @@ class SqliteEngine implements Engine
             $results = [];
             $seenIds = [];
 
+        $this->resetDocCountCache();
+        $docCount = $this->indexedDocCount($modelClasses);
+
         $perModel = ! empty($modelClasses) ? max(1, (int) ceil($limit / count($modelClasses))) : $limit;
 
         foreach ($modelClasses as $modelClass) {
@@ -465,7 +505,7 @@ class SqliteEngine implements Engine
                     $modelResults[] = [
                         'modelClass' => $modelClass,
                         'modelId' => $modelId,
-                        'rank' => $this->normalizeScore($row['rank'] ?? 0.0, null, 1),
+                        'rank' => $this->normalizeScore($row['rank'] ?? 0.0, $docCount, 1),
                         'title' => $row[$titleColumn] ?? $modelId,
                         'row' => $row,
                         'totalCount' => $pageTotalCount,
@@ -519,13 +559,6 @@ class SqliteEngine implements Engine
         );
     }
 
-    private function addCacheClearOnWrite(): void
-    {
-        if (! $this->isRebuilding) {
-            $this->searchCache->clear();
-        }
-    }
-
     /**
      * @param  array<class-string>  $modelClasses
      */
@@ -561,6 +594,29 @@ class SqliteEngine implements Engine
     }
 
     private array $cachedTableExists = [];
+
+    /** Identity of this engine's index scope (db path + tenant). */
+    protected function docCountScopeKey(): string
+    {
+        return $this->databasePath . '|' . ($this->tenantId() ?? '');
+    }
+
+    /**
+     * @param  array<class-string>  $modelClasses
+     */
+    protected function countDocsInScope(array $modelClasses): int
+    {
+        $count = 0;
+        foreach ($modelClasses as $modelClass) {
+            if (! $this->tableExists($modelClass)) {
+                continue;
+            }
+            $table = $this->tableName($modelClass);
+            $count += (int) $this->db()->querySingle("SELECT COUNT(*) FROM {$table}");
+        }
+
+        return $count;
+    }
 
     public function clearTableCache(): void
     {
@@ -722,73 +778,69 @@ class SqliteEngine implements Engine
     }
 
     /** @return list<string> */
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
+    public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
     {
-        if (! $this->tableExists($modelClass)) {
+        return $this->runSuggest($query, $maxDistance, $limit);
+    }
+
+    /**
+     * Backend step: SQLite has no trigram index — candidate rows come from
+     * the ASCII-prefix phase only (fts5vocab exposes no trigram table).
+     *
+     * @return iterable<array{word: string, ascii_word: string}>
+     */
+    protected function trigramCandidateRows(string $queryAscii, array $queryTrigrams, int $limit): iterable
+    {
+        return [];
+    }
+
+    /**
+     * Backend step: fts5vocab rows whose term starts with the raw query prefix.
+     * fts5vocab stores raw terms (no ascii_word) — we match on the RAW prefix
+     * (mb_substr of the original query, not the ASCII form) so non-Latin
+     * queries still find their script, then the shared ranker transliterates
+     * each row's ascii on the fly.
+     *
+     * @return iterable<object{word: string, ascii_word: string}>
+     */
+    protected function prefixCandidateRows(string $query, string $queryAscii, string $prefix, int $limit): iterable
+    {
+        $rawPrefix = mb_substr(trim($query), 0, 2);
+        if ($rawPrefix === '') {
             return [];
         }
 
-        $table = $this->tableName($modelClass);
-        $vocabTable = $table . '_vocab';
-        $suggestions = [];
+        $rows = [];
 
-        try {
+        foreach ($this->getIndexedModelClasses() as $modelClass) {
+            if (! $this->tableExists($modelClass)) {
+                continue;
+            }
+
+            $vocabTable = $this->tableName($modelClass) . '_vocab';
             $vocabLimit = $this->illumiConfig->sqliteVocabLimit();
-            $prefix = mb_substr($term, 0, 2);
-            $stmt = $this->db()->prepare(
-                "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}",
-            );
-            $stmt->bindValue(':prefix', $prefix . '%', SQLITE3_TEXT);
+
+            try {
+                $stmt = $this->db()->prepare(
+                    "SELECT term, cnt FROM {$vocabTable} WHERE term IS NOT NULL AND term LIKE :prefix ORDER BY cnt DESC LIMIT {$vocabLimit}",
+                );
+                $stmt->bindValue(':prefix', $rawPrefix . '%', SQLITE3_TEXT);
+            } catch (\Exception) {
+                continue;
+            }
 
             if ($stmt === false) {
-                return [];
+                continue;
             }
 
             $result = $stmt->execute();
 
             while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                $vocabTerm = $row['term'];
-                $distance = levenshtein($term, $vocabTerm);
-
-                if ($distance > 0 && $distance <= $maxDistance) {
-                    $suggestions[] = [
-                        'term' => $vocabTerm,
-                        'distance' => $distance,
-                        'frequency' => (int) ($row['cnt'] ?? 0),
-                    ];
-                }
+                $rows[] = (object) ['word' => $row['term'], 'ascii_word' => ''];
             }
-        } catch (\Exception $e) {
-            Log::warning("illumi-search: queryVocab failed: " . $e->getMessage());
-
-            return [];
         }
 
-        usort($suggestions, function ($a, $b) {
-            if ($a['distance'] !== $b['distance']) {
-                return $a['distance'] <=> $b['distance'];
-            }
-
-            return $b['frequency'] <=> $a['frequency'];
-        });
-
-        return array_column($suggestions, 'term');
-    }
-
-    public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
-    {
-        if (strlen(trim($query)) < 2) {
-            return [];
-        }
-
-        $candidates = [];
-
-        foreach ($this->getIndexedModelClasses() as $modelClass) {
-            $results = $this->queryVocab($modelClass, $query, $maxDistance, $limit);
-            $candidates = array_merge($candidates, $results);
-        }
-
-        return array_values(array_unique($candidates));
+        return $rows;
     }
 
     public function getSupportedOperators(): array

@@ -2,41 +2,34 @@
 
 namespace Moaines\IllumiSearch\Tests\Unit;
 
+use Moaines\IllumiSearch\Engines\SqliteEngine;
 use Moaines\IllumiSearch\Tests\TestCase;
 
 class DatabasePathTest extends TestCase
 {
-    public function test_relative_path_resolves_via_storage_path(): void
+    public function test_default_relative_path_resolves_under_storage(): void
     {
         $path = config('illumi-search.engines.sqlite.database_path');
-        $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
-
-        $this->assertStringStartsWith(storage_path(), $fullPath);
-        $this->assertStringContainsString('search', $fullPath);
+        $this->assertFalse(str_starts_with($path, '/'), 'default config should be relative');
+        $this->assertStringStartsWith(storage_path(), storage_path($path));
     }
 
-    public function test_absolute_path_is_used_as_is(): void
+    public function test_engine_uses_configured_database_path(): void
     {
-        $path = '/data/fts/fts-index.sqlite';
-        $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
+        config(['illumi-search.engines.sqlite.database_path' => 'app/fts-test.sqlite']);
 
-        $this->assertSame($path, $fullPath);
+        $engine = new SqliteEngine(databasePath: 'app/fts-test.sqlite');
+        $this->assertSame('app/fts-test.sqlite', $engine->getDatabasePath());
     }
 
-    public function test_custom_relative_path_resolves_correctly(): void
+    public function test_absolute_database_path_is_used_as_is(): void
     {
-        $path = 'custom/path/index.sqlite';
-        $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
+        $target = '/tmp/illumi-abs-test.sqlite';
+        @unlink($target);
 
-        $this->assertSame(storage_path('custom/path/index.sqlite'), $fullPath);
-    }
+        $engine = new SqliteEngine(databasePath: $target);
+        $this->assertSame($target, $engine->getDatabasePath());
 
-    public function test_absolute_path_without_storage_prefix(): void
-    {
-        $path = '/mnt/persistent/fts/fts-index.sqlite';
-        $fullPath = str_starts_with($path, '/') ? $path : storage_path($path);
-
-        $this->assertStringStartsWith('/mnt/persistent/', $fullPath);
-        $this->assertStringNotContainsString('storage', $fullPath);
+        @unlink($target);
     }
 }

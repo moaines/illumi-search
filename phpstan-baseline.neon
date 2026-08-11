@@ -13,6 +13,138 @@ parameters:
 			path: src/Console/Commands/BenchmarkCommand.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:appDatabaseConfig\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:generateEnvConfig\(\) has parameter \$db with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:generateEnvConfig\(\) has parameter \$meili with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:manualDatabaseConfig\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:printManualEnv\(\) has parameter \$db with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:printManualEnv\(\) has parameter \$meili with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:resolveDatabase\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:resolveMeilisearch\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:verifyDatabaseConnection\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Parameter &\$content by\-ref type of method Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:setEnvValue\(\) expects string, string\|null given\.$#'
+			identifier: parameterByRef.type
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Console\\Commands\\InstallCommand\:\:\$available type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/InstallCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\MakeEngineCommand\:\:writeStub\(\) has parameter \$vars with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/MakeEngineCommand.php
+
+		-
+			message: '#^Call to an undefined method Moaines\\IllumiSearch\\IndexManager\:\:getSearchableModels\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Console/Commands/PruneCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:cleanedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:errorResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:indexedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:skippedResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:vacuumResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Console\\Commands\\RebuildCommand\:\:warningResult\(\) has parameter \$result with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Console/Commands/RebuildCommand.php
+
+		-
+			message: '#^Access to an undefined property Moaines\\IllumiSearch\\Engines\\FileEngine\:\:\$illumiConfig\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Call to static method warning\(\) on an unknown class Moaines\\IllumiSearch\\Engines\\Log\.$#'
+			identifier: class.notFound
+			count: 2
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Constant Moaines\\IllumiSearch\\Engines\\FileEngine\:\:SEARCH_OVERFETCH_MARGIN is unused\.$#'
+			identifier: classConstant.unused
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:buildRow\(\) has parameter \$weightCols with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -133,6 +265,12 @@ parameters:
 			path: src/Engines/FileEngine.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:processChunk\(\) has parameter \$parsedTerms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:processChunk\(\) has parameter \$rawTerms with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -181,6 +319,18 @@ parameters:
 			path: src/Engines/FileEngine.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:scoreAndBuildResult\(\) has parameter \$parsedTerms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:scoreAndBuildResult\(\) has parameter \$r with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:scoreAndBuildResult\(\) has parameter \$rawTerms with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -200,6 +350,12 @@ parameters:
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:searchTrigrams\(\) has parameter \$cleanTerms with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:searchTrigrams\(\) has parameter \$parsedTerms with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Engines/FileEngine.php
@@ -253,8 +409,32 @@ parameters:
 			path: src/Engines/FileEngine.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:weightTextsFromRow\(\) has parameter \$r with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\FileEngine\:\:weightTextsFromRow\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^PHPDoc tag @return with type array\|null is not subtype of native type array\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
 			message: '#^Property Moaines\\IllumiSearch\\Engines\\FileEngine\:\:\$prefix \(string\|null\) is never assigned string so it can be removed from the property type\.$#'
 			identifier: property.unusedType
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\FileEngine\:\:\$prefix is never read, only written\.$#'
+			identifier: property.onlyWritten
 			count: 1
 			path: src/Engines/FileEngine.php
 
@@ -265,8 +445,116 @@ parameters:
 			path: src/Engines/FileEngine.php
 
 		-
-			message: '#^Match expression does not handle remaining value\: non\-falsy\-string$#'
+			message: '#^Variable \$cleanTerms in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: src/Engines/FileEngine.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:andSearch\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:getIndexStats\(\) should return array\<int, array\{model_class\: string, record_count\: int, last_synced_at\: string\|null, columns\: string\|null\}\> but returns list\<array\{model_class\: string, record_count\: mixed, last_synced_at\: mixed, columns\: list\<int\|string\>\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:hitToRaw\(\) has parameter \$hit with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:hitToRaw\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:orSearch\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:readConfigFile\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:waitForTask\(\) has parameter \$task with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:writeConfigFile\(\) has parameter \$config with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Offset ''document'' on array\{model_id\: int\|string, document\: array\<string, string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Offset ''id'' on \*NEVER\* on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Offset ''model_id'' on array\{model_id\: int\|string, document\: array\<string, string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Parameter \#1 \$typoTolerance of method Meilisearch\\Endpoints\\Indexes\:\:updateTypoTolerance\(\) expects array\{enabled\: bool, minWordSizeForTypos\: array\{oneTypo\: int, twoTypos\: int\}, disableOnWords\: list\<non\-empty\-string\>, disableOnAttributes\: list\<non\-empty\-string\>, disableOnNumbers\: bool\}, array\{minWordSizeForTypos\: array\{oneTypo\: 5, twoTypos\: 7\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\MeilisearchEngine\:\:\$isRebuilding is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Engines/MeilisearchEngine.php
+
+		-
+			message: '#^Access to an undefined property Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:\$maxWeight\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Engines/MySqlEngine.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Engines/MySqlEngine.php
+
+		-
+			message: '#^Match expression does not handle remaining value\: non\-empty\-string$#'
 			identifier: match.unhandled
+			count: 1
+			path: src/Engines/MySqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:getFirstTextColumn\(\) is unused\.$#'
+			identifier: method.unused
 			count: 1
 			path: src/Engines/MySqlEngine.php
 
@@ -277,7 +565,7 @@ parameters:
 			path: src/Engines/MySqlEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:modelTypePlaceholders\(\) has parameter \$classes with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:modelTypePlaceholders\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Engines/MySqlEngine.php
@@ -289,22 +577,106 @@ parameters:
 			path: src/Engines/MySqlEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:normalizeScore\(\) has parameter \$stats with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:trigramCandidateRows\(\) has parameter \$queryTrigrams with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Engines/MySqlEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:rankSuggestions\(\) has parameter \$queryScripts with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^PHPDoc tag @return with type array\<string\> is incompatible with native type string\.$#'
+			identifier: return.phpDocType
 			count: 1
 			path: src/Engines/MySqlEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:rankSuggestions\(\) has parameter \$vocab with generic class Illuminate\\Support\\Collection but does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:afterSuggest\(\) has parameter \$queryScripts with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/Engines/MySqlEngine.php
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:afterSuggest\(\) has parameter \$suggestions with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:buildPrefixQuery\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:buildWeightTexts\(\) has parameter \$document with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:buildWeightTexts\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:getIndexStats\(\) should return array\<int, array\{model_class\: string, record_count\: int, last_synced_at\: string\|null, columns\: string\|null\}\> but returns array\<array\{model_class\: mixed, record_count\: int, last_synced_at\: mixed\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:modelTypePlaceholders\(\) has parameter \$modelClasses with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:modelTypePlaceholders\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:optimize\(\) should return array\{vacuum\: array\{before\: int, after\: int\}, tables_optimized\: int\} but returns array\{status\: ''ok''\}\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:trigramCandidateRows\(\) has parameter \$queryTrigrams with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Offset ''document'' on array\{model_id\: int\|string, document\: array\<string, string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Offset ''model_id'' on array\{model_id\: int\|string, document\: array\<string, string\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^PHPDoc tag @return with type array\<string, string\> is incompatible with native type string\.$#'
+			identifier: return.phpDocType
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:\$cachedTsStatRows type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Engines/PgsqlEngine.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\PgsqlEngine\:\:\$isRebuilding \(bool\) on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.property
+			count: 1
+			path: src/Engines/PgsqlEngine.php
 
 		-
 			message: '#^Call to function is_array\(\) with array\<string\> will always evaluate to true\.$#'
@@ -325,20 +697,14 @@ parameters:
 			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:addCacheClearOnWrite\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: src/Engines/SqliteEngine.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:normalizeScore\(\) has parameter \$stats with no value type specified in iterable type array\.$#'
+			message: '#^Method Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:trigramCandidateRows\(\) has parameter \$queryTrigrams with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Engines/SqliteEngine.php
 
 		-
-			message: '#^Undefined variable\: \$results$#'
-			identifier: variable.undefined
+			message: '#^Property Moaines\\IllumiSearch\\Engines\\SqliteEngine\:\:\$cachedTableExists type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
 			path: src/Engines/SqliteEngine.php
 
@@ -375,7 +741,7 @@ parameters:
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:relationsForRebuild\(\)\.$#'
 			identifier: method.notFound
-			count: 1
+			count: 2
 			path: src/IndexManager.php
 
 		-
@@ -385,10 +751,58 @@ parameters:
 			path: src/IndexManager.php
 
 		-
+			message: '#^Call to function method_exists\(\) with Moaines\\IllumiSearch\\Contracts\\Engine and ''getDatabaseSize'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 3
+			path: src/IndexManager.php
+
+		-
 			message: '#^Call to function method_exists\(\) with Moaines\\IllumiSearch\\Contracts\\Engine and ''setRebuilding'' will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 2
 			path: src/IndexManager.php
+
+		-
+			message: '#^Call to static method modelDirName\(\) on an unknown class Moaines\\IllumiSearch\\IllumiSearchHelper\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\IndexManager\:\:rebuildModel\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 2
+			path: src/IndexManager.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:applyBoost\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:applyWhere\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
+			identifier: missingType.generics
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:computeAggregation\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:whereIn\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/QueryBuilder.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\QueryBuilder\:\:whereNotIn\(\) has parameter \$values with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/QueryBuilder.php
 
 		-
 			message: '#^Trait Moaines\\IllumiSearch\\Searchable has PHPDoc tag @method for method getSearchableColumns\(\) return type with no value type specified in iterable type array\.$#'
@@ -401,6 +815,66 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Searchable.php
+
+		-
+			message: '#^Call to function method_exists\(\) with Moaines\\IllumiSearch\\Contracts\\Engine and ''getDatabaseSize'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Call to function method_exists\(\) with Moaines\\IllumiSearch\\Contracts\\Engine and ''suggest'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:__construct\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:assessQuality\(\) has parameter \$searchResults with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:assessQuality\(\) has parameter \$suggestResults with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:computeSuggestQps\(\) has parameter \$results with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:generateSample\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:resolveSteps\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\BenchCapacityRunner\:\:run\(\) has parameter \$steps with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
+
+		-
+			message: '#^Parameter \$peakRamMb of class Moaines\\IllumiSearch\\Support\\Benchmark\\VolumeSnapshot constructor expects int, float given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Support/Benchmark/BenchCapacityRunner.php
 
 		-
 			message: '#^Call to function method_exists\(\) with Moaines\\IllumiSearch\\Contracts\\Engine and ''setRebuilding'' will always evaluate to true\.$#'
@@ -509,6 +983,18 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Support/Benchmark/DataGenerator.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\DataScaler\:\:__construct\(\) has parameter \$columns with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/DataScaler.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Support\\Benchmark\\DataScaler\:\:\$columns is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: src/Support/Benchmark/DataScaler.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\MetricCollector\:\:accentInsensitivity\(\) has parameter \$accentTests with no value type specified in iterable type array\.$#'
@@ -757,6 +1243,12 @@ parameters:
 			path: src/Support/Benchmark/ReportRenderer.php
 
 		-
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 2
+			path: src/Support/Benchmark/SmartDatasetProvider.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\SmartDatasetProvider\:\:assertRanking\(\) has parameter \$queryDef with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -823,7 +1315,25 @@ parameters:
 			path: src/Support/Benchmark/SmartDatasetProvider.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\Benchmark\\VolumeSnapshot\:\:__construct\(\) has parameter \$quality with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/VolumeSnapshot.php
+
+		-
+			message: '#^Property Moaines\\IllumiSearch\\Support\\Benchmark\\VolumeSnapshot\:\:\$quality type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/Benchmark/VolumeSnapshot.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\ChunkStorage\:\:atomicWrite\(\) has parameter \$data with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/ChunkStorage.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\ChunkStorage\:\:docTextFromRow\(\) has parameter \$r with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Support/ChunkStorage.php
@@ -895,6 +1405,12 @@ parameters:
 			path: src/Support/EngineProxy.php
 
 		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\IllumiSearchConfig\:\:modelPaths\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/IllumiSearchConfig.php
+
+		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\IllumiSearchConfig\:\:sqlitePrefixLengths\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -943,22 +1459,34 @@ parameters:
 			path: src/Support/MatchService.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\MatchService\:\:text\(\) has parameter \$terms with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
 			count: 1
-			path: src/Support/MatchService.php
+			path: src/Support/OperatorProcessor.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\OperatorRegistry\:\:maskOperators\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
+			message: '#^Cannot access property \$title on array\<string, mixed\>\.$#'
+			identifier: property.nonObject
 			count: 1
-			path: src/Support/OperatorRegistry.php
+			path: src/Support/OperatorProcessor.php
 
 		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\OperatorRegistry\:\:unmaskOperators\(\) has parameter \$replacements with no value type specified in iterable type array\.$#'
+			message: '#^Expression on left side of \?\? is not nullable\.$#'
+			identifier: nullCoalesce.expr
+			count: 1
+			path: src/Support/OperatorProcessor.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\OperatorProcessor\:\:addToSet\(\) has parameter \$set with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Support/OperatorRegistry.php
+			path: src/Support/OperatorProcessor.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\OperatorProcessor\:\:findTokenPositions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Support/OperatorProcessor.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\ScoreService\:\:bm25Text\(\) has parameter \$stats with no value type specified in iterable type array\.$#'
@@ -989,6 +1517,12 @@ parameters:
 			identifier: missingType.iterableValue
 			count: 1
 			path: src/Support/ScoreService.php
+
+		-
+			message: '#^Call to function is_array\(\) with array\<string, mixed\> will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Support/SearchCache.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\SearchCache\:\:get\(\) return type has no value type specified in iterable type array\.$#'
@@ -1029,7 +1563,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property Moaines\\IllumiSearch\\Support\\TrigramIndex\:\:\$entries\.$#'
 			identifier: property.notFound
-			count: 5
+			count: 7
 			path: src/Support/TrigramIndex.php
 
 		-
@@ -1081,52 +1615,16 @@ parameters:
 			path: src/Support/TrigramIndex.php
 
 		-
+			message: '#^Property Moaines\\IllumiSearch\\Support\\TrigramIndex\:\:\$loaded type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 3
+			path: src/Support/TrigramIndex.php
+
+		-
 			message: '#^Property Moaines\\IllumiSearch\\Support\\TrigramIndex\:\:\$modelClass is never read, only written\.$#'
 			identifier: property.onlyWritten
 			count: 1
 			path: src/Support/TrigramIndex.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:collectVocab\(\) has parameter \$engine with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:collectVocab\(\) return type with generic class Illuminate\\Support\\Collection does not specify its types\: TKey, TValue$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:loadTrigramRows\(\) has parameter \$engine with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:loadTrigramRows\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:rankSuggestions\(\) has parameter \$queryScripts with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:rankSuggestions\(\) has parameter \$vocab with no type specified\.$#'
-			identifier: missingType.parameter
-			count: 1
-			path: src/Support/VocabService.php
-
-		-
-			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:rankSuggestions\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Support/VocabService.php
 
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:readFile\(\) return type has no value type specified in iterable type array\.$#'
@@ -1137,5 +1635,11 @@ parameters:
 		-
 			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:suggest\(\) has parameter \$engine with no type specified\.$#'
 			identifier: missingType.parameter
+			count: 1
+			path: src/Support/VocabService.php
+
+		-
+			message: '#^Method Moaines\\IllumiSearch\\Support\\VocabService\:\:trigramCandidateRows\(\) has parameter \$queryTrigrams with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
 			path: src/Support/VocabService.php

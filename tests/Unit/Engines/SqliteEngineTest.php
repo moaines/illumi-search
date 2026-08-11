@@ -42,6 +42,31 @@ class SqliteEngineTest extends TestCase
         $this->assertEquals([1, 2], array_map(fn ($r) => $r->modelId, $results));
     }
 
+    public function test_reupsert_same_id_does_not_duplicate_row(): void
+    {
+        $this->engine->upsert('App\Models\Post', 42, ['title' => 'first title', 'body' => 'first body']);
+        $this->engine->upsert('App\Models\Post', 42, ['title' => 'updated title', 'body' => 'updated body']);
+
+        // A plain INSERT OR REPLACE on FTS5 (no UNIQUE constraint) would create
+        // a second row for the same model_id. Numeric ids must overwrite.
+        $results = $this->engine->search('updated', ['App\Models\Post'], 10);
+        $this->assertCount(1, $results);
+        $this->assertEquals(42, $results[0]->modelId);
+
+        $all = $this->engine->search('title OR updated', ['App\Models\Post'], 10);
+        $this->assertCount(1, $all, 're-upsert must not duplicate the row');
+    }
+
+    public function test_reupsert_string_id_does_not_duplicate_row(): void
+    {
+        $this->engine->upsert('App\Models\Post', 'uuid-abc', ['title' => 'uuid doc', 'body' => 'one']);
+        $this->engine->upsert('App\Models\Post', 'uuid-abc', ['title' => 'uuid doc v2', 'body' => 'two']);
+
+        $results = $this->engine->search('uuid', ['App\Models\Post'], 10);
+        $this->assertCount(1, $results, 'string-id re-upsert must not duplicate the row');
+        $this->assertEquals('uuid-abc', $results[0]->modelId);
+    }
+
     public function test_search_multiple_models(): void
     {
         $this->engine->createTable('App\Models\Comment', ['content', 'author']);
@@ -413,7 +438,8 @@ class SqliteEngineTest extends TestCase
 
         $this->assertCount(1, $results, 'Search by author.name should find 1 book');
         $this->assertEquals(1, $results[0]->modelId, 'Should find the book by Dupont');
-        $this->assertGreaterThan(0, $results[0]->rank, 'BM25 rank should be positive');
+        $this->assertGreaterThanOrEqual(0, $results[0]->rank, 'BM25 rank should be in 0..100');
+        $this->assertLessThanOrEqual(100, $results[0]->rank, 'BM25 rank should be in 0..100');
     }
 
     public function test_search_respects_offset_for_pagination(): void
@@ -457,7 +483,8 @@ class SqliteEngineTest extends TestCase
         $results = $this->engine->search('php', ['App\Models\Post'], 10);
 
         $this->assertCount(2, $results);
-        $this->assertGreaterThan(0, $results[0]->rank, 'BM25 rank should be positive');
+        $this->assertGreaterThanOrEqual(0, $results[0]->rank, 'BM25 rank should be in 0..100');
+        $this->assertLessThanOrEqual(100, $results[0]->rank, 'BM25 rank should be in 0..100');
         $this->assertGreaterThanOrEqual($results[1]->rank, $results[0]->rank, 'Results sorted by rank descending (best first)');
     }
 
@@ -500,7 +527,8 @@ class SqliteEngineTest extends TestCase
         $this->assertTrue(in_array(1, array_map(fn ($r) => $r->modelId, $results)), 'Post 1 should be found');
         $this->assertTrue(in_array(2, array_map(fn ($r) => $r->modelId, $results)), 'Post 2 should be found');
         foreach ($results as $r) {
-            $this->assertGreaterThan(0, $r->rank, 'All results should have BM25 rank');
+            $this->assertGreaterThanOrEqual(0, $r->rank, 'BM25 rank should be in 0..100');
+            $this->assertLessThanOrEqual(100, $r->rank, 'BM25 rank should be in 0..100');
         }
     }
 
@@ -535,8 +563,32 @@ class SqliteEngineTest extends TestCase
 
         $this->assertCount(2, $results, 'Both models should match');
         foreach ($results as $r) {
-            $this->assertGreaterThan(0, $r->rank, 'All cross-model results should have BM25 rank');
+            $this->assertGreaterThanOrEqual(0, $r->rank, 'BM25 rank should be in 0..100');
+            $this->assertLessThanOrEqual(100, $r->rank, 'BM25 rank should be in 0..100');
         }
         $this->assertTrue($results[0]->rank >= $results[1]->rank, 'Cross-model results sorted by rank (best first)');
+    }
+
+    public function test_doccount_cache_is_isolated_between_database_paths(): void
+    {
+        // Two engines on different databases, same model classes. The docCount
+        // cache is scoped by database path, so each engine must use its own count.
+        $pathA = storage_path('app/illumi-scope-a.sqlite');
+        $pathB = storage_path('app/illumi-scope-b.sqlite');
+        @unlink($pathA);
+        @unlink($pathB);
+
+        $engineA = new SqliteEngine($pathA);
+        $engineB = new SqliteEngine($pathB);
+
+        // The cache scope key must differ between distinct database paths.
+        $scopeKey = new \ReflectionMethod(SqliteEngine::class, 'docCountScopeKey');
+        $scopeKey->setAccessible(true);
+        $keyA = $scopeKey->invoke($engineA);
+        $keyB = $scopeKey->invoke($engineB);
+        $this->assertNotSame($keyA, $keyB, 'different db paths must yield different cache scopes');
+
+        @unlink($pathA);
+        @unlink($pathB);
     }
 }

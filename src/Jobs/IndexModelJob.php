@@ -10,7 +10,6 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Moaines\IllumiSearch\Console\Commands\Concerns\ChecksRebuildLock;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Throwable;
 
 class IndexModelJob implements ShouldQueue
@@ -33,7 +32,7 @@ class IndexModelJob implements ShouldQueue
         return [(new WithoutOverlapping($this->modelId))->shared()->releaseAfter(10)];
     }
 
-    public function handle(Engine $engine, TextProcessor $global): void
+    public function handle(Engine $engine): void
     {
         if (! $this->checkRebuildLock()) {
             return;
@@ -45,7 +44,7 @@ class IndexModelJob implements ShouldQueue
             return;
         }
 
-        $processed = $model->processDocument($model, $global);
+        $processed = $model->processDocument($model);
         $engine->upsert($this->modelClass, $this->modelId, $processed);
     }
 

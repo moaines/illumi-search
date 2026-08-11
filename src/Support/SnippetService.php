@@ -10,6 +10,18 @@ class SnippetService
     /** @var string[] */
     private array $defaultTextColumns = ['body', 'content', 'description', 'text', 'excerpt'];
 
+    /** @var array<string, string[]> Cached column listing per table. */
+    private static array $columnCache = [];
+
+    private function tableHasColumn(string $table, string $column): bool
+    {
+        if (! isset(self::$columnCache[$table])) {
+            self::$columnCache[$table] = Schema::getColumnListing($table);
+        }
+
+        return in_array($column, self::$columnCache[$table], true);
+    }
+
     /**
      * @param  array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>}>  $results
      * @return array<int, array{modelClass: class-string, modelId: int|string, rank: float, title: string, row: array<string, mixed>, eloquentModel?: Model|null, summary?: string|null}>
@@ -49,7 +61,7 @@ class SnippetService
                         if (! in_array($relName, $relationCols, true)) {
                             $relationCols[] = $relName;
                         }
-                    } elseif (Schema::hasColumn($instance->getTable(), $col)) {
+                    } elseif ($this->tableHasColumn($instance->getTable(), $col)) {
                         $selectCols[] = $col;
                     }
                 }

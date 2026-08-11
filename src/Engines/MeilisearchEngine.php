@@ -15,13 +15,11 @@ use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
-use Moaines\IllumiSearch\Text\StubQueryVocab;
 
 class MeilisearchEngine implements Engine
 {
     use NoopVacuum;
     use NullPragma;
-    use StubQueryVocab;
     use HasTextHelpers;
     use HasOperatorProcessor;
 

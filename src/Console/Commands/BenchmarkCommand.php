@@ -60,7 +60,6 @@ class BenchmarkCommand extends Command
         $totalDocs = (int) $this->option('docs');
         $format = $this->option('format');
         $verbose = $this->option('verbose') ?? false;
-        $allEngines = $this->option('all-engines');
         $mode = $this->option('mode');
         $repetitions = (int) $this->option('repetitions');
         $seed = (int) $this->option('seed');
@@ -73,24 +72,7 @@ class BenchmarkCommand extends Command
 
         $renderer = new ReportRenderer;
 
-        $currentName = $engine->getEngineStatus()['driver'] ?? (new \ReflectionClass($engine))->getShortName();
-
-        $enginesToRun = [];
-
-        if ($allEngines) {
-            foreach (self::ENGINE_FACTORIES as $name => $factoryMethod) {
-                if ($name === $currentName) {
-                    $enginesToRun[] = [$engine, $name];
-                } else {
-                    $eng = $this->{$factoryMethod}();
-                    if ($eng !== null) {
-                        $enginesToRun[] = [$eng, $name];
-                    }
-                }
-            }
-        } else {
-            $enginesToRun[] = [$engine, $currentName];
-        }
+        $enginesToRun = $this->resolveEngines($engine);
 
         $modes = $mode === 'both' ? ['processed', 'raw'] : [$mode];
 
@@ -111,6 +93,37 @@ class BenchmarkCommand extends Command
         $renderer->render($this->output, $format);
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Resolve the engines to benchmark.
+     *
+     * With --all-engines, every available engine is returned (unavailable
+     * backends are skipped); otherwise only the active engine.
+     *
+     * @return array<int, array{0: Engine, 1: string}>
+     */
+    private function resolveEngines(Engine $engine): array
+    {
+        $currentName = $engine->getEngineStatus()['driver'] ?? (new \ReflectionClass($engine))->getShortName();
+
+        if (! $this->option('all-engines')) {
+            return [[$engine, $currentName]];
+        }
+
+        $enginesToRun = [];
+        foreach (self::ENGINE_FACTORIES as $name => $factoryMethod) {
+            if ($name === $currentName) {
+                $enginesToRun[] = [$engine, $name];
+            } else {
+                $eng = $this->{$factoryMethod}();
+                if ($eng !== null) {
+                    $enginesToRun[] = [$eng, $name];
+                }
+            }
+        }
+
+        return $enginesToRun;
     }
 
     private function runSingle(Engine $engine, string $name, int $totalDocs, ?string $seedPath, bool $verbose, ReportRenderer $renderer, string $mode = 'processed'): void
@@ -302,28 +315,37 @@ class BenchmarkCommand extends Command
 
         $this->info("📊 Running capacity test up to {$targetDocs} docs\n");
 
-        $runner = new BenchCapacityRunner(
-            engine: $engine,
-            modelClass: 'App\Models\BenchmarkPost',
-            columns: ['title', 'body'],
-        );
+        foreach ($this->resolveEngines($engine) as [$eng, $engName]) {
+            $this->info("\n<options=bold>=== {$engName} ===</>\n");
 
-        if ($this->option('latin-only')) {
-            $runner->setLatinOnly(true);
-        }
+            $runner = new BenchCapacityRunner(
+                engine: $eng,
+                modelClass: 'App\Models\BenchmarkPost',
+                columns: ['title', 'body'],
+            );
 
-        if ($this->option('skip-rebuild-check')) {
-            $runner->setStopRebuildThreshold(null);
-        }
+            if ($this->option('latin-only')) {
+                $runner->setLatinOnly(true);
+            }
 
-        $snapshots = $runner->run($targetDocs, $steps);
+            if ($this->option('skip-rebuild-check')) {
+                $runner->setStopRebuildThreshold(null);
+            }
 
-        $this->renderCapacityTable($snapshots);
+            $snapshots = $runner->run($targetDocs, $steps);
 
-        if ($runner->isStopped()) {
-            $this->warn("\n⛔ Stopped early: {$runner->bottleneck()}");
-        } else {
-            $this->info("\n🏆 Target reached: {$targetDocs} docs without degradation");
+            $this->renderCapacityTable($snapshots);
+
+            if ($runner->isStopped()) {
+                $this->warn("\n⛔ {$engName} stopped early: {$runner->bottleneck()}");
+            } else {
+                $this->info("\n🏆 {$engName} reached {$targetDocs} docs without degradation");
+            }
+
+            try {
+                $eng->dropTable('App\Models\BenchmarkPost');
+            } catch (\Exception) {
+            }
         }
 
         return Command::SUCCESS;
@@ -346,16 +368,21 @@ class BenchmarkCommand extends Command
                 number_format($snapshot->latencyP95, 1) . ' ms',
                 number_format($snapshot->suggestQps, 1) . ' q/s',
                 number_format($snapshot->rebuildDocsPerSec, 0) . ' d/s',
+                number_format($snapshot->rebuildSeconds, 1) . ' s',
                 $snapshot->indexSizeMb . ' MB',
                 $snapshot->peakRamMb . ' MB',
                 $flags,
+                number_format($snapshot->requestsPerDay),
+                $snapshot->indexKbPerDoc . ' KB',
             ];
         }
 
         $this->table(
-            ['Volume', 'Search', 'p50', 'p95', 'Suggest', 'Rebuild', 'Index', 'RAM', 'Quality'],
+            ['Volume', 'Search', 'p50', 'p95', 'Suggest', 'Rebuild', 'Re-idx', 'Index', 'RAM', 'Quality', 'Req/jour*', 'Idx KB/doc'],
             $rows,
         );
+
+        $this->line("\n* Req/jour = search q/s × 86 400 à 30% de charge soutenue (estimation).");
 
         $this->line('');
     }

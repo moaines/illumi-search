@@ -44,9 +44,16 @@ jobs:
           elif [ "${{ matrix.laravel }}" = "13" ]; then
             composer update --no-interaction --no-progress --with="orchestra/testbench:^11.0"
           fi
+          composer require --dev wamania/php-stemmer --no-interaction
 
       - name: Run PHPUnit
         run: vendor/bin/phpunit
+
+      - name: Local engines must not skip
+        run: vendor/bin/phpunit --fail-on-skipped --fail-on-warning \
+              tests/Feature/Engines/QualityTest.php \
+              tests/Feature/Engines/FileQualityTest.php \
+              tests/Unit
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress || true

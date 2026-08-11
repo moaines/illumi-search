@@ -34,12 +34,17 @@ class SearchCache
 
     public function key(string $query, array $modelClasses, int $limit, int $offset, string $mode): string
     {
-        $modelPrefix = md5(implode(',', $modelClasses));
+        // Encode each model individually in the key so clear($modelClass) can
+        // invalidate both single- and multi-model entries containing it.
+        $modelPrefix = implode(
+            '.',
+            array_map(fn ($m) => substr(md5((string) $m), 0, 8), $modelClasses),
+        );
         $data = serialize([$query, $modelClasses, $limit, $offset, $mode, $this->cacheVersion]);
 
         return $this->useLaravelCache
             ? md5($data)
-            : substr($modelPrefix, 0, 8) . '_' . md5($data);
+            : $modelPrefix . '_' . md5($data);
     }
 
     public function enrichedKey(string $baseKey): string
@@ -65,6 +70,13 @@ class SearchCache
             return null;
         }
 
+        $ttl = (int) config('illumi-search.cache_ttl', 300);
+        if ($ttl > 0 && (time() - filemtime($path)) > $ttl) {
+            @unlink($path);
+
+            return null;
+        }
+
         $content = file_get_contents($path);
         if ($content === false || $content === '') {
             return null;
@@ -79,7 +91,7 @@ class SearchCache
     {
         if ($this->useLaravelCache) {
             $ttl = (int) config('illumi-search.cache_ttl', 300);
-            Cache::put("illumi_search:{$key}", $results, $ttl);
+            Cache::put("illumi_search:{$key}", $this->stripModels($results), $ttl);
 
             return;
         }
@@ -87,8 +99,26 @@ class SearchCache
         File::ensureDirectoryExists($this->cacheDir);
         $path = $this->path($key);
         $temp = $path . '.' . bin2hex(random_bytes(8)) . '.tmp';
-        file_put_contents($temp, json_encode($results, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        file_put_contents($temp, json_encode($this->stripModels($results), JSON_UNESCAPED_UNICODE), LOCK_EX);
         rename($temp, $path);
+    }
+
+    /**
+     * Never serialize Eloquent models (with their relations) into the cache —
+     * json_encode on a model is heavy and the model is not needed on cache hits.
+     *
+     * @param  array<int, array<string, mixed>>  $results
+     * @return array<int, array<string, mixed>>
+     */
+    private function stripModels(array $results): array
+    {
+        foreach ($results as &$r) {
+            if (is_array($r) && array_key_exists('eloquentModel', $r)) {
+                $r['eloquentModel'] = null;
+            }
+        }
+
+        return $results;
     }
 
     public function clear(?string $modelClass = null): void
@@ -104,8 +134,11 @@ class SearchCache
             return;
         }
 
+        // Key files look like: {md5A}.{md5B}.{...}_{queryhash}.json. Matching
+        // *{modelHash}* invalidates single- and multi-model entries containing
+        // the model (hash collision chance is negligible at 8 hex chars).
         $pattern = $modelClass !== null
-            ? $this->cacheDir . substr(md5($modelClass), 0, 8) . '_*.json'
+            ? $this->cacheDir . '*' . substr(md5($modelClass), 0, 8) . '*'
             : $this->cacheDir . '*.json';
 
         foreach (glob($pattern) as $file) {

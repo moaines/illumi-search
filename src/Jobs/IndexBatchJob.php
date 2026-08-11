@@ -10,7 +10,6 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Moaines\IllumiSearch\Console\Commands\Concerns\ChecksRebuildLock;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Throwable;
 
 class IndexBatchJob implements ShouldQueue
@@ -34,7 +33,7 @@ class IndexBatchJob implements ShouldQueue
         return [(new WithoutOverlapping($this->modelClass))->shared()->releaseAfter(30)];
     }
 
-    public function handle(Engine $engine, TextProcessor $global): void
+    public function handle(Engine $engine): void
     {
         if (! $this->checkRebuildLock()) {
             return;
@@ -58,7 +57,7 @@ class IndexBatchJob implements ShouldQueue
         foreach ($records as $record) {
             $documents[] = [
                 'model_id' => $record->getKey(),
-                'document' => $record->processDocument($record, $global),
+                'document' => $record->processDocument($record),
             ];
         }
 

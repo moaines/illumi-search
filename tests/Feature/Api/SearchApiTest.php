@@ -110,4 +110,54 @@ class SearchApiTest extends TestCase
         $response = $this->callApi(['q' => $long]);
         $this->assertEquals(200, $response->status(), 'Long query should return empty results, not crash');
     }
+
+    // ─── Request validation ─────────────────────────
+
+    public function test_validation_rejects_invalid_limit(): void
+    {
+        $this->assertFalse($this->requestValidates(['q' => 'php', 'limit' => 0]));
+    }
+
+    public function test_validation_rejects_limit_above_max(): void
+    {
+        $this->assertFalse($this->requestValidates(['q' => 'php', 'limit' => 51]));
+    }
+
+    public function test_validation_accepts_valid_limit(): void
+    {
+        $this->assertTrue($this->requestValidates(['q' => 'php', 'limit' => 50]));
+    }
+
+    public function test_validation_rejects_unknown_mode(): void
+    {
+        $this->assertFalse($this->requestValidates(['q' => 'php', 'mode' => 'fancy']));
+    }
+
+    public function test_validation_accepts_valid_modes(): void
+    {
+        foreach (['basic', 'advanced', 'raw'] as $mode) {
+            $this->assertTrue($this->requestValidates(['q' => 'php', 'mode' => $mode]), "mode {$mode} should be valid");
+        }
+    }
+
+    public function test_validation_rejects_empty_query(): void
+    {
+        $this->assertFalse($this->requestValidates(['q' => '']));
+    }
+
+    public function test_validation_rejects_non_integer_limit(): void
+    {
+        $this->assertFalse($this->requestValidates(['q' => 'php', 'limit' => 'abc']));
+    }
+
+    private function requestValidates(array $params): bool
+    {
+        $base = \Illuminate\Http\Request::create('/api/illumi-search', 'GET', $params);
+        $request = SearchApiRequest::createFromBase($base);
+        $request->setRouteResolver(fn () => null);
+
+        $validator = app('validator')->make($request->all(), (new SearchApiRequest)->rules());
+
+        return $validator->passes();
+    }
 }

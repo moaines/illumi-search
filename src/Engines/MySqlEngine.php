@@ -11,12 +11,14 @@ use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Stopwords\StopwordFilter;
 use Moaines\IllumiSearch\Support\ConfigHelper;
 use Moaines\IllumiSearch\Support\IllumiSearchConfig;
+use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 use Moaines\IllumiSearch\Support\OperatorRegistry;
 use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
 use Moaines\IllumiSearch\Concerns\HasMaxDocuments;
 use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
 use Moaines\IllumiSearch\Concerns\HasTenant;
+use Moaines\IllumiSearch\Concerns\HasVocabSuggest;
 use Moaines\IllumiSearch\Concerns\HasWeightedColumns;
 use Moaines\IllumiSearch\Support\OperatorProcessor;
 use Moaines\IllumiSearch\TenantManager;
@@ -25,7 +27,6 @@ use Moaines\IllumiSearch\Text\HasScoring;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
-use Moaines\IllumiSearch\Text\StubQueryVocab;
 use Symfony\Component\String\UnicodeString;
 
 class MySqlEngine implements Engine
@@ -33,14 +34,13 @@ class MySqlEngine implements Engine
     use HasOperatorProcessor;
     use HasDebugCollector;
     use HasMaxDocuments;
-    use HasOperatorProcessor;
     use HasScoring;
     use HasTenant;
     use HasTextHelpers;
+    use HasVocabSuggest;
     use HasWeightedColumns;
     use NoopVacuum;
     use NullPragma;
-    use StubQueryVocab;
 
     private const TABLE = 'index';
 
@@ -49,8 +49,6 @@ class MySqlEngine implements Engine
     private const VOCAB_TABLE = 'vocab';
 
     private const TRIGRAM_TABLE = 'vocab_trigrams';
-
-    private const SCRIPT_MISMATCH_PENALTY = 3;
 
     public const CONNECTION_NAME = 'illumi-search-mysql';
 
@@ -141,8 +139,9 @@ class MySqlEngine implements Engine
     {
         $cols = '';
         for ($w = 1; $w <= $maxWeight; $w++) {
-            $type = 'TEXT';
-            $cols .= ", text_w{$w} {$type} NOT NULL DEFAULT ''";
+            // NOT NULL without DEFAULT: MySQL 8 strict mode rejects DEFAULT ''
+            // on TEXT columns ("can't have a default value").
+            $cols .= ", text_w{$w} TEXT NOT NULL";
         }
         return $cols;
     }
@@ -318,6 +317,29 @@ class MySqlEngine implements Engine
             'last_synced_at' => $r->last_synced_at,
             'columns' => null,
         ], $rows);
+    }
+
+    /** Identity of this engine's index scope (connection + tenant). */
+    protected function docCountScopeKey(): string
+    {
+        return $this->connection . '|' . ($this->tenantId() ?? '');
+    }
+
+    /**
+     * @param  array<class-string>  $modelClasses
+     */
+    protected function countDocsInScope(array $modelClasses): int
+    {
+        $placeholders = implode(', ', array_fill(0, count($modelClasses), '?'));
+        if ($placeholders === '') {
+            return 0;
+        }
+
+        return (int) DB::connection($this->connection)->selectOne(
+            'SELECT COUNT(*) AS c FROM ' . $this->table(self::TABLE)
+            . " WHERE model_type IN ({$placeholders})",
+            $modelClasses,
+        )->c;
     }
 
     public function getIndexedModelClasses(): array
@@ -496,13 +518,15 @@ class MySqlEngine implements Engine
         $searchStart = microtime(true);
 
         if (! $searchDone) {
+            $this->resetDocCountCache();
+            $docCount = $this->indexedDocCount($modelClasses);
             $modelTypes = array_map(fn ($c) => (string) $c, $modelClasses);
             [$inPlaceholders, $inParams] = $this->modelTypePlaceholders($modelTypes);
             $tokens = collect(explode(' ', $booleanQuery))
                 ->map(fn ($t) => trim($t, '+-~"()*"'))
                 ->filter(fn ($t) => $t !== '');
             $maxTokenLen = $tokens->map(fn ($t) => mb_strlen($t))->max() ?? 0;
-            $hasNonLatin = $tokens->contains(fn ($t) => preg_match('/[^\x20-\x7E]/u', $t));
+            $hasNonLatin = $tokens->contains(fn ($t) => IllumiSearchHelper::containsNonAscii($t));
             $needsLikeFallback = $maxTokenLen > 0 && $hasNonLatin;
 
         $match = $this->buildWeightMatchExpressions();
@@ -526,12 +550,12 @@ class MySqlEngine implements Engine
             SELECT model_type, model_id,
                    {$concatCol} AS search_text,
                    {$titleCol} AS search_title,
-                   {$match['selectExpr']} AS rank,
+                   {$match['selectExpr']} AS search_rank,
                    COUNT(*) OVER () AS total_count
              FROM " . $this->table(self::TABLE) . "
              WHERE model_type IN ({$inPlaceholders})
                AND {$match['whereExpr']}
-             ORDER BY rank DESC
+             ORDER BY search_rank DESC
              LIMIT ? OFFSET ?
         ", array_merge(
             $selectBindings,
@@ -543,7 +567,7 @@ class MySqlEngine implements Engine
         $results = [];
 
         foreach ($rows as $row) {
-            $score = $this->normalizeScore((float) $row->rank, null, 1);
+            $score = $this->normalizeScore((float) $row->search_rank, $docCount, 1);
 
             $results[] = [
                 'modelClass' => $row->model_type,
@@ -585,7 +609,7 @@ class MySqlEngine implements Engine
                     SELECT model_type, model_id,
                            {$concatCol} AS search_text,
                            {$titleCol} AS search_title,
-                           1.0 AS rank,
+                           1.0 AS search_rank,
                            COUNT(*) OVER () AS total_count
                     FROM {$this->table(self::TABLE)}
                     WHERE model_type IN ({$inPlaceholders})
@@ -764,19 +788,16 @@ class MySqlEngine implements Engine
 
     public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
     {
-        if (strlen(trim($query)) < 2) {
-            return [];
-        }
+        return $this->runSuggest($query, $maxDistance, $limit);
+    }
 
-        $queryAscii = (string) (new UnicodeString($query))->ascii();
-        $queryScripts = $this->scriptsOf($query);
-        $queryTrigrams = $this->wordToTrigrams($queryAscii);
-
-        if (count($queryTrigrams) < 2) {
-            return [];
-        }
-
-        // Phase 1: trigram matching — no Levenshtein, no limit cap
+    /**
+     * Backend step: vocab rows whose word matches the query trigrams.
+     *
+     * @return iterable<object{word: string, ascii_word: string}>
+     */
+    protected function trigramCandidateRows(string $queryAscii, array $queryTrigrams, int $limit): iterable
+    {
         $trigramWords = DB::connection($this->connection)
             ->table($this->table(self::TRIGRAM_TABLE))
             ->select('word', DB::raw('AVG(doc_count) AS avg_doc'))
@@ -787,70 +808,30 @@ class MySqlEngine implements Engine
             ->limit($limit * 3)
             ->pluck('word');
 
-        if ($trigramWords->isNotEmpty()) {
-            $vocab = DB::connection($this->connection)
-                ->table($this->table(self::VOCAB_TABLE))
-                ->whereIn('word', $trigramWords)
-                ->get(['word', 'ascii_word']);
-
-            $suggestions = $this->rankSuggestions($vocab, $queryAscii, $queryScripts, $maxDistance);
-
-            if (count($suggestions) >= $limit) {
-                return array_slice($suggestions, 0, $limit);
-            }
+        if ($trigramWords->isEmpty()) {
+            return [];
         }
 
-        // Phase 2: fallback prefix Levenshtein (if trigrams didn't yield enough)
-        $prefix = mb_substr($queryAscii, 0, 2);
-        $vocabLimit = $this->illumiConfig->sqliteVocabLimit();
-
-        $fallback = DB::connection($this->connection)
+        return DB::connection($this->connection)
             ->table($this->table(self::VOCAB_TABLE))
-            ->where('doc_count', '>=', 1)
-            ->where('ascii_word', 'like', $prefix . '%')
-            ->whereNotIn('word', $trigramWords)
-            ->orderBy('doc_count', 'desc')
-            ->limit($vocabLimit)
+            ->whereIn('word', $trigramWords)
             ->get(['word', 'ascii_word']);
-
-        $more = $this->rankSuggestions($fallback, $queryAscii, $queryScripts, $maxDistance);
-
-        return array_slice(array_merge($suggestions ?? [], $more), 0, $limit);
     }
 
     /**
-     * Score and rank words by Levenshtein distance + script penalty.
+     * Backend step: vocab rows whose ASCII form starts with the prefix.
      *
-     * @param  Collection  $vocab  Collection of {word, ascii_word}
-     * @return string[]
+     * @return iterable<object{word: string, ascii_word: string}>
      */
-    private function rankSuggestions($vocab, string $queryAscii, array $queryScripts, int $maxDistance): array
+    protected function prefixCandidateRows(string $query, string $queryAscii, string $prefix, int $limit): iterable
     {
-        $scriptCache = [];
-
-        return $vocab
-            ->map(function ($row) use ($queryAscii, &$scriptCache) {
-                $asciiWord = $row->ascii_word;
-
-                if (! isset($scriptCache[$asciiWord])) {
-                    $scriptCache[$asciiWord] = $this->scriptsOf($row->word);
-                }
-
-                return [
-                    'word' => $row->word,
-                    'distance' => levenshtein($queryAscii, $asciiWord),
-                    'scripts' => $scriptCache[$asciiWord],
-                ];
-            })
-            ->filter(fn ($w) => $w['distance'] > -1 && $w['distance'] <= $maxDistance)
-            ->map(fn ($w) => [
-                'word' => $w['word'],
-                'score' => $w['distance']
-                    + (empty(array_intersect($queryScripts, $w['scripts'])) ? self::SCRIPT_MISMATCH_PENALTY : 0),
-            ])
-            ->sortBy('score')
-            ->pluck('word')
-            ->all();
+        return DB::connection($this->connection)
+            ->table($this->table(self::VOCAB_TABLE))
+            ->where('doc_count', '>=', 1)
+            ->where('ascii_word', 'like', $prefix . '%')
+            ->orderBy('doc_count', 'desc')
+            ->limit($this->illumiConfig->sqliteVocabLimit())
+            ->get(['word', 'ascii_word']);
     }
 
     public function getSupportedOperators(): array
@@ -1152,8 +1133,6 @@ class MySqlEngine implements Engine
             // Re-read config for the correct max_weight
             $currentMax = $this->illumiConfig->maxWeight();
 
-            $textProcessor = app(TextProcessor::class);
-
             foreach ($modelClasses as $class) {
                 if (! class_exists($class)) {
                     continue;
@@ -1161,14 +1140,14 @@ class MySqlEngine implements Engine
 
                 $instance = new $class;
 
-                $instance->chunkById($this->illumiConfig->rebuildBatchSize(), function ($models) use ($temp, $class, $weightColNames, $currentMax, $textProcessor) {
+                $instance->chunkById($this->illumiConfig->rebuildBatchSize(), function ($models) use ($temp, $class, $weightColNames, $currentMax) {
                     $valuePlaceholders = '(' . implode(', ', array_fill(0, 2 + $currentMax, '?')) . ')';
                     $values = [];
                     $params = [];
 
                     foreach ($models as $model) {
                         $document = method_exists($class, 'processDocument')
-                            ? $class::processDocument($model, $textProcessor)
+                            ? $class::processDocument($model)
                             : ['title' => $model->title ?? '', 'body' => $model->body ?? ''];
 
                         $weightCols = $this->buildSearchText($class, $document);

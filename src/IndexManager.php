@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Events\ModelIndexed;
 use Moaines\IllumiSearch\Events\RebuildComplete;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
@@ -19,7 +18,6 @@ class IndexManager
 
     public function __construct(
         private readonly Engine $engine,
-        private readonly TextProcessor $processor,
     ) {}
 
     /** @return Collection<int, string> */
@@ -172,10 +170,6 @@ class IndexManager
         try {
             /** @var Model $instance */
             $instance = new $modelClass;
-            $rawColumns = $instance->getSearchableColumns();
-            $columns = collect($rawColumns)->mapWithKeys(fn ($v, $k) => [
-                is_string($k) ? $k : $v => is_array($v) ? $v : [],
-            ])->all();
             $columns = $instance->getSearchableColumns();
 
             if (empty($columns)) {
@@ -335,7 +329,7 @@ class IndexManager
             $progress?->__invoke('processing', $record->getKey(), $title);
             $documents[] = [
                 'model_id' => $record->getKey(),
-                'document' => $record->processDocument($record, $this->processor),
+                'document' => $record->processDocument($record),
             ];
             $count++;
         }
@@ -384,7 +378,7 @@ class IndexManager
                         $records->load($relations);
                     }
                     foreach ($records as $record) {
-                        $processed = $record->processDocument($record, $this->processor);
+                        $processed = $record->processDocument($record);
                         $this->engine->upsert($modelClass, $record->getKey(), $processed);
                         $count++;
                     }

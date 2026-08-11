@@ -105,11 +105,6 @@ class EngineRegistrationTest extends TestCase
                     return ['passed' => true, 'errors' => []];
                 }
 
-                public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
-                {
-                    return [];
-                }
-
                 public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
                 {
                     return [];

@@ -178,4 +178,72 @@ class ResultTest extends TestCase
         $this->assertInstanceOf(Result::class, $unserialized);
         $this->assertEquals('App\Models\Post', $unserialized->modelClass);
     }
+
+    public function test_from_raw_maps_all_fields(): void
+    {
+        $result = Result::fromRaw([
+            'modelClass' => 'App\Models\Post',
+            'modelId' => 42,
+            'rank' => 3.14,
+            'title' => 'Hello World',
+            'summary' => 'some <mark>hello</mark>',
+            'row' => ['title' => 'Hello World', 'model_id' => 42],
+            'totalCount' => 7,
+        ]);
+
+        $this->assertSame('App\Models\Post:42', $result->id);
+        $this->assertSame('App\Models\Post', $result->modelClass);
+        $this->assertSame(42, $result->modelId);
+        $this->assertSame(3.14, $result->rank);
+        $this->assertSame('Hello World', $result->title);
+        $this->assertSame('some <mark>hello</mark>', $result->summary);
+        $this->assertSame(7, $result->totalCount);
+    }
+
+    public function test_from_raw_defaults_missing_optional_fields(): void
+    {
+        $result = Result::fromRaw([
+            'modelClass' => 'App\Models\Post',
+            'modelId' => 1,
+            'rank' => 0.5,
+            'title' => 'No summary',
+        ]);
+
+        $this->assertNull($result->summary);
+        $this->assertNull($result->totalCount);
+        $this->assertSame([], $result->raw);
+        $this->assertTrue($result->authorized);
+    }
+
+    public function test_from_raw_ignores_non_model_eloquent(): void
+    {
+        // SnippetService may store a serialized array instead of a Model.
+        $result = Result::fromRaw([
+            'modelClass' => 'App\Models\Post',
+            'modelId' => 1,
+            'rank' => 0.5,
+            'title' => 'T',
+            'eloquentModel' => ['id' => 1, 'title' => 'serialized'],
+        ]);
+
+        $this->assertNull($result->model, 'array eloquentModel must not become a Model');
+    }
+
+    public function test_from_raw_keeps_real_model(): void
+    {
+        $model = new class extends Model
+        {
+            protected $table = 'test';
+        };
+
+        $result = Result::fromRaw([
+            'modelClass' => 'App\Models\Post',
+            'modelId' => 1,
+            'rank' => 0.5,
+            'title' => 'T',
+            'eloquentModel' => $model,
+        ]);
+
+        $this->assertSame($model, $result->model);
+    }
 }

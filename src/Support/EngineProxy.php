@@ -188,11 +188,6 @@ class EngineProxy implements Engine
         return $this->resolve()->fullIntegrityCheck();
     }
 
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
-    {
-        return $this->resolve()->queryVocab($modelClass, $term, $maxDistance, $limit);
-    }
-
     public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
     {
         return $this->resolve()->suggest($query, $maxDistance, $limit);

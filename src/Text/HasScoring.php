@@ -10,6 +10,46 @@ namespace Moaines\IllumiSearch\Text;
  */
 trait HasScoring
 {
+    /** @var array<string, int> Per-request docCount cache, keyed by scope. */
+    private static array $docCountCache = [];
+
+    /**
+     * Identity of this engine's index scope (database/connection + tenant).
+     * Keeps the docCount cache isolated between bases/tenants in one process.
+     */
+    abstract protected function docCountScopeKey(): string;
+
+    /**
+     * Count the total indexed documents for the searched model classes.
+     * Called once per request; the result is cached by scope.
+     *
+     * @param  array<class-string>  $modelClasses
+     */
+    abstract protected function countDocsInScope(array $modelClasses): int;
+
+    /**
+     * Reset the per-request docCount cache (call at the start of a search).
+     */
+    protected function resetDocCountCache(): void
+    {
+        self::$docCountCache = [];
+    }
+
+    /**
+     * Total indexed documents for the searched model classes, cached per request.
+     *
+     * @param  array<class-string>  $modelClasses
+     */
+    protected function indexedDocCount(array $modelClasses): int
+    {
+        $key = $this->docCountScopeKey() . '|' . implode(',', $modelClasses);
+        if (isset(self::$docCountCache[$key])) {
+            return self::$docCountCache[$key];
+        }
+
+        return self::$docCountCache[$key] = $this->countDocsInScope($modelClasses);
+    }
+
     /**
      * BM25 tuning parameter: term frequency saturation (1.2–2.0).
      */
@@ -33,25 +73,18 @@ trait HasScoring
      * highest weight) to normalize, making scores comparable across
      * different model classes and datasets.
      *
-     * When $stats is null (no term-frequency map available), the raw
-     * score is returned unchanged.
-     *
      * @param  float  $rawScore  Raw BM25 accumulated score
-     * @param  array|null  $stats  Stats containing docCount, or null for passthrough
+     * @param  int  $docCount  Total indexed documents (0 → passthrough)
      * @param  int  $maxWeight  Highest weight column for this engine
-     * @return float Value between 0 and 100, or raw score if stats unavailable
+     * @return float Value between 0 and 100, or raw score if docCount is 0
      */
-    protected function normalizeScore(float $rawScore, ?array $stats, int $maxWeight = 3): float
+    protected function normalizeScore(float $rawScore, int $docCount, int $maxWeight = 3): float
     {
-        if ($rawScore <= 0.0) {
+        if ($rawScore <= 0.0 || $docCount <= 0) {
             return $rawScore;
         }
 
-        if ($stats === null) {
-            return $rawScore;
-        }
-
-        $N = $stats['docCount'] ?? 1;
+        $N = $docCount;
         $idfMax = log(1 + ($N + 0.5) / 0.5);
         $scoreMaxPerTerm = $idfMax * ($this->bm25K1() + 1);
         $maxPossibleScore = $scoreMaxPerTerm * $maxWeight;

@@ -1,5 +1,160 @@
 # Changelog
 
+## v1.23.0 — FileEngine performance, unified spellcheck, capacity benchmark
+
+> **⚠️ Breaking change:** `Engine::queryVocab()` is removed from the engine
+> contract. It was deprecated in favour of `suggest()`. Custom engines must
+> drop the method and the `StubQueryVocab` trait (see the Spellcheck section).
+
+### Benchmark — capacity across resource tiers + human metrics
+
+- **`--capacity --all-engines` now benchmarks every engine** — the capacity
+  path previously benchmarked only the active engine despite the documented
+  flag. `resolveEngines()` is now shared by both the standard and capacity
+  runs, so `--all-engines --capacity` covers SQLite, FileEngine, MySQL,
+  PostgreSQL and Meilisearch in one pass.
+- **Human-friendly metrics in capacity output** — each volume row now shows
+  **Req/jour\*** (sustained search requests/day = q/s × 86 400 at 30% load)
+  and **Idx KB/doc** (index size per document), computed in `VolumeSnapshot`
+  (`requestsPerDay`, `indexKbPerDoc`, `ramKbPerDoc`, `rebuildSeconds`).
+- **`bench/run.sh` accepts `--mem`/`--cpus`** — the reproducible benchmark can
+  now run on 1 GiB/1 vCPU, 2 GiB/2 vCPU or 8 GiB/4 vCPU tiers.
+- **Benchmark image ships SQL drivers** — `pdo_mysql` + `pdo_pgsql` added to
+  `bench/Dockerfile` so the container can reach MySQL/PostgreSQL via
+  `--network=host`.
+- **`BENCHMARK_CAPACITY.md` regenerated for v1.22** — measured across 3 podman
+  tiers + a direct workstation run matching the 2026-07 baseline method.
+  Headline: SQLite **+3,000×** at 100k (362ms → 0.1ms, now 1M-capable),
+  FileEngine hot loop **halves p50** (49 → 24ms, 1M reached). Old numbers were
+  v1.20 on a workstation; the report now documents the version/environment
+  split explicitly.
+
+### FileEngine — performance & non-Latin trigram index
+
+- **FileEngine search hot loop** — the query is now parsed **once** per request
+  (`MatchService::parseTerms()`, exposed via `anyWeightParsed()`) instead of
+  once per scanned row, and `processChunk()` stops at `keepMax`. `parseColumns`
+  and term matching use native loops instead of `collect()`/`Str::of()`
+  allocations. Measured in the reference podman environment
+  (`bench/run.sh 100000 file --capacity`): at 100k docs, throughput **1.8 → 5.3
+  q/s** and latency p50 **49 → 23 ms**, quality unchanged (NDCG@5 ~0.89).
+- **Trigram index now covers CJK/Thai/Lao/Khmer/Myanmar** — `TrigramIndex`
+  encodes per-character-tokenized scripts (the same set as
+  `IllumiSearchHelper::hasNonLatin()`, which already governs `MatchService` and
+  `ScoreService`) as stable ASCII tokens, so non-Latin queries go through the
+  trigram candidate path instead of a full scan. Other scripts (Cyrillic,
+  Arabic…) keep the previous full-scan behavior. Index format version bumped to
+  2; outdated indexes are rebuilt automatically on next search.
+- **Reproducible benchmark environment** — `bench/` adds a `Dockerfile`
+  (`illumi-bench-php:8.5`, the image `BENCHMARK_CAPACITY.md` references), a
+  `run.sh` wrapper, and a `README.md` documenting the current reference numbers.
+
+### Spellcheck workflow — unified across engines
+
+- **One shared `suggest()` workflow** — the spelling-correction pipeline now
+  lives once in `Concerns\HasVocabSuggest`: guard → optional pre-step → trigram
+  phase → prefix phase → optional post-step → ranking. Each engine overrides
+  only the backend steps that fetch candidate rows (`trigramCandidateRows`,
+  `prefixCandidateRows`) and the hooks (`beforeSuggest`, `afterSuggest`).
+  Previously the same algorithm was rewritten in FileEngine/VocabService,
+  MySqlEngine and PgsqlEngine.
+- **Ranking centralized in `Support\SuggestRanker`** — Levenshtein on the ASCII
+  form + script-mismatch penalty is now a single class. The duplicated
+  `SCRIPT_MISMATCH_PENALTY = 3` constants (VocabService, MySqlEngine) and the
+  hard-coded `3` in PgsqlEngine are gone.
+- **`queryVocab()` removed from the `Engine` contract** — it was deprecated and
+  only used internally by SqliteEngine (which now runs the shared workflow).
+  Breaking change: custom engines must remove the deprecated method and its
+  `StubQueryVocab` trait. `suggest()` is the only spelling entry point.
+- **Shared non-Latin detection** — `IllumiSearchHelper::containsNonAscii()`
+  centralizes the "any non-ASCII char" check that MySqlEngine used inline for
+  its LIKE fallback; `hasNonLatin()` documentation now states it covers only
+  per-character-tokenized scripts (CJK/Thai/Lao/Khmer/Myanmar).
+
+### Removed
+- **Per-model custom processor (`searchTextProcessor()`) removed** — it was never
+  functional: it promised a model-specific TextProcessor but the engines always
+  re-processed documents with the global one, and applying a per-model processor
+  to the index would break multi-model search (index stemmed, query not). Use the
+  global `ILLUMI_SEARCH_PROCESSOR=stemming` config instead.
+- **`Searchable::resolveProcessorFor()`** and the dead `$global` parameter of
+  `processDocument()` removed; `IndexManager` no longer takes a `TextProcessor`,
+  and `IndexModelJob`/`IndexBatchJob::handle()` only receive the `Engine`.
+
+### Fixed
+- **FTS5 documents no longer duplicated on re-save** — `SqliteEngine::upsert()`
+  now uses the numeric `model_id` as the FTS5 `rowid`, so `INSERT OR REPLACE`
+  actually overwrites instead of appending a second row (verified at runtime:
+  a sync that previously doubled 150 rows to 300 now keeps 150). String ids
+  (UUIDs) delete-then-insert. Existing indexes must be rebuilt.
+- **`boost()` actually works** — `applyBoost()` never loaded the models it reads
+  (`$result->model` was always null), so `boost()` was a silent no-op. It now
+  loads models and rebuilds `Result` immutably (rank is `readonly`).
+- **MySQL 8 strict-mode compatibility** — `DEFAULT ''` on TEXT columns rejected by
+  MySQL 8 (`can't have a default value`) removed; `rank` (reserved word) aliases
+  renamed to `search_rank` in search queries.
+- **PgSQL search cache no longer wiped on construction** — the constructor no
+  longer calls `searchCache->clear()` (which made caching useless whenever the
+  engine was reinstantiated). Cache invalidation now happens on writes
+  (`upsert`, `delete`, `insertBatch`, `dropTable`), matching the other engines.
+
+### Changed
+- **BM25 docCount cache is scoped per engine** — `HasScoring` now owns the
+  `indexedDocCount()` cache, keyed by a per-engine `docCountScopeKey()`
+  (database path/connection + tenant). This removes the duplicated cache in each
+  engine and prevents scores from leaking between databases/tenants in one
+  process.
+- **BM25 normalization is now active** — `HasScoring::normalizeScore()` receives
+  a real `docCount` (computed once per request, cached) from SQLite, MySQL and
+  PgSQL, producing scores in a 0–100 range instead of raw engine scores
+  (previously every engine passed `null`, making the normalization a no-op).
+  `indexedDocCount()` is now an abstract method each SQL engine implements.
+- **Deterministic rowid for string ids** — `nextRowid()` (MAX+1, racy under
+  concurrent writes) replaced by a 60-bit sha256-derived rowid for UUIDs.
+- **`paginate()` clamps per-page** — it now goes through `limit()` so
+  `perPage` cannot bypass `max_results`.
+- **Search cache invalidates by model** — cache keys now encode each model
+  individually (`{md5A}.{md5B}_{hash}`), so `clear($modelClass)` invalidates both
+  single- and multi-model entries containing the model.
+- **`SnippetService` caches column listings** — `getColumnListing()` once per
+  table instead of `hasColumn()` per column.
+- **Single text-processing pass** — `Searchable::processDocument()` now only
+  maps columns; the TextProcessor is applied once by the engine. Indexing was
+  processing every value twice on every write (rebuild/sync/saves).
+- **`getIndexStats()` COUNT only when DebugBar is active** — the SQLite engine no
+  longer scans every table on every connection when no collector is present.
+- **Cache invalidation skipped during rebuild** — `upsert()` respects
+  `isRebuilding` (was clearing the whole cache per write during rebuilds).
+- **Search cache TTL for the file backend** — cached results expire via file
+  mtime (`cache_ttl`), preventing unbounded disk growth.
+- **Eloquent models never serialized into the search cache** — `SearchCache`
+  strips `eloquentModel` before writing (json_encode on models with relations
+  was heavy and useless for cache hits).
+- **`pruneExcessDocuments()` sorts by rowid** instead of `CAST(model_id …)`,
+  which defeated the FTS5 index.
+
+### Tests
+- **`QueryBuilderAdvancedTest` rewritten** — previously 7 tautological tests
+  (assertIsArray on Collection) that could never fail; now 10 tests exercising
+  `where` (`=`, `!=`, `>`, `between`, `in`, `null`), `aggregate()` and `boost()`
+  with real Eloquent models. This surfaced the `boost()` no-op bug.
+- **`MySqlEngineTest` rewritten** — replaced constant assertions with tests of
+  the real `toBooleanMode()` translation (AND/NOT/OR/phrase/raw/injection).
+- **`VocabService::suggest()` now unit-tested** — the old `VocabServiceTest`
+  actually tested `ChunkStorage` (duplicated); replaced with real suggest tests.
+- **`DatabasePathTest`** no longer re-implements production logic; tests the real
+  engine path resolution.
+- **`Result::fromRaw()` tests added** — the standard engine→Result conversion
+  was untested.
+- **`SearchApiRequest` validation tests** — limit bounds, mode whitelist, empty
+  query, non-integer limit.
+- **Dead tests removed** — 2 in MeilisearchQualityTest (unconditional skips) and
+  `phrase_only_stopwords_returns_empty` rewritten from a permanent skip to a
+  real assertion (stopwords are index-only now).
+- **CI: local engines must not skip** — a dedicated step runs SQLite + File +
+  Unit with `--fail-on-skipped`; `wamania/php-stemmer` installed in CI so
+  stemming tests run instead of skipping.
+
 ## v1.22.0 — Search stopwords, SQLite engine homogeneity
 
 ### Changed

@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\DeleteIndexJob;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
 use Moaines\IllumiSearch\Support\IllumiSearchConfig;
@@ -14,7 +13,7 @@ use Moaines\IllumiSearch\Support\IllumiSearchHelper;
 
 /**
  * @method array<string, array{weight?: int, locale?: string, snippet?: array}> getSearchableColumns()
- * @method array<string, string> processDocument(\Moaines\IllumiSearch\Contracts\TextProcessor $processor, string $locale = 'en')
+ * @method array<string, string> processDocument(\Illuminate\Database\Eloquent\Model $model)
  * @method array relationsForRebuild()
  * @method static void validateSearchable()
  */
@@ -184,22 +183,6 @@ trait Searchable
         return $this->searchable ?? [];
     }
 
-    public function searchTextProcessor(): ?string
-    {
-        return null;
-    }
-
-    public static function resolveProcessorFor(Model $model, TextProcessor $global): TextProcessor
-    {
-        $customClass = $model->searchTextProcessor();
-
-        if ($customClass !== null && class_exists($customClass)) {
-            return app($customClass);
-        }
-
-        return $global;
-    }
-
     /**
      * Normalize $searchable to a consistent ['column' => [...config...]] format.
      * Accepts:
@@ -232,21 +215,23 @@ trait Searchable
     }
 
     /**
-     * Process a model's document through the appropriate TextProcessor.
-     * Respects per-column locale configuration.
+     * Normalize a model's document into the indexed column shape.
+     *
+     * Column selection and name mapping happen here; actual text processing
+     * (lowercase, diacritics, stopwords, CJK) is applied once by the engine's
+     * `upsert()`. This avoids processing every value twice on every write.
+     *
+     * @return array<string, string>
      */
-    public static function processDocument(Model $model, TextProcessor $global): array
+    public static function processDocument(Model $model): array
     {
         $columns = $model->normalizeSearchable();
         $doc = $model->toSearchDocument();
-        $processor = static::resolveProcessorFor($model, $global);
         $processed = [];
 
         foreach ($columns as $column => $config) {
             $safeName = $model->searchColumnName($column);
-            $value = $doc[$safeName] ?? '';
-            $locale = $config['locale'] ?? app()->getLocale() ?? 'en';
-            $processed[$column] = $processor->process((string) $value, $locale);
+            $processed[$column] = (string) ($doc[$safeName] ?? '');
         }
 
         return $processed;
@@ -257,7 +242,6 @@ trait Searchable
     public static function syncToSearch(Model $model): void
     {
         $engine = app(Engine::class);
-        $global = app(TextProcessor::class);
         $class = $model::class;
 
         if (! isset(static::$checkedTables[$class])) {
@@ -282,7 +266,7 @@ trait Searchable
             // Not a real Eloquent relation — skip
         }
 
-        $processed = static::processDocument($model, $global);
+        $processed = static::processDocument($model);
         $engine->upsert($class, $model->getKey(), $processed);
     }
 }

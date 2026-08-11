@@ -28,35 +28,30 @@ class MatchService
      */
     public function anyWeightText(array $weightTexts, array $terms): bool
     {
-        $groups = $this->parseTerms($terms);
-        $columns = $this->parseColumns($weightTexts);
-
-        return $this->evaluate($groups, $columns);
-    }
-
-    /**
-     * Evaluate AND/OR precedence on a single pre-computed text string.
-     */
-    public function text(string $text, array $terms): bool
-    {
-        if (Str::of($text)->trim()->isEmpty()) {
-            return false;
-        }
-
         return $this->evaluate(
             $this->parseTerms($terms),
-            $this->parseColumns([1 => $text]),
+            $this->parseColumns($weightTexts),
         );
     }
 
-    // ─── Parse ─────────────────────────────────────────
+    /**
+     * Match a document against already-parsed terms.
+     * Use this in hot loops: parse the query once, then match every row.
+     *
+     * @param  array<int, string>  $weightTexts
+     * @param  array{mustMatch: string[], shouldMatch: string[], exclude: string[]}  $parsed
+     */
+    public function anyWeightParsed(array $weightTexts, array $parsed): bool
+    {
+        return $this->evaluate($parsed, $this->parseColumns($weightTexts));
+    }
 
     /**
-     * Parse raw query terms into structured groups.
+     * Parse raw query terms into structured groups (once per query).
      *
      * @return array{mustMatch: string[], shouldMatch: string[], exclude: string[]}
      */
-    private function parseTerms(array $terms): array
+    public function parseTerms(array $terms): array
     {
         $mustMatch = [];
         $shouldMatch = [];
@@ -103,11 +98,11 @@ class MatchService
 
     private function cleanTerm(string $term): string
     {
-        if (Str::startsWith($term, '"') && Str::endsWith($term, '"')) {
-            return Str::lower(trim($term, '"'));
+        if (str_starts_with($term, '"') && str_ends_with($term, '"')) {
+            return mb_strtolower(trim($term, '"'));
         }
 
-        return rtrim(Str::lower($term), '*');
+        return rtrim(mb_strtolower($term), '*');
     }
 
     /**
@@ -124,13 +119,13 @@ class MatchService
         for ($w = 1; $w <= count($weightTexts); $w++) {
             $text = $weightTexts[$w] ?? '';
 
-            if (Str::of($text)->trim()->isEmpty()) {
+            if (trim($text) === '') {
                 $tokens[$w] = [];
                 $texts[$w] = '';
                 continue;
             }
 
-            $lower = Str::lower($text);
+            $lower = mb_strtolower($text);
             $texts[$w] = $lower;
 
             $words = preg_split('/[^\p{L}\p{N}]+/u', $lower);
@@ -138,14 +133,21 @@ class MatchService
             // Keep single CJK/Thai characters (they are valid tokens)
             $hasNonLatin = IllumiSearchHelper::hasNonLatin($lower);
 
-            $tokens[$w] = collect($words)
-                ->filter(fn ($t) => $hasNonLatin
-                    ? Str::length($t) >= 1
-                    : Str::length($t) >= 2,
-                )
-                ->unique()
-                ->values()
-                ->all();
+            $unique = [];
+            foreach ($words as $token) {
+                $len = mb_strlen($token);
+                if ($len === 0) {
+                    continue;
+                }
+                if (! $hasNonLatin && $len < 2) {
+                    continue;
+                }
+                if (! isset($unique[$token])) {
+                    $unique[$token] = true;
+                }
+            }
+
+            $tokens[$w] = array_keys($unique);
         }
 
         return compact('tokens', 'texts');
@@ -168,7 +170,7 @@ class MatchService
         if (count($words) > 1) {
             // Phrase: check consecutive words in raw text
             foreach ($texts as $ct) {
-                if (Str::contains($ct, $term)) {
+                if (str_contains($ct, $term)) {
                     return true;
                 }
             }

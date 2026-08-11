@@ -316,7 +316,7 @@ class QueryBuilder
         $this->modelClasses = $this->resolveModelClasses();
 
         $page = $page ?: Paginator::resolveCurrentPage($pageName);
-        $this->limit = $perPage;
+        $this->limit($perPage); // clamps to maxResults()
         $this->offset = max(0, ($page - 1) * $perPage);
 
         $results = $this->get();
@@ -387,11 +387,13 @@ class QueryBuilder
         }
 
         $now = Carbon::now();
+        $models = $this->loadModels($results);
 
-        $results->each(function (Result $r) use ($now) {
-            $date = $r->model?->{$this->boostColumn};
+        $results = $results->map(function (Result $r) use ($now, $models): Result {
+            $model = $models[$r->modelClass][(string) $r->modelId] ?? null;
+            $date = $model?->{$this->boostColumn};
             if ($date === null) {
-                return;
+                return $r;
             }
 
             $days = $date instanceof Carbon
@@ -401,7 +403,19 @@ class QueryBuilder
             // Boost decays over 30 days: new items get +30%, old items get 0%
             $recency = max(0, 30 - $days) / 30;
             $boost = 1 + $this->boostFactor * $recency * 3;
-            $r->rank = min($r->rank * $boost, 100.0);
+
+            // Result is immutable — rebuild it with the boosted rank.
+            return Result::make(
+                modelClass: $r->modelClass,
+                modelId: $r->modelId,
+                rank: min($r->rank * $boost, 100.0),
+                title: $r->title,
+                summary: $r->summary,
+                raw: $r->raw,
+                authorized: $r->authorized,
+                model: $r->model,
+                totalCount: $r->totalCount,
+            );
         });
 
         return $results->sortByDesc('rank')->values();

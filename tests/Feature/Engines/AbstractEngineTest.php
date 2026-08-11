@@ -571,9 +571,10 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains(3, $ids, 'Doc 3 (php in title+body)');
         $this->assertContains(4, $ids, 'Doc 4 (php in body only)');
 
-        // Ranking order varies by engine (negated FTS5 positive, FULLTEXT positive, custom BM25 0-100)
-        // At minimum: rank should be non-zero
-        $this->assertNotEquals(0, $results[0]->rank, 'Top result should have non-zero rank');
+        // Ranking order varies by engine; scores are normalized to 0..100.
+        // The top result must not rank below any other result.
+        $ranks = array_map(fn ($r) => $r->rank, $results);
+        $this->assertGreaterThanOrEqual(max($ranks), $ranks[0], 'Top result should have the highest rank');
     }
 
     #[Test]
@@ -623,11 +624,9 @@ abstract class AbstractEngineTest extends TestCase
         $this->assertContains(1, $ids, 'Doc with exact "php" token should appear');
         $this->assertContains(2, $ids, 'Doc with "phpspreadsheet" (prefix match) should appear');
 
-        // Scores should be non-zero
-        foreach ($results as $r) {
-            $this->assertNotEquals(0, $r->rank,
-                'All matched docs should have non-zero rank');
-        }
+        // Exact token should rank above the prefix-only match.
+        $rankOf = array_column(array_map(fn ($r) => [$r->modelId, $r->rank], $results), 1, 0);
+        $this->assertGreaterThanOrEqual($rankOf[2], $rankOf[1], 'Exact "php" should rank >= prefix "phpspreadsheet"');
     }
 
     #[Test]

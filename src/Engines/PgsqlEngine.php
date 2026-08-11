@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Moaines\IllumiSearch\Concerns\HasMaxDocuments;
 use Moaines\IllumiSearch\Concerns\HasOperatorProcessor;
 use Moaines\IllumiSearch\Concerns\HasTenant;
+use Moaines\IllumiSearch\Concerns\HasVocabSuggest;
 use Moaines\IllumiSearch\Concerns\HasWeightedColumns;
 use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Result;
@@ -14,6 +15,7 @@ use Moaines\IllumiSearch\Support\IllumiSearchConfig;
 use Moaines\IllumiSearch\Support\ParsedOperators;
 use Moaines\IllumiSearch\Support\SearchCache;
 use Moaines\IllumiSearch\Support\SnippetService;
+use Moaines\IllumiSearch\Support\SuggestRanker;
 use Moaines\IllumiSearch\TenantManager;
 use Moaines\IllumiSearch\Text\HasDebugCollector;
 use Moaines\IllumiSearch\Text\HasScoring;
@@ -29,6 +31,7 @@ class PgsqlEngine implements Engine
     use HasScoring;
     use HasTenant;
     use HasTextHelpers;
+    use HasVocabSuggest;
     use HasWeightedColumns;
     use NullPragma;
 
@@ -62,7 +65,6 @@ class PgsqlEngine implements Engine
         $this->registerConnection();
         $this->snippets = $snippets;
         $this->searchCache = new SearchCache(storage_path('app/illumi-search-pgsql'));
-        $this->searchCache->clear();
     }
 
     public function registerConnection(): void
@@ -236,6 +238,15 @@ class PgsqlEngine implements Engine
              last_synced_at = NOW()' . $this->weightUpdateSet(),
             array_merge([$modelClass, $modelId], array_values($weightTexts))
         );
+
+        $this->clearSearchCache();
+    }
+
+    private function clearSearchCache(): void
+    {
+        if (! $this->isRebuilding) {
+            $this->searchCache->clear();
+        }
     }
 
     public function delete(string $modelClass, int|string $modelId): void
@@ -244,6 +255,8 @@ class PgsqlEngine implements Engine
             'DELETE FROM ' . $this->table(self::INDEX_TABLE) . ' WHERE model_type = ? AND model_id = ?',
             [$modelClass, $modelId]
         );
+
+        $this->clearSearchCache();
     }
 
     public function insertBatch(string $modelClass, array $documents): void
@@ -278,6 +291,7 @@ class PgsqlEngine implements Engine
 
         if (! ($this->isRebuilding ?? false)) {
             $this->pruneExcessDocuments($modelClass);
+            $this->clearSearchCache();
         }
     }
 
@@ -311,6 +325,9 @@ class PgsqlEngine implements Engine
         $pgsqlQuery = $safeQuery; // initialized for use in recordSearchQuery even on cache hit
 
         if (! $searchDone) {
+            $this->resetDocCountCache();
+            $docCount = $this->indexedDocCount($modelClasses);
+
             if ($mode === 'raw') {
                 $pgsqlQuery = $safeQuery;
             } else {
@@ -374,7 +391,7 @@ class PgsqlEngine implements Engine
 
             $results = [];
             foreach ($rows as $row) {
-                $score = $this->normalizeScore((float) $row->rank, null, $this->maxWeight);
+                $score = $this->normalizeScore((float) $row->rank, $docCount, $this->maxWeight);
                 $results[] = [
                     'modelClass' => $row->model_type,
                     'modelId' => ctype_digit($row->model_id) ? (int) $row->model_id : $row->model_id,
@@ -464,6 +481,29 @@ class PgsqlEngine implements Engine
         ];
     }
 
+    /** Identity of this engine's index scope (connection + tenant). */
+    protected function docCountScopeKey(): string
+    {
+        return $this->connection . '|' . ($this->tenantId() ?? '');
+    }
+
+    /**
+     * @param  array<class-string>  $modelClasses
+     */
+    protected function countDocsInScope(array $modelClasses): int
+    {
+        $placeholders = implode(', ', array_fill(0, count($modelClasses), '?'));
+        if ($placeholders === '') {
+            return 0;
+        }
+
+        return (int) DB::connection($this->connection)->selectOne(
+            'SELECT COUNT(*) AS c FROM ' . $this->table(self::INDEX_TABLE)
+            . " WHERE model_type IN ({$placeholders})",
+            $modelClasses,
+        )->c;
+    }
+
     public function getIndexStats(): array
     {
         $table = $this->table(self::INDEX_TABLE);
@@ -519,6 +559,8 @@ class PgsqlEngine implements Engine
             'DELETE FROM ' . $this->table(self::CONFIG_TABLE) . " WHERE \"key\" LIKE ?",
             [$modelClass . '%']
         );
+
+        $this->clearSearchCache();
     }
 
     public function dropIndexTable(string $input): void
@@ -554,131 +596,116 @@ class PgsqlEngine implements Engine
         return $decoded !== null ? $decoded : $row->value;
     }
 
-    public function queryVocab(string $modelClass, string $term, int $maxDistance, int $limit): array
-    {
-        $escaped = str_replace(['%', '_'], ['\%', '\_'], $term);
-        $rows = DB::connection($this->connection)->select(
-            'SELECT word, doc_count FROM ' . $this->table(self::VOCAB_TABLE) . '
-             WHERE word LIKE ? ORDER BY doc_count DESC LIMIT ?',
-            [$escaped . '%', $limit]
-        );
-
-        return array_map(fn ($r) => $r->word, $rows);
-    }
-
     public function suggest(string $query, int $maxDistance = 2, int $limit = 5): array
     {
-        if (mb_strlen(trim($query)) < 2) {
+        return $this->runSuggest($query, $maxDistance, $limit);
+    }
+
+    /**
+     * Hook: on-demand vocab build when the table is empty (no incremental
+     * maintenance) so subsequent calls use fast indexed queries.
+     */
+    protected function beforeSuggest(): void
+    {
+        $vocabTable = $this->table(self::VOCAB_TABLE);
+        $vocabEmpty = DB::connection($this->connection)->selectOne(
+            "SELECT COUNT(*) AS cnt FROM {$vocabTable}"
+        );
+
+        if ((int) ($vocabEmpty->cnt ?? 0) === 0) {
+            try {
+                $this->rebuildVocabFromScratch();
+            } catch (\Throwable) {
+                // leave empty — afterSuggest() falls back to ts_stat
+            }
+        }
+    }
+
+    /**
+     * Backend step: vocab rows matching the query trigrams (server-side JOIN).
+     *
+     * @return iterable<object{word: string, doc_count: int}>
+     */
+    protected function trigramCandidateRows(string $queryAscii, array $queryTrigrams, int $limit): iterable
+    {
+        if (count($queryTrigrams) < 2) {
             return [];
         }
 
         $vocabTable = $this->table(self::VOCAB_TABLE);
         $trigramTable = $this->table(self::VOCAB_TRIGRAM_TABLE);
+        $inPlaceholders = implode(', ', array_fill(0, count($queryTrigrams), '?'));
 
-        // On-demand vocab build: if the vocab table is empty (no incremental maintenance),
-        // populate it once via ts_stat so all subsequent suggest calls use fast indexed queries.
-        $vocabEmpty = DB::connection($this->connection)->selectOne(
-            "SELECT COUNT(*) AS cnt FROM {$vocabTable}"
+        return DB::connection($this->connection)->select(
+            "SELECT v.word, v.doc_count
+             FROM {$vocabTable} v
+             JOIN {$trigramTable} t ON t.word = v.word
+             WHERE t.trigram IN ({$inPlaceholders})
+             GROUP BY v.word, v.doc_count
+             HAVING COUNT(*) >= 2
+             ORDER BY v.doc_count DESC
+             LIMIT ?",
+            [...$queryTrigrams, $limit * self::SUGGEST_TRIGRAM_MULTIPLIER]
         );
-        if ((int) ($vocabEmpty->cnt ?? 0) === 0) {
-            try {
-                $this->rebuildVocabFromScratch();
-            } catch (\Throwable) {
-                return [];
-            }
-        }
-
-        $queryAscii = (new UnicodeString($query))->ascii();
-        $queryScripts = $this->scriptsOf($query);
-        $queryTrigrams = $this->wordToTrigrams($queryAscii);
-
-        // Phase 1: Trigram matching (server-side, GROUP BY word)
-        if (count($queryTrigrams) >= 2) {
-            $inPlaceholders = implode(', ', array_fill(0, count($queryTrigrams), '?'));
-            $rows = DB::connection($this->connection)->select(
-                "SELECT v.word, v.doc_count
-                 FROM {$vocabTable} v
-                 JOIN {$trigramTable} t ON t.word = v.word
-                 WHERE t.trigram IN ({$inPlaceholders})
-                 GROUP BY v.word, v.doc_count
-                 HAVING COUNT(*) >= 2
-                 ORDER BY v.doc_count DESC
-                 LIMIT ?",
-                [...$queryTrigrams, $limit * self::SUGGEST_TRIGRAM_MULTIPLIER]
-            );
-            $suggestions = $this->rankSuggestions($rows, $queryAscii, $queryScripts, $maxDistance);
-            if (count($suggestions) >= $limit) {
-                return array_slice($suggestions, 0, $limit);
-            }
-        }
-
-        // Phase 2: Prefix + PHP levenshtein fallback
-        $prefix = mb_substr($queryAscii, 0, 2);
-        if ($prefix !== '') {
-            $rows = DB::connection($this->connection)->select(
-                "SELECT word, doc_count
-                 FROM {$vocabTable}
-                 WHERE LOWER(SUBSTRING(word FROM 1 FOR 2)) = LOWER(?)
-                 ORDER BY doc_count DESC
-                 LIMIT ?",
-                [$prefix, $this->illumiConfig->sqliteVocabLimit()]
-            );
-            $suggestions = array_merge($suggestions, $this->rankSuggestions($rows, $queryAscii, $queryScripts, $maxDistance));
-        }
-
-        // Phase 3: ts_stat fallback (when vocab is empty)
-        if (empty($suggestions)) {
-            // Use cached ts_stat results if available (avoids re-scanning the GIN index)
-            if ($this->cachedTsStatRows === null) {
-                $table = $this->table(self::INDEX_TABLE);
-                $check = DB::connection($this->connection)->selectOne(
-                    'SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?', [$table]
-                );
-                if ($check) {
-                    try {
-                        $this->cachedTsStatRows = DB::connection($this->connection)->select(
-                            "SELECT word, ndoc AS doc_count
-                             FROM ts_stat('SELECT search_vector FROM {$table}')
-                             ORDER BY ndoc DESC"
-                        );
-                    } catch (\Throwable) {
-                        $this->cachedTsStatRows = [];
-                    }
-                } else {
-                    $this->cachedTsStatRows = [];
-                }
-            }
-            $suggestions = $this->rankSuggestions($this->cachedTsStatRows, $queryAscii, $queryScripts, $maxDistance);
-        }
-
-        $suggestions = collect($suggestions)
-            ->sortBy('score')
-            ->pluck('word')
-            ->take($limit)
-            ->values()
-            ->all();
-
-        return $suggestions;
     }
 
-    private function rankSuggestions(array $rows, string $queryAscii, array $queryScripts, int $maxDistance): array
+    /**
+     * Backend step: vocab rows whose word starts with the query prefix.
+     *
+     * @return iterable<object{word: string, doc_count: int}>
+     */
+    protected function prefixCandidateRows(string $query, string $queryAscii, string $prefix, int $limit): iterable
     {
-        $results = [];
-        foreach ($rows as $row) {
-            $word = $row->word ?? '';
-            if (mb_strlen($word) < 2) continue;
-            $wordAscii = (string) (new UnicodeString($word))->ascii();
-            $d = levenshtein($queryAscii, $wordAscii);
-            if ($d !== -1 && $d <= $maxDistance) {
-                $wordScripts = $this->scriptsOf($word);
-                $penalty = empty(array_intersect($queryScripts, $wordScripts)) ? 3 : 0;
-                $results[] = ['word' => $word, 'score' => $d + $penalty];
+        if ($prefix === '') {
+            return [];
+        }
+
+        $vocabTable = $this->table(self::VOCAB_TABLE);
+
+        return DB::connection($this->connection)->select(
+            "SELECT word, doc_count
+             FROM {$vocabTable}
+             WHERE LOWER(SUBSTRING(word FROM 1 FOR 2)) = LOWER(?)
+             ORDER BY doc_count DESC
+             LIMIT ?",
+            [$prefix, $this->illumiConfig->sqliteVocabLimit()]
+        );
+    }
+
+    /**
+     * Hook: ts_stat fallback when the trigram/prefix phases found nothing.
+     * ts_stat rows are cached to avoid re-scanning the GIN index.
+     *
+     * @return string[]
+     */
+    protected function afterSuggest(string $queryAscii, array $queryScripts, int $maxDistance, int $limit, array $suggestions): array
+    {
+        if (! empty($suggestions)) {
+            return [];
+        }
+
+        if ($this->cachedTsStatRows === null) {
+            $table = $this->table(self::INDEX_TABLE);
+            $check = DB::connection($this->connection)->selectOne(
+                'SELECT tablename FROM pg_catalog.pg_tables WHERE tablename = ?', [$table]
+            );
+
+            if ($check) {
+                try {
+                    $this->cachedTsStatRows = DB::connection($this->connection)->select(
+                        "SELECT word, ndoc AS doc_count
+                         FROM ts_stat('SELECT search_vector FROM {$table}')
+                         ORDER BY ndoc DESC"
+                    );
+                } catch (\Throwable) {
+                    $this->cachedTsStatRows = [];
+                }
+            } else {
+                $this->cachedTsStatRows = [];
             }
         }
 
-        usort($results, fn ($a, $b) => $a['score'] <=> $b['score']);
-
-        return $results;
+        return (new SuggestRanker)->rank($this->cachedTsStatRows, $queryAscii, $queryScripts, $maxDistance);
     }
 
     private function buildPrefixQuery(string $query, string $config): array

@@ -34,6 +34,11 @@ class OperatorRegistry
      * Returns [masked_text, replacements] where replacements maps
      * placeholders back to original operators.
      */
+    /**
+     * Replace boolean operators with stable placeholders.
+     *
+     * @return array{0: string, 1: array<string, string>}  [masked text, operator → placeholder replacements]
+     */
     public static function maskOperators(string $text): array
     {
         $replacements = [];
@@ -54,6 +59,8 @@ class OperatorRegistry
 
     /**
      * Restore operators that were masked by maskOperators.
+     *
+     * @param  array<string, string>  $replacements
      */
     public static function unmaskOperators(string $text, array $replacements): string
     {

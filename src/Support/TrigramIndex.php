@@ -26,7 +26,7 @@ class TrigramIndex
     private const ENTRY_SIZE = 16;
     private const ID_SIZE = 4;
     private const FILE_MAGIC = 'TRIG';
-    private const FILE_VERSION = 1;
+    private const FILE_VERSION = 2;
     private const MAP_MAGIC = 'TMAP';
     private const MAP_VERSION = 1;
     private const INITIAL_CAPACITY = 4;
@@ -114,6 +114,16 @@ class TrigramIndex
 
     /**
      * Normalize text: lowercase, strip diacritics, keep [a-z0-9].
+     *
+     * Characters from scripts that are tokenized per-character
+     * (CJK/Thai/Lao/Khmer/Myanmar, per IllumiSearchHelper::hasNonLatin) are
+     * encoded as stable ASCII tokens (`k` + base-37 codepoint) so the
+     * fixed-size Latin trigram index can also match them. Other non-Latin
+     * scripts (Cyrillic, Arabic, Greek…) fall back to the full scan, exactly
+     * like MatchService keeps single CJK tokens but not other scripts.
+     *
+     * The encoding is deterministic: the same character always produces the
+     * same token, on the index side and the query side.
      */
     private function normalize(string $text): string
     {
@@ -129,6 +139,27 @@ class TrigramIndex
 
         // Lowercase
         $text = mb_strtolower($text);
+
+        // Encode per-character-tokenized scripts (same detection as
+        // MatchService/ScoreService). Other non-ASCII chars become a space
+        // (they are not indexed by the Latin trigram alphabet).
+        $text = preg_replace_callback('/[^\x00-\x7F\s]/u', function ($m) {
+            if (! IllumiSearchHelper::hasNonLatin($m[0])) {
+                return ' ';
+            }
+
+            $cp = mb_ord($m[0]);
+
+            // Base-37 encode the codepoint (37⁴ = 1,874,161 > max codepoint 1,114,112).
+            $digits = '';
+            $v = $cp;
+            while ($v > 0) {
+                $digits = self::ALPHABET[$v % self::ALPHABET_SIZE] . $digits;
+                $v = intdiv($v, self::ALPHABET_SIZE);
+            }
+
+            return 'k' . str_pad($digits, 3, 'a', STR_PAD_LEFT);
+        }, $text) ?? $text;
 
         // Replace non [a-z0-9] with space, collapse, trim
         $text = preg_replace('/[^a-z0-9]+/', ' ', $text);
@@ -227,6 +258,8 @@ class TrigramIndex
      */
     public function build(string $modelClass, array $chunkPaths, callable $rowTextExtractor, ?callable $decoder = null): void
     {
+        self::$loaded = [];
+
         if ($decoder === null) {
             $decoder = function (string $path): ?array {
                 $content = file_get_contents($path);
@@ -338,6 +371,10 @@ class TrigramIndex
 
     /**
      * Load trigram index from disk.
+     *
+     * The parsed index is cached per (path, mtime, size): re-reading 50k entries
+     * on every search is the dominant fixed cost of FileEngine. The cache is
+     * invalidated by the write path (delete()) and by any file change.
      */
     public function load(string $modelClass): bool
     {
@@ -347,6 +384,17 @@ class TrigramIndex
 
         if (! file_exists($this->trigramPath)) {
             return false;
+        }
+
+        $stamp = filemtime($this->trigramPath) . ':' . filesize($this->trigramPath);
+        $cacheKey = $this->trigramPath . '|' . $stamp;
+
+        if (isset(self::$loaded[$cacheKey])) {
+            $this->entries = self::$loaded[$cacheKey]['entries'];
+            $this->docMap = self::$loaded[$cacheKey]['docMap'];
+            $this->chunkPaths = self::$loaded[$cacheKey]['chunkPaths'];
+
+            return true;
         }
 
         $handle = fopen($this->trigramPath, 'rb');
@@ -365,33 +413,47 @@ class TrigramIndex
 
             return false;
         }
+        // Version mismatch → index must be rebuilt (encoding/format changed).
+        if (ord($header[4] ?? "\x00") !== self::FILE_VERSION) {
+            fclose($handle);
 
-        $this->entries = [];
-
-        for ($i = 0; $i < self::TOTAL_ENTRIES; $i++) {
-            $data = fread($handle, self::ENTRY_SIZE);
-            if ($data === false || strlen($data) < self::ENTRY_SIZE) {
-                break;
-            }
-
-            $parsed = unpack('Vlo/Vhi/Vcapacity/Vcount', $data);
-            if ($parsed === false) {
-                break;
-            }
-
-            $this->entries[$i] = [
-                'offset' => ($parsed['hi'] << 32) | $parsed['lo'],
-                'capacity' => $parsed['capacity'],
-                'count' => $parsed['count'],
-            ];
+            return false;
         }
 
+        // Read all entries in one block instead of 50k individual freads.
+        $payload = fread($handle, self::ENTRY_SIZE * self::TOTAL_ENTRIES);
         fclose($handle);
 
+        $entries = [];
+        if ($payload !== false) {
+            $count = intdiv(strlen($payload), self::ENTRY_SIZE);
+            for ($i = 0; $i < $count; $i++) {
+                $parsed = unpack('Vlo/Vhi/Vcapacity/Vcount', substr($payload, $i * self::ENTRY_SIZE, self::ENTRY_SIZE));
+                if ($parsed === false) {
+                    break;
+                }
+                $entries[$i] = [
+                    'offset' => ($parsed['hi'] << 32) | $parsed['lo'],
+                    'capacity' => $parsed['capacity'],
+                    'count' => $parsed['count'],
+                ];
+            }
+        }
+
+        $this->entries = $entries;
         $this->loadMap();
+
+        self::$loaded[$cacheKey] = [
+            'entries' => $this->entries,
+            'docMap' => $this->docMap,
+            'chunkPaths' => $this->chunkPaths,
+        ];
 
         return true;
     }
+
+    /** @var array<string, array{entries: array, docMap: array, chunkPaths: array}> Per-file parsed index cache. */
+    private static array $loaded = [];
 
     /**
      * Load the document map (docId → chunkPath, rowIndex).
@@ -471,6 +533,8 @@ class TrigramIndex
                 @unlink($path);
             }
         }
+
+        self::$loaded = [];
     }
 
     // ─── Search ──────────────────────────────────────────

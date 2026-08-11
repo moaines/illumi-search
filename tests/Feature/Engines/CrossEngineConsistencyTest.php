@@ -228,9 +228,10 @@ public function weight_3_column_scores_higher_than_weight_1(string $engineName):
         $results = $engine->search('php', [self::MODEL_CLASS], 10);
         $this->assertCount(2, $results, "$engineName should find both docs");
 
-        // Both results should have non-zero rank (all engines return positive after -RANK negation)
+        // Scores are normalized to 0..100 across engines.
         foreach ($results as $r) {
-            $this->assertNotEquals(0, $r->rank, "$engineName: rank should be non-zero");
+            $this->assertGreaterThanOrEqual(0, $r->rank, "$engineName: rank should be in 0..100");
+            $this->assertLessThanOrEqual(100, $r->rank, "$engineName: rank should be in 0..100");
         }
 
         $this->destroyEngine($engineName, $engine);

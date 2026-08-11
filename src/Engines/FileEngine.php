@@ -30,7 +30,6 @@ use Moaines\IllumiSearch\Text\HasDebugCollector;
 use Moaines\IllumiSearch\Text\HasTextHelpers;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
-use Moaines\IllumiSearch\Text\StubQueryVocab;
 use Symfony\Component\String\UnicodeString;
 
 class FileEngine implements Engine
@@ -40,7 +39,6 @@ class FileEngine implements Engine
     use HasTextHelpers;
     use NoopVacuum;
     use NullPragma;
-    use StubQueryVocab;
 
     use HasOperatorProcessor;
     private const CACHE_LOAD_FAILED = '__FAILED__';
@@ -307,6 +305,10 @@ class FileEngine implements Engine
             return;
         }
 
+        // Invalidate the trigram index: it is versioned with the chunks and
+        // must be rebuilt on the next search (never served stale).
+        $this->trigramIndex->delete($modelClass);
+
         $this->rebuildStats($modelClass);
         $temp = $versionFile . '.' . Str::random(8) . '.tmp';
         FileFacade::put($temp, $version);
@@ -560,6 +562,11 @@ class FileEngine implements Engine
     if (! $searchDone) {
         $rawTerms = $this->reorderByRarity($rawTerms, $modelClasses);
 
+        // Parse the query terms ONCE — matching every row in the scan must not
+        // re-parse the same operators/terms (this was the dominant scan cost).
+        // Parsed AFTER reorderByRarity: OR/AND grouping depends on term order.
+        $parsedTerms = $this->match->parseTerms($rawTerms);
+
         foreach ($modelClasses as $class) {
             $stats = $this->loadStats($class, $cleanTerms);
             $chunkDir = $this->modelDir($class);
@@ -579,10 +586,25 @@ class FileEngine implements Engine
                         return $weightTexts;
                     });
                 }
+            } elseif (!$this->trigramIndex->load($class)) {
+                // Index exists but is unreadable (old format/version) — rebuild
+                // once so non-Latin queries can use the trigram path again.
+                $chunkPaths = $this->chunks->listChunks($chunkDir);
+                if (!empty($chunkPaths)) {
+                    $this->trigramIndex->delete($class);
+                    $this->trigramIndex->build($class, $chunkPaths, function (array $row) {
+                        $weightTexts = [];
+                        for ($w = 1; $w <= $this->maxWeight; $w++) {
+                            $weightTexts[] = $row[3 + $w - 1] ?? '';
+                        }
+                        return $weightTexts;
+                    });
+                    $this->trigramIndex->load($class);
+                }
             }
 
             if ($this->trigramIndex->load($class)) {
-                $results = $this->searchTrigrams($class, $stats, $rawTerms, $cleanTerms, $keepMax);
+                $results = $this->searchTrigrams($class, $stats, $rawTerms, $cleanTerms, $keepMax, $parsedTerms);
                 if (! empty($results)) {
                     $this->mergeResults($allResults, [$results], $keepMax);
                     $total += count($results);
@@ -591,13 +613,13 @@ class FileEngine implements Engine
             }
 
         $concurrent = new ConcurrentProcessor(app(IllumiSearchConfig::class)->workers());
-            $partial = $concurrent->run($chunks, function ($path) use ($class, $stats, $rawTerms) {
+            $partial = $concurrent->run($chunks, function ($path) use ($class, $stats, $parsedTerms, $keepMax, $rawTerms) {
                 $rows = $this->chunks->decodeFile($path);
                 if (! is_array($rows)) {
                     return [];
                 }
 
-                return $this->processChunk($rows, $class, $rawTerms, $stats);
+                return $this->processChunk($rows, $class, $parsedTerms, $keepMax, $stats, $rawTerms);
             });
 
             $total += collect($partial)->sum(fn ($p) => count($p));
@@ -651,6 +673,8 @@ class FileEngine implements Engine
             return 0;
         }
 
+        $parsed = $this->match->parseTerms($rawTerms);
+
         $count = 0;
         foreach ($modelClasses as $class) {
             foreach ($this->chunks->listChunks($this->modelDir($class)) as $path) {
@@ -659,7 +683,7 @@ class FileEngine implements Engine
                     for ($w = 1; $w <= $this->maxWeight; $w++) {
                         $weightTexts[$w] = $r[3 + $w - 1] ?? '';
                     }
-                    if ($this->match->anyWeightText($weightTexts, $rawTerms)) {
+                    if ($this->match->anyWeightParsed($weightTexts, $parsed)) {
                         $count++;
                     }
                 }
@@ -971,11 +995,11 @@ class FileEngine implements Engine
         return $texts;
     }
 
-    private function scoreAndBuildResult(array $r, string $class, array $rawTerms, ?array $stats): ?array
+    private function scoreAndBuildResult(array $r, string $class, array $parsedTerms, ?array $stats, array $rawTerms): ?array
     {
         $weightTexts = $this->weightTextsFromRow($r);
 
-        if (! $this->match->anyWeightText($weightTexts, $rawTerms)) {
+        if (! $this->match->anyWeightParsed($weightTexts, $parsedTerms)) {
             return null;
         }
 
@@ -1010,20 +1034,23 @@ class FileEngine implements Engine
         ];
     }
 
-    private function processChunk(array $rows, string $class, array $rawTerms, ?array $stats): array
+    private function processChunk(array $rows, string $class, array $parsedTerms, int $keepMax, ?array $stats, array $rawTerms): array
     {
         $results = [];
         foreach ($rows as $r) {
-            $result = $this->scoreAndBuildResult($r, $class, $rawTerms, $stats);
+            $result = $this->scoreAndBuildResult($r, $class, $parsedTerms, $stats, $rawTerms);
             if ($result !== null) {
                 $results[] = $result;
+                if (count($results) >= $keepMax) {
+                    break;
+                }
             }
         }
 
         return $results;
     }
 
-    private function searchTrigrams(string $class, ?array $stats, array $rawTerms, array $cleanTerms, int $keepMax): ?array
+    private function searchTrigrams(string $class, ?array $stats, array $rawTerms, array $cleanTerms, int $keepMax, array $parsedTerms): ?array
     {
         $query = implode(' ', $cleanTerms);
         $candidates = $this->trigramIndex->candidates($query, $keepMax * 5);
@@ -1048,7 +1075,7 @@ class FileEngine implements Engine
             }
 
             $r = $rows[$loc['rowIdx']];
-            $result = $this->scoreAndBuildResult($r, $class, $rawTerms, $stats);
+            $result = $this->scoreAndBuildResult($r, $class, $parsedTerms, $stats, $rawTerms);
             if ($result !== null) {
                 $results[] = $result;
             }

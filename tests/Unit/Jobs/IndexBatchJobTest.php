@@ -5,7 +5,6 @@ namespace Moaines\IllumiSearch\Tests\Unit\Jobs;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\IndexBatchJob;
 use Moaines\IllumiSearch\Tests\TestCase;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
@@ -35,7 +34,7 @@ class IndexBatchJobTest extends TestCase
         $engine->expects($this->once())->method('insertBatch');
 
         $job = new IndexBatchJob(Post::class, 0, 10);
-        $job->handle($engine, app(TextProcessor::class));
+        $job->handle($engine);
     }
 
     public function test_handle_skips_when_no_records(): void
@@ -44,6 +43,6 @@ class IndexBatchJobTest extends TestCase
         $engine->expects($this->never())->method('insertBatch');
 
         $job = new IndexBatchJob(Post::class, 999, 10);
-        $job->handle($engine, app(TextProcessor::class));
+        $job->handle($engine);
     }
 }

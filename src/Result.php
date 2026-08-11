@@ -18,6 +18,11 @@ class Result implements Arrayable
         public readonly ?string $summary = null,
         public readonly array $raw = [],
         public readonly bool $authorized = true,
+        /**
+         * Optional Eloquent model attached by SnippetService::enrich().
+         * It is NOT present on cache hits (SearchCache strips models) — if you
+         * need the model, reload it via QueryBuilder::loadModels()/findMany().
+         */
         public readonly ?Model $model = null,
         public readonly ?int $totalCount = null,
     ) {}

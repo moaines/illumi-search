@@ -7,13 +7,11 @@ use Moaines\IllumiSearch\Contracts\Engine;
 use Moaines\IllumiSearch\Result;
 use Moaines\IllumiSearch\Text\NoopVacuum;
 use Moaines\IllumiSearch\Text\NullPragma;
-use Moaines\IllumiSearch\Text\StubQueryVocab;
 
 class DummyClass implements Engine
 {
     use NoopVacuum;
     use NullPragma;
-    use StubQueryVocab;
 
     private string $basePath;
     private bool $isRebuilding = false;

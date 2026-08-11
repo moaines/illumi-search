@@ -5,7 +5,6 @@ namespace Moaines\IllumiSearch\Tests\Unit\Jobs;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Moaines\IllumiSearch\Contracts\Engine;
-use Moaines\IllumiSearch\Contracts\TextProcessor;
 use Moaines\IllumiSearch\Jobs\IndexModelJob;
 use Moaines\IllumiSearch\Tests\TestCase;
 use Moaines\IllumiSearch\Tests\TestSupport\Models\Post;
@@ -36,7 +35,7 @@ class IndexModelJobTest extends TestCase
         $engine->expects($this->once())->method('upsert');
 
         $job = new IndexModelJob(Post::class, $post->id);
-        $job->handle($engine, app(TextProcessor::class));
+        $job->handle($engine);
     }
 
     public function test_handle_skips_when_model_not_found(): void
@@ -45,6 +44,6 @@ class IndexModelJobTest extends TestCase
         $engine->expects($this->never())->method('upsert');
 
         $job = new IndexModelJob(Post::class, 999);
-        $job->handle($engine, app(TextProcessor::class));
+        $job->handle($engine);
     }
 }
