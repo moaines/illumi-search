@@ -547,12 +547,6 @@ parameters:
 			path: src/Engines/MySqlEngine.php
 
 		-
-			message: '#^Match expression does not handle remaining value\: non\-empty\-string$#'
-			identifier: match.unhandled
-			count: 1
-			path: src/Engines/MySqlEngine.php
-
-		-
 			message: '#^Method Moaines\\IllumiSearch\\Engines\\MySqlEngine\:\:getFirstTextColumn\(\) is unused\.$#'
 			identifier: method.unused
 			count: 1

@@ -1327,6 +1327,7 @@ class MySqlEngine implements Engine
                     'AND', 'NEAR' => '+',   // NEAR → AND in engine, PHP filter later
                     'NOT' => '-',
                     'OR' => '',
+                    default => '',          // unreachable: isOperator() bounds $upper
                 };
 
                 // AND/NEAR requires BOTH terms: also apply + to the previous term
