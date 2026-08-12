@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Benchmark report reorganised
+
+- **`BENCHMARK_CAPACITY.md` rewritten for readability** — the report is now
+  structured as: environments (3 podman tiers only) → capacity-at-a-glance
+  (engine × tier) → engine selection guide → one progressive table per engine
+  with the 3 tiers side by side → cost & efficiency → cold/warm PostgreSQL →
+  document reference → reproducing. The old "direct workstation (40 vCPU)"
+  and "2026-07 baseline comparison" sections were removed (their numbers came
+  from a non-reproducible workstation and a pre-v1.21 codebase).
+- **New measurements added** — Meilisearch 1 GiB tier (1k/10k) and PostgreSQL
+  **warm** numbers across all 3 tiers (~5–14k q/s at 0.1–0.2ms after warmup,
+  vs ~6 q/s cold), so the cold/warm guidance is now measured, not historical.
+- **`bench/README.md` reduced** — it now documents only how to run the
+  benchmark (image build, 3 tiers, Meilisearch, direct PHP) and points to
+  `BENCHMARK_CAPACITY.md` for results. English, consistent with the report.
+
 ## v1.23.1 — CI fix: local engines must not skip
 
 ### Fixed
