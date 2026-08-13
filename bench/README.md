@@ -2,10 +2,11 @@
 
 The benchmark is the **validation criterion** for any optimization: never
 claim an improvement without measuring it in this environment and comparing it
-to the reference numbers in `BENCHMARK_CAPACITY.md`.
+to the reference numbers in the capacity report.
 
-This file documents **how to run** the benchmark. The results live in
-[`BENCHMARK_CAPACITY.md`](../BENCHMARK_CAPACITY.md).
+This file documents **how to run** the benchmark. The results live in the
+[11 — Capacity Benchmark](https://github.com/moaines/illumi-search-documentation/blob/master/11-benchmark.md)
+section of the documentation repo.
 
 ## Image
 

@@ -70,14 +70,18 @@ aggregations · recency/popularity boost · search cache · Filament integration
 
 ## Performance
 
+Standard benchmark at 1,000 docs (see [11 — Capacity Benchmark](https://github.com/moaines/illumi-search-documentation/blob/master/11-benchmark.md)
+for volume/resource-trend data).
+
 | Metric | SQLite | FileEngine | MySQL | PostgreSQL | Meilisearch |
 |--------|:------:|:----------:|:-----:|:----------:|:-----------:|
-| **Search (exact)** | 741 q/s | 29 q/s | 194 q/s | 340 q/s | 218 q/s |
-| **Latency p50** | 0.98 ms | 34 ms | 5 ms | 2.5 ms | 4.4 ms |
-| **NDCG@5** | 0.85 | 0.89 | 0.85 | 0.85 | **0.99** |
+| **Search (exact)** | 353 q/s | 39 q/s | 150 q/s | 123 q/s | 218 q/s |
+| **Latency p50** | 2.4 ms | 16.7 ms | 5.5 ms | 8.1 ms | 4.4 ms |
+| **NDCG@5** | 0.89 | 0.88 | 0.88 | **0.90** | **0.99** |
 
 Full capacity report (per-volume limits, cold vs warm PostgreSQL, podman
-8 GiB / 4 vCPU container): [BENCHMARK_CAPACITY.md](BENCHMARK_CAPACITY.md).
+1/2/8 GiB container tiers):
+[11 — Capacity Benchmark](https://github.com/moaines/illumi-search-documentation/blob/master/11-benchmark.md).
 
 ## Testing
 

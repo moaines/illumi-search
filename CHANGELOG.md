@@ -15,8 +15,13 @@
   **warm** numbers across all 3 tiers (~5–14k q/s at 0.1–0.2ms after warmup,
   vs ~6 q/s cold), so the cold/warm guidance is now measured, not historical.
 - **`bench/README.md` reduced** — it now documents only how to run the
-  benchmark (image build, 3 tiers, Meilisearch, direct PHP) and points to
-  `BENCHMARK_CAPACITY.md` for results. English, consistent with the report.
+  benchmark (image build, 3 tiers, Meilisearch, direct PHP) and points to the
+  capacity report for results. English, consistent with the report.
+- **Capacity report moved to the documentation repo** — the report now lives
+  as `11-benchmark.md` in
+  [illumi-search-documentation](https://github.com/moaines/illumi-search-documentation);
+  the package references it there. The package-root `BENCHMARK_CAPACITY.md`
+  was removed (single source of truth).
 
 ## v1.23.1 — CI fix: local engines must not skip
 
