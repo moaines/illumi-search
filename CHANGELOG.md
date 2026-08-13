@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### FileEngine — NOT query performance fix
+
+- **`NOT` queries no longer include the excluded term in candidate selection**
+  — `FileEngine::searchTrigrams()` builds its trigram candidate set from the
+  **positive** terms only (`mustMatch` + `shouldMatch`); the excluded term
+  (NOT) is applied later as a post-filter in `scoreAndBuildResult`. Previously
+  `candidates('php java')` for `php NOT java` required *both* trigrams, which
+  degraded the candidate set and forced extra work. Measured at 10k docs:
+  `php NOT java` went from **80ms → ~5ms** (parity with AND/OR), results
+  unchanged.
+- **Benchmark warmup excludes the one-time trigram build** — both
+  `BenchCapacityRunner` and `BenchmarkRunner` now run a warmup search before
+  the measured queries, so the FileEngine trigram-index construction
+  (~0.5s, triggered by the first search) is no longer counted in p50/q/s.
+
 ### Benchmark report reorganised
 
 - **`BENCHMARK_CAPACITY.md` rewritten for readability** — the report is now

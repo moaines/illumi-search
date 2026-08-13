@@ -75,8 +75,8 @@ for volume/resource-trend data).
 
 | Metric | SQLite | FileEngine | MySQL | PostgreSQL | Meilisearch |
 |--------|:------:|:----------:|:-----:|:----------:|:-----------:|
-| **Search (exact)** | 353 q/s | 39 q/s | 150 q/s | 123 q/s | 218 q/s |
-| **Latency p50** | 2.4 ms | 16.7 ms | 5.5 ms | 8.1 ms | 4.4 ms |
+| **Search (exact)** | 353 q/s | 48 q/s | 150 q/s | 123 q/s | 218 q/s |
+| **Latency p50** | 2.4 ms | 14.8 ms | 5.5 ms | 8.1 ms | 4.4 ms |
 | **NDCG@5** | 0.89 | 0.88 | 0.88 | **0.90** | **0.99** |
 
 Full capacity report (per-volume limits, cold vs warm PostgreSQL, podman

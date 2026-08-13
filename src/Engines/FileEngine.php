@@ -1052,7 +1052,17 @@ class FileEngine implements Engine
 
     private function searchTrigrams(string $class, ?array $stats, array $rawTerms, array $cleanTerms, int $keepMax, array $parsedTerms): ?array
     {
-        $query = implode(' ', $cleanTerms);
+        // Candidate selection must use only the POSITIVE terms (must/should).
+        // Including exclusion terms (NOT) here makes the trigram intersection
+        // require those excluded terms too, which either returns the wrong
+        // candidates or forces a full scan. NOT is applied later as a
+        // post-filter in scoreAndBuildResult ($parsed['exclude']).
+        $positiveTerms = array_merge($parsedTerms['mustMatch'], $parsedTerms['shouldMatch']);
+        if (empty($positiveTerms)) {
+            return [];
+        }
+
+        $query = implode(' ', $positiveTerms);
         $candidates = $this->trigramIndex->candidates($query, $keepMax * 5);
         if (empty($candidates)) {
             return [];

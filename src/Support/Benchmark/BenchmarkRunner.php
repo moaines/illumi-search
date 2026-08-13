@@ -326,6 +326,10 @@ class BenchmarkRunner
         $accentTests = $this->searchQueries['accent'];
 
         if (! empty($exactQueries)) {
+            // Warmup: the first FileEngine search builds the trigram index
+            // (one-time ~0.5s). Exclude it from the measured latencies.
+            $this->engine->search($exactQueries[0], [$this->testModelClass], 10);
+
             $start = microtime(true);
             foreach ($exactQueries as $q) {
                 $qs = microtime(true);

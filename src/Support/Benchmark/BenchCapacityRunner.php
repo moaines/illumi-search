@@ -103,6 +103,11 @@ class BenchCapacityRunner
         }
         $this->engine->setRebuilding(false);
 
+        // Warmup: the first search builds the FileEngine trigram index (a
+        // one-time ~0.5s cost). It must NOT be part of the measured latency —
+        // otherwise p50/q/s reflect index construction, not search.
+        $this->engine->search($this->warmupQuery(), [$this->modelClass], 10);
+
         // Search benchmarks
         $searchQueries = $this->latinOnly
             ? array_values(array_filter(self::SEARCH_QUERIES, fn ($q) => ! $this->isNonLatin($q)))
@@ -179,6 +184,16 @@ class BenchCapacityRunner
         $total = array_sum(array_column($results, 'durationMs'));
         $count = count($results);
         return $count > 0 && $total > 0 ? ($count / ($total / 1000)) : 0;
+    }
+
+    /**
+     * A frequent, Latin-only query used to warm up the engine (build the
+     * FileEngine trigram index) before the measured searches. Kept Latin-only
+     * so it also works with --latin-only.
+     */
+    private function warmupQuery(): string
+    {
+        return 'laravel';
     }
 
     /** @return array<string, bool> */
